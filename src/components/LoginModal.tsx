@@ -160,6 +160,12 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
               ? "输入邮箱地址，接收验证码"
               : "请输入邮件中的6位验证码"}
           </p>
+          {/* 首次使用提示 */}
+          {step === "email" && (
+            <p className="text-xs text-[#8b0000]/70 mt-3 bg-[#8b0000]/5 rounded-lg px-3 py-2 border border-[#8b0000]/10">
+              📝 首次使用将自动注册，无需额外操作
+            </p>
+          )}
         </div>
 
         {/* 错误提示 */}
