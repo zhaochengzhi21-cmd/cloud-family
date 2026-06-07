@@ -99,9 +99,18 @@ export async function POST(request: NextRequest) {
     });
 
     if (sendError) {
-      console.error("Resend 发送失败:", sendError);
+      console.error("=== Resend 发送失败 - 详细错误 ===");
+      console.error("error:", JSON.stringify(sendError, null, 2));
+      console.error("error.message:", (sendError as any)?.message);
+      console.error("error.statusCode:", (sendError as any)?.statusCode);
+      if (typeof sendError === "object" && sendError !== null) {
+        for (const key of Object.keys(sendError as object)) {
+          console.error(`sendError.${key}:`, (sendError as any)[key]);
+        }
+      }
+      console.error("=====================================");
       return NextResponse.json(
-        { success: false, error: "验证码发送失败，请稍后重试" },
+        { success: false, error: "验证码发送失败，请稍后重试", detail: (sendError as any)?.message },
         { status: 500 }
       );
     }
@@ -111,9 +120,16 @@ export async function POST(request: NextRequest) {
       message: "验证码已发送，请查收邮件",
     });
   } catch (err) {
-    console.error("发送验证码 API 错误:", err);
+    console.error("=== 发送验证码 API 错误 - 详细异常 ===");
+    console.error("err:", JSON.stringify(err, null, 2));
+    console.error("err.message:", err instanceof Error ? err.message : err);
+    console.error("err.stack:", err instanceof Error ? err.stack : "N/A");
+    if (err instanceof Error && "statusCode" in err) {
+      console.error("err.statusCode:", (err as any).statusCode);
+    }
+    console.error("=======================================");
     return NextResponse.json(
-      { success: false, error: "服务器内部错误" },
+      { success: false, error: "服务器内部错误", detail: err instanceof Error ? err.message : String(err) },
       { status: 500 }
     );
   }
