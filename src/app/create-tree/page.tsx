@@ -4,7 +4,6 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Member } from "@/types/family";
 import { useAuth } from "@/lib/AuthContext";
-import LoginModal from "@/components/LoginModal";
 
 // ====================================================================
 // 类型定义
@@ -782,8 +781,7 @@ function SavingProgress({
 // ====================================================================
 export default function CreateTreePage() {
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const { isLoggedIn, emailHash } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -792,6 +790,7 @@ export default function CreateTreePage() {
     progress: number;
     message: string;
   }>({ status: "idle", progress: 0, message: "" });
+  const [isPublic, setIsPublic] = useState(false);
 
   // ---------- 添加 / 编辑成员 ----------
   const handleConfirmMember = useCallback((member: Member) => {
@@ -843,13 +842,19 @@ export default function CreateTreePage() {
     try {
       setSaveState((prev) => ({ ...prev, progress: 30, message: "正在保存数据到区块链…" }));
 
+      const body: Record<string, any> = {
+        familyName: `家族树 (${new Date().toLocaleDateString()})`,
+        members,
+        searchable: isPublic,
+      };
+      if (emailHash) {
+        body.emailHash = emailHash;
+      }
+
       const response = await fetch("/api/save-family", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          familyName: `家族树 (${new Date().toLocaleDateString()})`,
-          members,
-        }),
+        body: JSON.stringify(body),
       });
 
       const result = await response.json();
@@ -866,7 +871,7 @@ export default function CreateTreePage() {
     } catch (e: any) {
       setSaveState({ status: "error", progress: 0, message: e.message || "保存失败" });
     }
-  }, [members, router]);
+  }, [members, emailHash, router]);
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">
@@ -874,145 +879,180 @@ export default function CreateTreePage() {
       <div className="h-2 bg-gradient-to-r from-[#8b0000] via-[#a52a2a] to-[#8b0000]" />
 
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* 未登录提示 */}
-        {!isLoggedIn && (
-          <div className="mb-8 bg-white rounded-3xl border border-[#d4a76a]/20 p-8 shadow-sm text-center">
-            <p className="text-5xl mb-4">🔒</p>
-            <h2 className="text-xl font-black text-[#5c3a2e] mb-2">请先登录</h2>
-            <p className="text-sm text-[#c4a67a] mb-6">
-              登录后即可创建和管理您的家族树
-            </p>
+        {/* 页面标题 */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-black text-[#5c3a2e] tracking-wider">
+            🌳 创建家族树
+          </h1>
+          <p className="text-sm text-[#c4a67a] mt-1 tracking-wider">
+            添加您的家庭成员信息，一键保存族谱
+          </p>
+        </div>
+
+        {/* 语音录入 */}
+        <VoiceRecordButton onMembersReady={handleVoiceMembersReady} />
+
+        {/* 成员列表 */}
+        <div className="bg-white rounded-3xl border border-[#d4a76a]/20 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-[#5c3a2e] tracking-wider">
+              成员列表
+            </h2>
             <button
-              onClick={() => setShowLoginModal(true)}
-              className="px-8 py-3 rounded-xl font-bold tracking-wider text-base bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white hover:shadow-lg transition-all"
+              onClick={handleAddMember}
+              className="px-4 py-2 rounded-xl font-bold text-sm bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white hover:shadow-lg transition-all"
             >
-              登录 / 注册
+              + 添加成员
+            </button>
+          </div>
+
+          {members.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">👥</div>
+              <p className="text-[#5c3a2e]/60 text-base">
+                还没有添加成员，请点击上方按钮添加
+              </p>
+              <p className="text-[#c4a67a] text-sm mt-1">
+                或使用语音录入功能快速导入
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {members.map((member, index) => (
+                <div
+                  key={member.id}
+                  className="flex items-center p-3 rounded-xl border border-[#d4a76a]/20 hover:border-[#d4a76a]/50 bg-[#fdfbf7] transition-all"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#f5f0e8] flex items-center justify-center text-sm font-bold text-[#5c3a2e] mr-3">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-[#5c3a2e]">
+                        {member.name}
+                      </span>
+                      {member.gender && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[#f5f0e8] text-[#c4a67a]">
+                          {member.gender}
+                        </span>
+                      )}
+                      {member.birth && (
+                        <span className="text-xs text-[#c4a67a]/60">
+                          生于 {member.birth}
+                        </span>
+                      )}
+                    </div>
+                    {member.fatherId && (
+                      <p className="text-xs text-[#5c3a2e]/40 mt-0.5">
+                        已关联父亲
+                      </p>
+                    )}
+                    {member.motherId && (
+                      <p className="text-xs text-[#5c3a2e]/40 mt-0.5">
+                        已关联母亲
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-1.5 shrink-0">
+                    <button
+                      onClick={() => handleEditMember(member)}
+                      className="px-2.5 py-1 text-xs font-bold bg-[#f5f0e8] text-[#5c3a2e] rounded-lg hover:bg-[#e8dfd0] transition-all"
+                    >
+                      编辑
+                    </button>
+                    <button
+                      onClick={() => handleDeleteMember(member.id)}
+                      className="px-2.5 py-1 text-xs font-bold bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-all"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 公开/隐私开关 */}
+        <div className="mt-6 bg-white rounded-2xl border border-[#d4a76a]/20 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <label className="text-sm font-bold text-[#5c3a2e] flex items-center gap-2">
+                <span>🔍</span>
+                <span>允许他人通过家族名搜索到此家族</span>
+              </label>
+              <p className="text-xs text-[#c4a67a] mt-1 leading-relaxed">
+                开启后，家族名和简介可能被公开搜索到，请勿填写个人隐私
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isPublic}
+              onClick={() => setIsPublic((prev) => !prev)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#8b0000]/30 ${
+                isPublic ? "bg-[#8b0000]" : "bg-gray-200"
+              }`}
+            >
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isPublic ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* 保存进度 */}
+        {saveState.status === "saving" && (
+          <SavingProgress
+            progress={saveState.progress}
+            message={saveState.message}
+          />
+        )}
+        {saveState.status === "success" && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+            <span className="text-2xl">✅</span>
+            <div>
+              <p className="font-bold text-green-800">保存成功！</p>
+              <p className="text-sm text-green-600">正在跳转到详情页…</p>
+            </div>
+          </div>
+        )}
+        {saveState.status === "error" && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+            <span className="text-2xl">❌</span>
+            <div className="flex-1">
+              <p className="font-bold text-red-800">保存失败</p>
+              <p className="text-sm text-red-600">{saveState.message}</p>
+            </div>
+            <button
+              onClick={() => setSaveState({ status: "idle", progress: 0, message: "" })}
+              className="px-4 py-2 text-sm font-bold bg-red-200 text-red-700 rounded-xl hover:bg-red-300 transition-all"
+            >
+              重试
             </button>
           </div>
         )}
 
-        {/* 已登录才显示正文 */}
-        {isLoggedIn && (
-          <>
-            {/* 页面标题 */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl font-black text-[#5c3a2e] tracking-wider">
-                🌳 创建家族树
-              </h1>
-              <p className="text-sm text-[#c4a67a] mt-1 tracking-wider">
-                添加您的家庭成员信息，一键保存族谱
-              </p>
-            </div>
-
-            {/* 语音录入 */}
-            <VoiceRecordButton onMembersReady={handleVoiceMembersReady} />
-
-            {/* 成员列表 */}
-            <div className="bg-white rounded-3xl border border-[#d4a76a]/20 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-[#5c3a2e] flex items-center gap-2">
-                  👨‍👩‍👧‍👦 家族成员
-                </h2>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-[#c4a67a]">
-                    {members.length} 人
-                  </span>
-                  <button
-                    onClick={handleAddMember}
-                    className="px-4 py-2 rounded-xl font-bold text-sm bg-gradient-to-r from-[#2d5a27] to-[#3d7a35] text-white hover:shadow-lg hover:scale-[1.02] active:scale-[0.97] transition-all"
-                  >
-                    + 添加成员
-                  </button>
-                </div>
-              </div>
-
-              {members.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-4xl mb-3">👥</p>
-                  <p className="text-[#c4a67a] text-sm">还没有家族成员，请手动添加或使用语音录入</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-[#d4a76a]/20 bg-[#fdfbf7] hover:border-[#8b0000]/30 transition-all group"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8b0000] to-[#a52a2a] flex items-center justify-center text-white font-bold text-lg shrink-0">
-                        {member.name?.charAt(0) || "?"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[#5c3a2e]">{member.name}</p>
-                        <div className="flex gap-2 text-xs text-[#c4a67a]">
-                          {member.gender && <span>{member.gender}</span>}
-                          {member.birth && <span>生于 {member.birth}</span>}
-                          {member.death && <span>卒于 {member.death}</span>}
-                        </div>
-                      </div>
-                      <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        <button
-                          onClick={() => handleEditMember(member)}
-                          className="px-3 py-1 text-xs font-bold bg-[#f5f0e8] text-[#5c3a2e] rounded-lg hover:bg-[#e8dfd0] transition-colors"
-                        >
-                          编辑
-                        </button>
-                        <button
-                          onClick={() => handleDeleteMember(member.id)}
-                          className="px-3 py-1 text-xs font-bold bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
-                        >
-                          删除
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 保存按钮 */}
-              {members.length > 0 && saveState.status !== "success" && (
-                <div className="mt-6">
-                  <button
-                    onClick={handleSave}
-                    disabled={saveState.status === "saving"}
-                    className="w-full py-3 rounded-xl font-bold tracking-wider text-base bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white hover:shadow-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {saveState.status === "saving" ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        <span>保存中…</span>
-                      </div>
-                    ) : saveState.status === "error" ? (
-                      "保存失败，点击重试"
-                    ) : (
-                      "💾 保存族谱"
-                    )}
-                  </button>
-                </div>
-              )}
-
-              {/* 保存进度 */}
-              {saveState.status === "saving" && (
-                <SavingProgress progress={saveState.progress} message={saveState.message} />
-              )}
-
-              {/* 保存成功 */}
-              {saveState.status === "success" && (
-                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-xl text-center">
-                  <p className="text-green-700 font-bold text-lg">🎉 保存成功！</p>
-                  <p className="text-green-600 text-sm mt-1">家族树已保存成功</p>
-                </div>
-              )}
-
-              {/* 保存失败 */}
-              {saveState.status === "error" && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl text-center">
-                  <p className="text-red-700 font-bold">保存失败</p>
-                  <p className="text-red-600 text-sm mt-1">{saveState.message}</p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+        {/* 保存按钮 */}
+        <div className="mt-6">
+          <button
+            onClick={handleSave}
+            disabled={members.length === 0 || saveState.status === "saving"}
+            className="w-full py-4 rounded-2xl font-black text-lg tracking-wider bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white hover:shadow-2xl transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {saveState.status === "saving"
+              ? "保存中…"
+              : members.length === 0
+                ? "请先添加成员"
+                : "💾 保存族谱"}
+          </button>
+          <p className="text-xs text-[#c4a67a] text-center mt-2">
+            保存后将生成唯一的族谱链接，方便分享给家人
+          </p>
+        </div>
       </div>
 
       {/* 成员表单弹出层 */}
@@ -1024,9 +1064,6 @@ export default function CreateTreePage() {
           onCancel={handleCancelForm}
         />
       )}
-
-      {/* 登录弹窗 */}
-      <LoginModal open={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </div>
   );
 }

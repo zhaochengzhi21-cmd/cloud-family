@@ -29,7 +29,7 @@ function Header() {
             {isLoggedIn ? (
               <>
                 <a
-                  href="/"
+                  href="/my-families"
                   className="text-sm font-bold text-[#5c3a2e] hover:text-[#8b0000] transition-colors"
                 >
                   我的家族

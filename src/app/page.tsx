@@ -60,7 +60,26 @@ function OcrUploadButton() {
   const [parsedMembers, setParsedMembers] = useState<ParsedMember[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [ocrRawText, setOcrRawText] = useState("");
+  const [isPublicOcr, setIsPublicOcr] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // ---------- 取消 OCR 流程 ----------
+  const handleCancelOcr = useCallback(() => {
+    // 中止正在进行的网络请求
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    // 重置状态到初始
+    setParsedMembers([]);
+    setOcrRawText("");
+    setErrorMsg("");
+    setStatus("idle");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
 
   // ---------- 选择图片后触发 ----------
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,6 +92,11 @@ function OcrUploadButton() {
     setOcrRawText("");
     setStatus("uploading");
 
+    // 创建新的 AbortController
+    abortControllerRef.current?.abort(); // 取消之前的请求（如果有）
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       // 1. 上传图片到 IPFS
       const formData = new FormData();
@@ -81,6 +105,7 @@ function OcrUploadButton() {
       const uploadRes = await fetch("/api/upload-photo", {
         method: "POST",
         body: formData,
+        signal: controller.signal,
       });
 
       if (!uploadRes.ok) {
@@ -98,6 +123,7 @@ function OcrUploadButton() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageUrl }),
+        signal: controller.signal,
       });
 
       if (!ocrRes.ok) {
@@ -131,6 +157,10 @@ function OcrUploadButton() {
       setOcrRawText(ocrData.ocrText || "");
       setStatus("reviewing");
     } catch (err: any) {
+      // 用户取消操作，不处理
+      if (err?.name === "AbortError" || err?.name === "CanceledError") {
+        return;
+      }
       console.error("OCR upload error:", err);
       setErrorMsg(err.message || "处理失败，请重试");
       setStatus("error");
@@ -184,6 +214,7 @@ function OcrUploadButton() {
         body: JSON.stringify({
           familyName: "老谱 " + (confirmed[0]?.name || "家族"),
           members,
+          searchable: isPublicOcr,
         }),
       });
 
@@ -252,6 +283,12 @@ function OcrUploadButton() {
         <div className="bg-white rounded-xl border border-[#d4a76a]/30 p-6 text-center">
           <div className="w-10 h-10 border-3 border-[#d4a76a]/30 border-t-[#5c3a2e] rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-[#5c3a2e]/70">正在上传图片到 IPFS…</p>
+          <button
+            onClick={handleCancelOcr}
+            className="mt-4 px-4 py-2 text-sm rounded-xl border-2 border-[#d4a76a]/50 text-[#5c3a2e] hover:bg-[#f5f0e8] transition-all"
+          >
+            取消
+          </button>
         </div>
       )}
 
@@ -261,6 +298,12 @@ function OcrUploadButton() {
           <div className="w-10 h-10 border-3 border-[#d4a76a]/30 border-t-[#8b0000] rounded-full animate-spin mx-auto mb-3" />
           <p className="text-sm text-[#5c3a2e]/70">正在识别老谱文字并解析成员…</p>
           <p className="text-xs text-[#c4a67a] mt-2">此过程可能需要 10-30 秒</p>
+          <button
+            onClick={handleCancelOcr}
+            className="mt-3 px-4 py-2 text-sm rounded-xl border-2 border-[#d4a76a]/50 text-[#5c3a2e] hover:bg-[#f5f0e8] transition-all"
+          >
+            取消
+          </button>
         </div>
       )}
 
@@ -380,6 +423,34 @@ function OcrUploadButton() {
             ))}
           </div>
 
+          {/* 公开/隐私开关 */}
+          <div className="mb-3 bg-white rounded-xl border border-[#d4a76a]/20 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 mr-3">
+                <label className="text-xs font-bold text-[#5c3a2e] flex items-center gap-1.5">
+                  <span>🔍</span>
+                  <span>允许他人通过家族名搜索到此家族</span>
+                </label>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isPublicOcr}
+                onClick={() => setIsPublicOcr((prev) => !prev)}
+                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#8b0000]/30 ${
+                  isPublicOcr ? "bg-[#8b0000]" : "bg-gray-200"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                    isPublicOcr ? "translate-x-4" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between">
             <p className="text-sm text-[#5c3a2e]/60">
               已确认 {parsedMembers.filter((m) => m.confirmed).length} /
@@ -419,6 +490,8 @@ export default function HomePage() {
   const router = useRouter();
   const { isLoggedIn, logout } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  // 登录成功后的目标行为（跳转创建页 或 开始 OCR）
+  const [pendingAction, setPendingAction] = useState<"create-tree" | "ocr" | null>(null);
 
   // 表单状态
   const [familyName, setFamilyName] = useState("");
@@ -433,6 +506,32 @@ export default function HomePage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // ---------- 检查登录并触发对应操作 ----------
+  const handleRequireLogin = useCallback((action: "create-tree" | "ocr") => {
+    if (isLoggedIn) {
+      if (action === "create-tree") {
+        router.push("/create-tree");
+      }
+      // OCR: 已登录时直接点击 file input
+      // (OCR 的触发在 OcrUploadButton 组件内部处理，我们只需让用户点击上传按钮)
+      // 对于 OCR，由 OcrUploadButton 自己的逻辑处理
+    } else {
+      setPendingAction(action);
+      setShowLoginModal(true);
+    }
+  }, [isLoggedIn, router]);
+
+  // 登录成功后执行待处理操作
+  const handleLoginSuccess = useCallback(() => {
+    if (pendingAction === "create-tree") {
+      router.push("/create-tree");
+    } else if (pendingAction === "ocr") {
+      // 触发 OCR 的文件选择
+      setPendingAction(null);
+    }
+    setPendingAction(null);
+  }, [pendingAction, router]);
 
   // ---------- 拖拽事件处理 ----------
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -646,7 +745,7 @@ export default function HomePage() {
         </div>
 
         {/* 主卡片 */}
-        <div className="w-full max-w-2xl bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-[#d4a76a]/30 p-8 md:p-12">
+        <div className="w-full max-w-4xl bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-[#d4a76a]/30 p-8 md:p-12">
           {/* 用户状态栏（登录 / 未登录） */}
           <div className="flex items-center justify-end gap-3 mb-6">
             {isLoggedIn ? (
@@ -858,66 +957,90 @@ export default function HomePage() {
             )}
           </div>
 
+          {/* ---------- 三个入口卡片（并列） ---------- */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {/* 卡片1：上传老谱识别 */}
+            <div className="block group">
+              <div className="h-full bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border-2 border-[#d4a76a]/50 rounded-2xl p-6 text-center hover:border-[#8b0000]/50 hover:shadow-lg hover:from-[#fff] hover:to-[#fdfbf7] transition-all duration-300 flex flex-col items-center justify-between">
+                <div>
+                  <div className="text-5xl mb-4">📜</div>
+                  <h3 className="text-xl font-black text-[#8b0000] tracking-wider mb-2 group-hover:text-[#a52a2a] transition-colors">
+                    上传老谱识别
+                  </h3>
+                  <p className="text-sm text-[#5c3a2e]/70 mb-4 leading-relaxed">
+                    上传老族谱照片，自动识别<br />并提取家族成员
+                  </p>
+                </div>
+                {isLoggedIn ? (
+                  <OcrUploadButton />
+                ) : (
+                  <button
+                    onClick={() => {
+                      setPendingAction("ocr");
+                      setShowLoginModal(true);
+                    }}
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#5c3a2e] to-[#7a4e3a] text-white font-bold text-sm tracking-wider hover:shadow-xl hover:scale-[1.02] active:scale-[0.97] transition-all duration-200"
+                  >
+                    上传识别 →
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 卡片2：从零创建 */}
+            <button
+              onClick={() => handleRequireLogin("create-tree")}
+              className="block group cursor-pointer"
+            >
+              <div className="h-full bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border-2 border-[#d4a76a]/50 rounded-2xl p-6 text-center hover:border-[#8b0000]/50 hover:shadow-lg hover:from-[#fff] hover:to-[#fdfbf7] transition-all duration-300 flex flex-col items-center justify-between">
+                <div>
+                  <div className="text-5xl mb-4">🌱</div>
+                  <h3 className="text-xl font-black text-[#8b0000] tracking-wider mb-2 group-hover:text-[#a52a2a] transition-colors">
+                    从零创建
+                  </h3>
+                  <p className="text-sm text-[#5c3a2e]/70 mb-4 leading-relaxed">
+                    从零开始手动创建<br />家族树谱系
+                  </p>
+                </div>
+                <div className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white font-bold text-sm tracking-wider hover:shadow-xl hover:scale-[1.02] active:scale-[0.97] transition-all duration-200">
+                  开始创建 →
+                </div>
+              </div>
+            </button>
+
+            {/* 卡片3：查找已有家族 */}
+            <a
+              href="/search"
+              className="block group"
+            >
+              <div className="h-full bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border-2 border-[#d4a76a]/50 rounded-2xl p-6 text-center hover:border-[#8b0000]/50 hover:shadow-lg hover:from-[#fff] hover:to-[#fdfbf7] transition-all duration-300 flex flex-col items-center justify-between">
+                <div>
+                  <div className="text-5xl mb-4">🔍</div>
+                  <h3 className="text-xl font-black text-[#8b0000] tracking-wider mb-2 group-hover:text-[#a52a2a] transition-colors">
+                    查找已有家族
+                  </h3>
+                  <p className="text-sm text-[#5c3a2e]/70 mb-4 leading-relaxed">
+                    输入家族名称，查找<br />已存证的家谱
+                  </p>
+                </div>
+                <div className="w-full py-3 rounded-2xl bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white font-bold text-sm tracking-wider hover:shadow-xl hover:scale-[1.02] active:scale-[0.97] transition-all duration-200">
+                  开始查找 →
+                </div>
+              </div>
+            </a>
+          </div>
+
           {/* ---------- "或" 分隔 ---------- */}
-          <div className="relative my-8">
+          <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-[#d4a76a]/30" />
             </div>
             <div className="relative flex justify-center">
               <span className="px-4 bg-white/90 text-[#c4a67a] text-sm font-bold tracking-widest">
-                或
+                或 &nbsp; 直接上传家谱文件
               </span>
             </div>
           </div>
-
-          {/* ---------- 上传老谱识别入口 ---------- */}
-          <div className="block group mb-4">
-            <div className="bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border-2 border-dashed border-[#d4a76a]/50 rounded-2xl p-6 text-center hover:border-[#8b0000]/50 hover:shadow-lg hover:from-[#fff] hover:to-[#fdfbf7] transition-all duration-300">
-              <div className="text-4xl mb-3">📜</div>
-              <h3 className="text-xl font-black text-[#8b0000] tracking-wider mb-3 group-hover:text-[#a52a2a] transition-colors">
-                有老谱？
-              </h3>
-              <OcrUploadButton />
-            </div>
-          </div>
-
-          {/* ---------- 从零创建入口 ---------- */}
-          <a
-            href="/create-tree"
-            className="block group"
-          >
-            <div className="bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border-2 border-dashed border-[#d4a76a]/50 rounded-2xl p-8 text-center hover:border-[#8b0000]/50 hover:shadow-lg hover:from-[#fff] hover:to-[#fdfbf7] transition-all duration-300">
-              <div className="text-4xl mb-3">🌱</div>
-              <h3 className="text-xl font-black text-[#8b0000] tracking-wider mb-2 group-hover:text-[#a52a2a] transition-colors">
-                没有老谱？
-              </h3>
-              <p className="text-[#5c3a2e] font-medium">
-                从零开始创建家族树
-              </p>
-              <div className="mt-4 inline-block px-6 py-2 bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white rounded-xl text-sm font-bold tracking-wider group-hover:shadow-md transition-all">
-                开始创建 →
-              </div>
-            </div>
-          </a>
-
-          {/* ---------- 查找已有家族入口 ---------- */}
-          <a
-            href="/search"
-            className="block group mt-4"
-          >
-            <div className="bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border-2 border-dashed border-[#d4a76a]/50 rounded-2xl p-8 text-center hover:border-[#8b0000]/50 hover:shadow-lg hover:from-[#fff] hover:to-[#fdfbf7] transition-all duration-300">
-              <div className="text-4xl mb-3">🔍</div>
-              <h3 className="text-xl font-black text-[#8b0000] tracking-wider mb-2 group-hover:text-[#a52a2a] transition-colors">
-                查找已有家族
-              </h3>
-              <p className="text-[#5c3a2e] font-medium">
-                输入家族名称，查找已存证的家谱
-              </p>
-              <div className="mt-4 inline-block px-6 py-2 bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white rounded-xl text-sm font-bold tracking-wider group-hover:shadow-md transition-all">
-                开始查找 →
-              </div>
-            </div>
-          </a>
         </div>
       </div>
 
@@ -931,7 +1054,11 @@ export default function HomePage() {
       {/* 登录弹窗 */}
       <LoginModal
         open={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
+        onClose={() => {
+          setShowLoginModal(false);
+          setPendingAction(null);
+        }}
+        onSuccess={handleLoginSuccess}
       />
     </div>
   );

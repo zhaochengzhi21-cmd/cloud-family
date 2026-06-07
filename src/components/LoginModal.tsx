@@ -6,11 +6,13 @@ import { useAuth } from "@/lib/AuthContext";
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
+  /** 登录成功后的回调（可选），可用于登录后自动执行后续操作 */
+  onSuccess?: () => void;
 }
 
 type Step = "email" | "code";
 
-export default function LoginModal({ open, onClose }: LoginModalProps) {
+export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
   const { setAuth } = useAuth();
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
@@ -86,6 +88,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         // 注册/登录成功
         setAuth(data.data.emailHash, email);
         handleClose();
+        // 调用登录成功回调
+        onSuccess?.();
         return;
       }
 
@@ -101,6 +105,8 @@ export default function LoginModal({ open, onClose }: LoginModalProps) {
         if (loginData.success) {
           setAuth(loginData.data.emailHash, email);
           handleClose();
+          // 调用登录成功回调
+          onSuccess?.();
           return;
         }
 

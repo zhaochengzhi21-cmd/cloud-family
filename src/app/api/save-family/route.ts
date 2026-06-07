@@ -20,7 +20,7 @@ const FAMILIES_META_FILE = path.join(DATA_DIR, "families-meta.json");
 /**
  * 写入家族创建者元数据（保存到 families-meta.json，记录创建者和编辑者列表）
  */
-function writeCreatorMeta(emailHash: string, familyId: string, familyName: string) {
+function writeCreatorMeta(emailHash: string, familyId: string, familyName: string, searchable: boolean = false) {
   try {
     if (!fs.existsSync(DATA_DIR)) {
       fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -31,6 +31,7 @@ function writeCreatorMeta(emailHash: string, familyId: string, familyName: strin
       creatorEmailHash: string;
       editors: string[];
       createdAt: string;
+      searchable: boolean;
     }> = [];
     if (fs.existsSync(FAMILIES_META_FILE)) {
       try {
@@ -48,11 +49,35 @@ function writeCreatorMeta(emailHash: string, familyId: string, familyName: strin
         creatorEmailHash: emailHash,
         editors: [],
         createdAt: new Date().toISOString(),
+        searchable,
       });
+    } else {
+      // 更新 searchable 字段
+      metaList[existing].searchable = searchable;
     }
     fs.writeFileSync(FAMILIES_META_FILE, JSON.stringify(metaList, null, 2), "utf-8");
   } catch (err) {
     console.error("writeCreatorMeta error:", err);
+  }
+}
+
+/**
+ * 更新家族元数据中的 memberCount 字段
+ */
+function updateFamilyMetaMemberCount(familyId: string, memberCount: number) {
+  try {
+    if (!fs.existsSync(FAMILIES_META_FILE)) return;
+    const raw = fs.readFileSync(FAMILIES_META_FILE, "utf-8");
+    const metaList = JSON.parse(raw);
+    if (Array.isArray(metaList)) {
+      const existing = metaList.findIndex((m: Record<string, unknown>) => m.familyId === familyId);
+      if (existing !== -1) {
+        metaList[existing].memberCount = memberCount;
+        fs.writeFileSync(FAMILIES_META_FILE, JSON.stringify(metaList, null, 2), "utf-8");
+      }
+    }
+  } catch (err) {
+    console.error("updateFamilyMetaMemberCount error:", err);
   }
 }
 
@@ -409,7 +434,7 @@ export async function POST(request: NextRequest) {
       const emailHash = getEmailHashFromRequest(request);
       if (emailHash) {
         writeFamilyBinding(emailHash, familyIdBytes32, familyName.trim());
-        writeCreatorMeta(emailHash, familyIdBytes32, familyName.trim());
+        writeCreatorMeta(emailHash, familyIdBytes32, familyName.trim(), false);
       }
 
       return NextResponse.json({
@@ -478,8 +503,10 @@ export async function POST(request: NextRequest) {
       const emailHash = getEmailHashFromRequest(request);
       if (emailHash) {
         writeFamilyBinding(emailHash, familyIdBytes32, familyTree.familyName);
-        writeCreatorMeta(emailHash, familyIdBytes32, familyTree.familyName);
+        writeCreatorMeta(emailHash, familyIdBytes32, familyTree.familyName, familyTree.searchable || false);
       }
+      // 更新 memberCount（即使没有登录也在元数据中更新）
+      updateFamilyMetaMemberCount(familyIdBytes32, familyTree.members.length);
 
       return NextResponse.json({
         success: true,
