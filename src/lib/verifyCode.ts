@@ -1,22 +1,23 @@
 /**
- * 验证码存储（内存 Map）
+ * 验证码存储（全局内存 Map）
+ * 
+ * 注意：使用 globalThis 避免模块热重载时丢失数据。
+ * 在 Vercel Serverless 环境下，不同实例间不共享此存储，
+ * 生产环境建议使用 Redis/Vercel KV 替代。
+ * 
  * key: email
  * value: { code: string, expiresAt: number }
  */
-const codeStore = new Map<string, { code: string; expiresAt: number }>();
 
 /** 验证码有效期（毫秒） */
 const CODE_TTL = 5 * 60 * 1000; // 5 分钟
 
-/** 定期清理过期验证码（每 60 秒） */
-setInterval(() => {
-  const now = Date.now();
-  for (const [email, record] of codeStore.entries()) {
-    if (now > record.expiresAt) {
-      codeStore.delete(email);
-    }
-  }
-}, 60_000);
+/** 使用 globalThis 保证全局唯一实例 */
+const globalStore = globalThis as any;
+if (!globalStore.__codeStore) {
+  globalStore.__codeStore = new Map<string, { code: string; expiresAt: number }>();
+}
+const codeStore: Map<string, { code: string; expiresAt: number }> = globalStore.__codeStore;
 
 /**
  * 存储验证码

@@ -1,55 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCode } from "@/lib/verifyCode";
+import { findUser, createUser, updateLoginTime } from "@/lib/userStore";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import fs from "fs";
-import path from "path";
-
-/**
- * 用户数据文件路径
- */
-const DATA_DIR = path.join(process.cwd(), "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 /** JWT 密钥（如未配置则使用默认值，生产环境请务必修改） */
 const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
 /** Token 有效期 */
 const TOKEN_EXPIRY = "7d";
-
-/**
- * 用户记录接口
- */
-interface UserRecord {
-  emailHash: string;
-  registeredAt: string;
-  lastLoginAt: string;
-}
-
-/**
- * 读取用户数据
- */
-function readUsers(): UserRecord[] {
-  try {
-    if (!fs.existsSync(USERS_FILE)) {
-      return [];
-    }
-    const raw = fs.readFileSync(USERS_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * 写入用户数据
- */
-function writeUsers(users: UserRecord[]): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
-}
 
 /**
  * 计算邮箱哈希值
@@ -101,9 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const emailHash = hashEmail(email);
-    const users = readUsers();
-    const existingUser = users.find((u) => u.emailHash === emailHash);
-    const now = new Date().toISOString();
+    const existingUser = findUser(emailHash);
 
     if (action === "register") {
       if (existingUser) {
@@ -113,14 +70,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 创建新用户
-      const newUser: UserRecord = {
-        emailHash,
-        registeredAt: now,
-        lastLoginAt: now,
-      };
-      users.push(newUser);
-      writeUsers(users);
+      // 创建新用户（内存存储）
+      createUser(emailHash);
     } else {
       // login
       if (!existingUser) {
@@ -131,8 +82,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 更新最后登录时间
-      existingUser.lastLoginAt = now;
-      writeUsers(users);
+      updateLoginTime(emailHash);
     }
 
     // 生成 JWT
