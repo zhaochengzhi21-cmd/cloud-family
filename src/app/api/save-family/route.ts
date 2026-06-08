@@ -6,108 +6,11 @@ import { Wallet } from "@ethersproject/wallet";
 import { uploadFilesToIPFS, uploadJSONToIPFS } from "@/lib/uploadToIPFS";
 import type { FamilyTree } from "@/types/family";
 import jwt from "jsonwebtoken";
-import fs from "fs";
-import path from "path";
 
 /** JWT 密钥 */
 const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
-/** 家族关联数据文件路径 */
-const DATA_DIR = path.join(process.cwd(), "data");
-const FAMILIES_FILE = path.join(DATA_DIR, "families.json");
-const FAMILIES_META_FILE = path.join(DATA_DIR, "families-meta.json");
-
-/**
- * 写入家族创建者元数据（保存到 families-meta.json，记录创建者和编辑者列表）
- */
-function writeCreatorMeta(emailHash: string, familyId: string, familyName: string, searchable: boolean = false) {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    let metaList: Array<{
-      familyId: string;
-      familyName: string;
-      creatorEmailHash: string;
-      editors: string[];
-      createdAt: string;
-      searchable: boolean;
-    }> = [];
-    if (fs.existsSync(FAMILIES_META_FILE)) {
-      try {
-        metaList = JSON.parse(fs.readFileSync(FAMILIES_META_FILE, "utf-8"));
-      } catch {
-        metaList = [];
-      }
-    }
-    // 避免重复记录
-    const existing = metaList.findIndex((m) => m.familyId === familyId);
-    if (existing === -1) {
-      metaList.push({
-        familyId,
-        familyName,
-        creatorEmailHash: emailHash,
-        editors: [],
-        createdAt: new Date().toISOString(),
-        searchable,
-      });
-    } else {
-      // 更新 searchable 字段
-      metaList[existing].searchable = searchable;
-    }
-    fs.writeFileSync(FAMILIES_META_FILE, JSON.stringify(metaList, null, 2), "utf-8");
-  } catch (err) {
-    console.error("writeCreatorMeta error:", err);
-  }
-}
-
-/**
- * 更新家族元数据中的 memberCount 字段
- */
-function updateFamilyMetaMemberCount(familyId: string, memberCount: number) {
-  try {
-    if (!fs.existsSync(FAMILIES_META_FILE)) return;
-    const raw = fs.readFileSync(FAMILIES_META_FILE, "utf-8");
-    const metaList = JSON.parse(raw);
-    if (Array.isArray(metaList)) {
-      const existing = metaList.findIndex((m: Record<string, unknown>) => m.familyId === familyId);
-      if (existing !== -1) {
-        metaList[existing].memberCount = memberCount;
-        fs.writeFileSync(FAMILIES_META_FILE, JSON.stringify(metaList, null, 2), "utf-8");
-      }
-    }
-  } catch (err) {
-    console.error("updateFamilyMetaMemberCount error:", err);
-  }
-}
-
-/**
- * 写入家族关联记录（将家族与创建者邮箱绑定）
- */
-function writeFamilyBinding(emailHash: string, familyId: string, familyName: string) {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    let records: Array<{ emailHash: string; familyId: string; familyName: string; createdAt: string }> = [];
-    if (fs.existsSync(FAMILIES_FILE)) {
-      try {
-        records = JSON.parse(fs.readFileSync(FAMILIES_FILE, "utf-8"));
-      } catch {
-        records = [];
-      }
-    }
-    records.push({
-      emailHash,
-      familyId,
-      familyName,
-      createdAt: new Date().toISOString(),
-    });
-    fs.writeFileSync(FAMILIES_FILE, JSON.stringify(records, null, 2), "utf-8");
-  } catch (err) {
-    console.error("writeFamilyBinding error:", err);
-  }
-}
+import { writeFamilyBinding, writeCreatorMeta, updateFamilyMetaMemberCount } from "@/lib/familyStore";
 
 /**
  * 从请求中获取 JWT token 并解析 emailHash

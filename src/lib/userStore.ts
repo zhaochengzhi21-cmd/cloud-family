@@ -1,61 +1,51 @@
 /**
- * 用户数据存储（内存 Map）
- * 
- * 注意：在 Vercel Serverless 环境下，每次冷启动会重新加载此模块。
- * 生产环境建议使用数据库（如 Vercel KV、PostgreSQL 等）替代。
- * 
- * key: emailHash (sha256)
- * value: UserRecord
+ * 用户数据存储（Vercel KV / Redis）
+ *
+ * 使用 @vercel/kv 存储用户注册数据，确保在 Vercel Serverless 多实例环境下共享。
+ *
+ * key 格式: user:{emailHash}
+ * value: UserRecord JSON
+ *
+ * list key: users_index（有序集合，存储所有 emailHash 用于查询）
  */
 
-interface UserRecord {
+import { kv } from "@vercel/kv";
+
+export interface UserRecord {
   emailHash: string;
   registeredAt: string;
   lastLoginAt: string;
 }
 
-/** 全局用户存储 */
-const globalStore = globalThis as any;
-if (!globalStore.__users) {
-  globalStore.__users = new Map<string, UserRecord>();
-}
-const usersMap: Map<string, UserRecord> = globalStore.__users;
-
-/**
- * 读取所有用户
- */
-export function getAllUsers(): UserRecord[] {
-  return Array.from(usersMap.values());
-}
-
 /**
  * 根据 emailHash 查找用户
  */
-export function findUser(emailHash: string): UserRecord | undefined {
-  return usersMap.get(emailHash);
+export async function findUser(emailHash: string): Promise<UserRecord | undefined> {
+  const data = await kv.get<UserRecord>(`user:${emailHash}`);
+  return data ?? undefined;
 }
 
 /**
  * 创建新用户
  */
-export function createUser(emailHash: string): UserRecord {
+export async function createUser(emailHash: string): Promise<UserRecord> {
   const now = new Date().toISOString();
   const user: UserRecord = {
     emailHash,
     registeredAt: now,
     lastLoginAt: now,
   };
-  usersMap.set(emailHash, user);
+  await kv.set(`user:${emailHash}`, user);
   return user;
 }
 
 /**
  * 更新用户最后登录时间
  */
-export function updateLoginTime(emailHash: string): void {
-  const user = usersMap.get(emailHash);
+export async function updateLoginTime(emailHash: string): Promise<void> {
+  const user = await findUser(emailHash);
   if (user) {
     user.lastLoginAt = new Date().toISOString();
-    usersMap.set(emailHash, user);
+    await kv.set(`user:${emailHash}`, user);
   }
 }

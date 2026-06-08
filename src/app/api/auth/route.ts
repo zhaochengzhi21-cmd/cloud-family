@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证验证码
-    if (!verifyCode(email, code)) {
+    if (!(await verifyCode(email, code))) {
       return NextResponse.json(
         { success: false, error: "验证码错误或已过期" },
         { status: 401 }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     const emailHash = hashEmail(email);
-    const existingUser = findUser(emailHash);
+    const existingUser = await findUser(emailHash);
 
     if (action === "register") {
       if (existingUser) {
@@ -70,8 +70,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // 创建新用户（内存存储）
-      createUser(emailHash);
+      // 创建新用户（KV 存储）
+      await createUser(emailHash);
     } else {
       // login
       if (!existingUser) {
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       }
 
       // 更新最后登录时间
-      updateLoginTime(emailHash);
+      await updateLoginTime(emailHash);
     }
 
     // 生成 JWT

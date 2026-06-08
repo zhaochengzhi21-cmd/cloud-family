@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 生成6位随机数字验证码并存入内存
-    const code = storeCode(email);
+    const code = await storeCode(email);
 
     // 使用 Resend 发送邮件
     const { Resend } = await import("resend");

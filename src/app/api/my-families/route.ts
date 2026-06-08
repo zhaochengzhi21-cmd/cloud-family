@@ -1,70 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import fs from "fs";
-import path from "path";
-
-/**
- * 家族关联数据文件路径
- */
-const DATA_DIR = path.join(process.cwd(), "data");
-const FAMILIES_FILE = path.join(DATA_DIR, "families.json");
-const FAMILIES_META_FILE = path.join(DATA_DIR, "families-meta.json");
+import { getUserFamilies, getUserEditedFamilies } from "@/lib/familyStore";
+import type { FamilyBinding, FamilyMeta } from "@/lib/familyStore";
 
 /** JWT 密钥（与 auth/route.ts 保持一致） */
 const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
-
-/**
- * 家族关联记录接口
- */
-interface FamilyRecord {
-  emailHash: string;
-  familyId: string;
-  familyName: string;
-  createdAt: string;
-}
-
-/**
- * 家族元数据接口
- */
-interface FamilyMeta {
-  familyId: string;
-  familyName: string;
-  creatorEmailHash: string;
-  editors: string[];
-  createdAt: string;
-  searchable?: boolean;
-  memberCount?: number;
-}
-
-/**
- * 读取家族关联数据
- */
-function readFamilies(): FamilyRecord[] {
-  try {
-    if (!fs.existsSync(FAMILIES_FILE)) {
-      return [];
-    }
-    const raw = fs.readFileSync(FAMILIES_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * 读取家族元数据
- */
-function readFamiliesMeta(): FamilyMeta[] {
-  try {
-    if (!fs.existsSync(FAMILIES_META_FILE)) {
-      return [];
-    }
-    const raw = fs.readFileSync(FAMILIES_META_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
 
 /**
  * 从请求中解析 JWT token 并获取 emailHash
@@ -107,42 +47,30 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 读取所有关联记录（谁创建了哪些家族）
-    const allFamilies = readFamilies();
-    // 读取所有元数据（包含创建者和编辑者信息）
-    const allMeta = readFamiliesMeta();
+    // 从 KV 获取用户创建和编辑的家族
+    const userFamilies = await getUserFamilies(emailHash);
+    const editedMeta = await getUserEditedFamilies(emailHash);
 
-    // 创建家族ID到元数据的映射
-    const metaMap = new Map<string, FamilyMeta>();
-    for (const meta of allMeta) {
-      metaMap.set(meta.familyId, meta);
-    }
-
-    // 收集用户创建或编辑的家族ID（去重）
     const seenFamilyIds = new Set<string>();
 
     // 1. 用户创建的家族
-    const createdFamilies = allFamilies
-      .filter((f) => f.emailHash === emailHash)
-      .filter((f) => {
-        if (seenFamilyIds.has(f.familyId)) return false;
-        seenFamilyIds.add(f.familyId);
+    const createdFamilies = userFamilies
+      .filter((item) => {
+        if (!item.binding) return false;
+        if (seenFamilyIds.has(item.binding.familyId)) return false;
+        seenFamilyIds.add(item.binding.familyId);
         return true;
       })
-      .map((f) => {
-        const meta = metaMap.get(f.familyId);
-        return {
-          familyId: f.familyId,
-          familyName: f.familyName,
-          createdAt: f.createdAt,
-          role: "creator" as const,
-          memberCount: meta?.memberCount ?? 0,
-        };
-      });
+      .map((item) => ({
+        familyId: item.binding!.familyId,
+        familyName: item.binding!.familyName,
+        createdAt: item.binding!.createdAt,
+        role: "creator" as const,
+        memberCount: item.meta?.memberCount ?? 0,
+      }));
 
     // 2. 用户作为编辑者参与的家族
-    const editedFamilies = allMeta
-      .filter((meta) => meta.editors.includes(emailHash))
+    const editedFamilies = editedMeta
       .filter((meta) => {
         if (seenFamilyIds.has(meta.familyId)) return false;
         seenFamilyIds.add(meta.familyId);

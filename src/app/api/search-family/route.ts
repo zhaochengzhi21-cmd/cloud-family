@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const FAMILIES_META_FILE = path.join(DATA_DIR, "families-meta.json");
+import { getAllFamilyMeta } from "@/lib/familyStore";
 
 /**
- * 从本地元数据中搜索公开（searchable: true）的家族
+ * 从 KV/Redis 中搜索公开（searchable: true）的家族
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,38 +15,19 @@ export async function GET(request: NextRequest) {
 
     const query = name.trim().toLowerCase();
 
-    // 从 families-meta.json 中读取数据
-    let results: Array<{
-      familyId: string;
-      familyName: string;
-      description?: string;
-      generationCount?: number;
-      memberCount?: number;
-      createdAt?: string;
-    }> = [];
-
-    if (fs.existsSync(FAMILIES_META_FILE)) {
-      try {
-        const raw = fs.readFileSync(FAMILIES_META_FILE, "utf-8");
-        const metaList = JSON.parse(raw);
-        if (Array.isArray(metaList)) {
-          results = metaList
-            .filter((m: Record<string, unknown>) => {
-              // 只返回 searchable 为 true 的家族
-              return m.searchable === true && typeof m.familyName === "string" &&
-                (m.familyName as string).toLowerCase().includes(query);
-            })
-            .map((m: Record<string, unknown>) => ({
-              familyId: m.familyId as string,
-              familyName: m.familyName as string,
-              memberCount: typeof m.memberCount === "number" ? m.memberCount : undefined,
-              createdAt: m.createdAt as string | undefined,
-            }));
-        }
-      } catch (e) {
-        console.error("search-family: error reading meta file", e);
-      }
-    }
+    // 从 KV 获取所有家族元数据
+    const allMeta = await getAllFamilyMeta();
+    const results = allMeta
+      .filter((m) => {
+        // 只返回 searchable 为 true 且名字匹配的家族
+        return m.searchable === true && m.familyName.toLowerCase().includes(query);
+      })
+      .map((m) => ({
+        familyId: m.familyId,
+        familyName: m.familyName,
+        memberCount: typeof m.memberCount === "number" ? m.memberCount : undefined,
+        createdAt: m.createdAt,
+      }));
 
     return NextResponse.json({
       success: true,
