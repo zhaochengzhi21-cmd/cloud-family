@@ -1,0 +1,10 @@
+import { verifyCode } from "@/lib/verifyCode";
+
+export async function GET() {
+  try {
+    const result = await verifyCode("test@test.com", "123456");
+    return Response.json({ result, kvUrl: !!process.env.KV_REST_API_URL, kvToken: !!process.env.KV_REST_API_TOKEN });
+  } catch (e) {
+    return Response.json({ error: String(e), stack: (e as Error).stack });
+  }
+}
