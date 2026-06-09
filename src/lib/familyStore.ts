@@ -2,14 +2,17 @@
  * 家族数据存储（Vercel KV / Redis）
  *
  * 使用 @vercel/kv 存储家族关联记录和元数据。
+ * 当 KV 不可用时自动 fallback 到内存。
  *
  * key 格式:
- *   family:binding:{familyId}         → { emailHash, familyName, createdAt }
- *   family:meta:{familyId}            → { familyName, creatorEmailHash, editors[], createdAt, searchable, memberCount? }
- *   family:user:{emailHash}           → Set of familyId (记录用户创建/编辑了哪些家族)
+ *   family:binding:{familyId}     → { emailHash, familyName, createdAt }
+ *   family:meta:{familyId}        → { familyName, creatorEmailHash, editors[], createdAt, searchable, memberCount? }
  */
 
-import { kv } from "@vercel/kv";
+import { createClient } from "./kvClient";
+
+// 自动选择 KV 客户端
+const kv = createClient();
 
 /* ========== 类型 ========== */
 
@@ -117,8 +120,6 @@ export async function getFamilyMeta(
  * 注意：生产环境大量数据时应使用 scan/分页方案
  */
 export async function getAllFamilyMeta(): Promise<FamilyMeta[]> {
-  // kv.keys 可用于获取所有匹配 key，但生产环境需要谨慎使用
-  // 这里通过扫描 family:meta: 前缀获取所有家族 ID
   const keys = await kv.keys("family:meta:*");
   if (!keys.length) return [];
   const metas = await Promise.all(
@@ -133,7 +134,6 @@ export async function getAllFamilyMeta(): Promise<FamilyMeta[]> {
 export async function getUserFamilies(
   emailHash: string
 ): Promise<{ binding?: FamilyBinding; meta?: FamilyMeta }[]> {
-  // 从所有 binding 中找到该用户的记录
   const keys = await kv.keys("family:binding:*");
   const bindings = (
     await Promise.all(

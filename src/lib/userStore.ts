@@ -2,14 +2,16 @@
  * 用户数据存储（Vercel KV / Redis）
  *
  * 使用 @vercel/kv 存储用户注册数据，确保在 Vercel Serverless 多实例环境下共享。
+ * 当 KV 不可用时自动 fallback 到内存。
  *
  * key 格式: user:{emailHash}
  * value: UserRecord JSON
- *
- * list key: users_index（有序集合，存储所有 emailHash 用于查询）
  */
 
-import { kv } from "@vercel/kv";
+import { createClient } from "./kvClient";
+
+// 自动选择 KV 客户端：有环境变量用 @vercel/kv，否则用内存
+const kv = createClient();
 
 export interface UserRecord {
   emailHash: string;

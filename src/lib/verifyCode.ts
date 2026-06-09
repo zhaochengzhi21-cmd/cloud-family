@@ -4,12 +4,17 @@
  * 使用 @vercel/kv 存储验证码，确保在 Vercel Serverless 多实例环境下共享。
  * 验证码自动 5 分钟过期。
  *
+ * 当 @vercel/kv 不可用（环境变量未配置）时，自动 fallback 到内存 Map。
+ *
  * key 格式: verifycode:{email}
  * value: 6位数字验证码
  * ttl: 300秒（5分钟）
  */
 
-import { kv } from "@vercel/kv";
+import { createClient } from "./kvClient";
+
+// 自动选择 KV 客户端：有环境变量用 @vercel/kv，否则用内存
+const kv = createClient();
 
 /** 验证码有效期（秒） */
 const CODE_TTL = 300; // 5 分钟
