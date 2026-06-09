@@ -1,112 +1,83 @@
 /**
- * KV 存储客户端工厂
+ * KV 存储客户端
  *
- * 自动检测 Vercel KV 环境变量是否存在：
- * - 如果 KV_REST_API_URL 和 KV_REST_API_TOKEN 存在 → 使用 @vercel/kv
- * - 否则 → 使用内存 Map fallback（适合本地开发 / 未配置 KV 的环境）
+ * 使用 @upstash/redis 通过 REST API 连接 Upstash Redis（Vercel KV）。
+ * 这是 @vercel/kv 的底层库，避免了 @vercel/kv v3 ESM-only 的兼容问题。
  *
- * 内存 fallback 在 Serverless 多实例下不共享数据，但至少不会 500 报错。
- * 生产环境请务必在 Vercel Dashboard 创建 KV 数据库并关联项目。
+ * 必须设置以下环境变量之一：
+ * - KV_REST_API_URL + KV_REST_API_TOKEN（Vercel KV 自动注入）
+ * - UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN（直接指定）
  */
 
-// ========== 内存 KV 实现（fallback）==========
+import { Redis } from "@upstash/redis";
 
-interface MemoryKvOptions {
-  ex?: number; // 过期时间（秒）
+/** 日志前缀 */
+const LOG = "[KV-Client]";
+
+/** 单例 KV 客户端 */
+let kvClient: Redis | null = null;
+
+/**
+ * 获取 Redis 连接 URL
+ */
+function getRedisUrl(): string | null {
+  return process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || null;
 }
 
-interface MemoryKvEntry {
-  value: unknown;
-  expiresAt: number | null; // 过期时间戳（ms），null 表示永不过期
+/**
+ * 获取 Redis 连接 Token
+ */
+function getRedisToken(): string | null {
+  return process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || null;
 }
 
-class MemoryKv {
-  private store = new Map<string, MemoryKvEntry>();
+/**
+ * 获取 Upstash Redis 客户端（单例）
+ */
+export function getKv(): Redis {
+  if (kvClient) return kvClient;
 
-  constructor() {
-    // 每分钟清理过期数据
-    setInterval(() => this.cleanup(), 60_000);
+  const url = getRedisUrl();
+  const token = getRedisToken();
+
+  if (!url || !token) {
+    console.error(`${LOG} ❌ KV 环境变量未设置！`);
+    console.error(`${LOG}    需要 KV_REST_API_URL 或 UPSTASH_REDIS_REST_URL`);
+    console.error(`${LOG}    需要 KV_REST_API_TOKEN 或 UPSTASH_REDIS_REST_TOKEN`);
+    console.error(`${LOG}    当前 URL: ${url ? "✅" : "❌"}, Token: ${token ? "✅" : "❌"}`);
+    throw new Error(
+      "KV 数据库未配置。请先在 Vercel Dashboard 创建 KV 数据库并关联项目。"
+    );
   }
 
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.store.entries()) {
-      if (entry.expiresAt !== null && entry.expiresAt <= now) {
-        this.store.delete(key);
-      }
-    }
-  }
+  console.log(`${LOG} ✅ 正在连接 Upstash Redis: ${url.replace(/https?:\/\//, "").split(".")[0]}...`);
 
-  async get<T = unknown>(key: string): Promise<T | null> {
-    const entry = this.store.get(key);
-    if (!entry) return null;
-    // 检查是否过期
-    if (entry.expiresAt !== null && entry.expiresAt <= Date.now()) {
-      this.store.delete(key);
-      return null;
-    }
-    return entry.value as T;
-  }
+  kvClient = new Redis({
+    url,
+    token,
+    automaticDeserialization: true,
+  });
 
-  async set(key: string, value: unknown, opts?: MemoryKvOptions): Promise<void> {
-    const expiresAt =
-      opts?.ex !== undefined ? Date.now() + opts.ex * 1000 : null;
-    this.store.set(key, { value, expiresAt });
-  }
+  // 测试连接
+  pingKv(kvClient);
 
-  async del(key: string): Promise<void> {
-    this.store.delete(key);
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
-    return Array.from(this.store.keys()).filter((k) => regex.test(k));
-  }
+  return kvClient;
 }
 
-// ========== @vercel/kv 包装器 ==========
-
-class VercelKvWrapper {
-  private kv: any;
-
-  constructor() {
-    // 动态导入，避免未配置 KV 时启动崩溃
-    // @vercel/kv v3+ 是 ESM-only，必须用 import() 而非 require()
-    this.kv = null; // 延迟初始化
-  }
-
-  private async ensureKv(): Promise<void> {
-    if (this.kv) return;
-    const vercelKv = await import("@vercel/kv");
-    this.kv = vercelKv.kv;
-  }
-
-  async get<T = unknown>(key: string): Promise<T | null> {
-    await this.ensureKv();
-    return this.kv!.get(key) as Promise<T | null>;
-  }
-
-  async set(key: string, value: unknown, opts?: { ex?: number }): Promise<void> {
-    await this.ensureKv();
-    if (opts?.ex) {
-      await this.kv!.set(key, value, { ex: opts.ex });
-    } else {
-      await this.kv!.set(key, value);
-    }
-  }
-
-  async del(key: string): Promise<void> {
-    await this.ensureKv();
-    await this.kv!.del(key);
-  }
-
-  async keys(pattern: string): Promise<string[]> {
-    await this.ensureKv();
-    return this.kv!.keys(pattern) as Promise<string[]>;
+/**
+ * 测试 KV 连接（异步，不阻塞）
+ */
+async function pingKv(kv: Redis): Promise<void> {
+  try {
+    const result = await kv.ping();
+    console.log(`${LOG} ✅ KV 连接测试通过: ${result}`);
+  } catch (err) {
+    console.error(`${LOG} ⚠️  KV 连接测试失败:`, err instanceof Error ? err.message : String(err));
+    console.error(`${LOG}     KV 可能暂时不可用，请求将继续但可能失败`);
   }
 }
 
-// ========== 统一的类型接口 ==========
+// ========== 兼容旧接口的简单封装 ==========
 
 export interface KvClient {
   get<T = unknown>(key: string): Promise<T | null>;
@@ -115,9 +86,9 @@ export interface KvClient {
   keys(pattern: string): Promise<string[]>;
 }
 
-/** KV 是否可用（环境变量已配置） */
+/** 判断 KV 是否可用 */
 export function isKvAvailable(): boolean {
-  return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  return !!(getRedisUrl() && getRedisToken());
 }
 
 /** KV 环境变量名称提示 */
@@ -127,20 +98,53 @@ export const KV_ENV_NAMES = {
   readOnlyToken: "KV_REST_API_READ_ONLY_TOKEN",
 } as const;
 
-// ========== 工厂函数 ==========
-
 /**
- * 创建 KV 客户端，自动检测环境：
- * - 有 KV_REST_API_URL + KV_REST_API_TOKEN → @vercel/kv
- * - 否则 → 内存 fallback
+ * 创建 KV 客户端（兼容旧接口）
+ * 注意：如果环境变量缺失会直接抛出错误，不会 fallback 到内存存储。
  */
 export function createClient(): KvClient {
-  if (isKvAvailable()) {
-    console.log("[KV] 检测到 Vercel KV 环境变量，使用 @vercel/kv");
-    return new VercelKvWrapper();
-  }
-  console.log(
-    "[KV] 未检测到 KV 环境变量，使用内存存储（数据不跨实例共享）"
-  );
-  return new MemoryKv();
+  const kv = getKv();
+
+  return {
+    async get<T = unknown>(key: string): Promise<T | null> {
+      try {
+        const val = await kv.get<T>(key);
+        return val ?? null;
+      } catch (err) {
+        console.error(`${LOG} ❌ get 失败 key=${key}:`, err instanceof Error ? err.message : String(err));
+        return null;
+      }
+    },
+
+    async set(key: string, value: unknown, opts?: { ex?: number }): Promise<void> {
+      try {
+        if (opts?.ex) {
+          await kv.set(key, value, { ex: opts.ex });
+        } else {
+          await kv.set(key, value);
+        }
+      } catch (err) {
+        console.error(`${LOG} ❌ set 失败 key=${key}:`, err instanceof Error ? err.message : String(err));
+        throw err;
+      }
+    },
+
+    async del(key: string): Promise<void> {
+      try {
+        await kv.del(key);
+      } catch (err) {
+        console.error(`${LOG} ❌ del 失败 key=${key}:`, err instanceof Error ? err.message : String(err));
+        throw err;
+      }
+    },
+
+    async keys(pattern: string): Promise<string[]> {
+      try {
+        return await kv.keys(pattern);
+      } catch (err) {
+        console.error(`${LOG} ❌ keys 失败 pattern=${pattern}:`, err instanceof Error ? err.message : String(err));
+        return [];
+      }
+    },
+  };
 }
