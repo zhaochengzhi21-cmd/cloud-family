@@ -66,8 +66,10 @@ export async function verifyCode(email: string, inputCode: string): Promise<bool
   console.log(`${LOG}    key       = ${key}`);
   console.log(`${LOG}    inputCode = ${inputCode}`);
 
-  const storedCode = await kv.get<string>(key);
+  const storedCodeRaw = await kv.get(key);
+  const storedCode = storedCodeRaw === null || storedCodeRaw === undefined ? null : String(storedCodeRaw);
   console.log(`${LOG}    storedCode = ${storedCode === null ? "null" : storedCode}`);
+  console.log(`${LOG}    storedCode类型 = ${typeof storedCodeRaw}, inputCode类型 = ${typeof inputCode}`);
 
   if (!storedCode) {
     console.error(`${LOG} ❌ 验证码不存在或已过期: key=${key}`);
