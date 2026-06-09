@@ -44,19 +44,15 @@ function maskEmail(email: string): string {
 }
 
 /**
- * 从 cookie 中读取 token 并解析
+ * 通过服务端 API 验证 httpOnly cookie 中的 token
  */
-function parseTokenFromCookie(): { emailHash: string } | null {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(/(?:^|;\s*)token=([^;]*)/);
-  if (!match) return null;
+async function fetchSessionFromServer(): Promise<{ emailHash: string } | null> {
   try {
-    // token 是 JWT，从中解析 payload
-    const parts = match[1].split(".");
-    if (parts.length !== 3) return null;
-    const payload = JSON.parse(atob(parts[1]));
-    if (payload && payload.emailHash) {
-      return { emailHash: payload.emailHash };
+    const res = await fetch("/api/auth/me");
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.success && data.data?.emailHash) {
+      return { emailHash: data.data.emailHash };
     }
     return null;
   } catch {
@@ -88,10 +84,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const restoreSession = useCallback(async () => {
-    const tokenData = parseTokenFromCookie();
-    if (tokenData && tokenData.emailHash) {
-      setEmailHash(tokenData.emailHash);
-      setMaskedEmail(tokenData.emailHash.slice(0, 8) + "***");
+    const sessionData = await fetchSessionFromServer();
+    if (sessionData && sessionData.emailHash) {
+      setEmailHash(sessionData.emailHash);
+      setMaskedEmail(sessionData.emailHash.slice(0, 8) + "***");
       setIsLoggedIn(true);
     }
   }, []);
