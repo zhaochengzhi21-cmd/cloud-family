@@ -1,0 +1,19 @@
+import { isKvAvailable } from "@/lib/kvClient";
+
+export async function GET() {
+  const envs = {
+    KV_REST_API_URL: !!process.env.KV_REST_API_URL,
+    KV_REST_API_URL_len: process.env.KV_REST_API_URL?.length || 0,
+    KV_REST_API_TOKEN: !!process.env.KV_REST_API_TOKEN,
+    KV_REST_API_TOKEN_len: process.env.KV_REST_API_TOKEN?.length || 0,
+    KV_URL: !!process.env.KV_URL,
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    allEnvKeys: Object.keys(process.env).filter(
+      (k) =>
+        k.startsWith("KV_") || k.startsWith("VERCEL_") || k === "NODE_ENV"
+    ),
+    isKvAvailable: isKvAvailable(),
+  };
+  return Response.json(envs);
+}
