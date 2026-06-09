@@ -71,28 +71,38 @@ class VercelKvWrapper {
 
   constructor() {
     // 动态导入，避免未配置 KV 时启动崩溃
-    const vercelKv = require("@vercel/kv");
+    // @vercel/kv v3+ 是 ESM-only，必须用 import() 而非 require()
+    this.kv = null; // 延迟初始化
+  }
+
+  private async ensureKv(): Promise<void> {
+    if (this.kv) return;
+    const vercelKv = await import("@vercel/kv");
     this.kv = vercelKv.kv;
   }
 
   async get<T = unknown>(key: string): Promise<T | null> {
-    return this.kv.get(key) as Promise<T | null>;
+    await this.ensureKv();
+    return this.kv!.get(key) as Promise<T | null>;
   }
 
   async set(key: string, value: unknown, opts?: { ex?: number }): Promise<void> {
+    await this.ensureKv();
     if (opts?.ex) {
-      await this.kv.set(key, value, { ex: opts.ex });
+      await this.kv!.set(key, value, { ex: opts.ex });
     } else {
-      await this.kv.set(key, value);
+      await this.kv!.set(key, value);
     }
   }
 
   async del(key: string): Promise<void> {
-    await this.kv.del(key);
+    await this.ensureKv();
+    await this.kv!.del(key);
   }
 
   async keys(pattern: string): Promise<string[]> {
-    return this.kv.keys(pattern) as Promise<string[]>;
+    await this.ensureKv();
+    return this.kv!.keys(pattern) as Promise<string[]>;
   }
 }
 

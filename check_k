@@ -1,0 +1,6 @@
+try {
+  const p = require.resolve('@vercel/kv');
+  console.log('@vercel/kv installed at:', p);
+} catch(e) {
+  console.log('NOT installed:', e.message);
+}
