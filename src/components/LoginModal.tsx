@@ -76,7 +76,7 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
     setError("");
 
     try {
-      // 先试注册（如果已注册会自动走登录）
+      // 先试 register
       const res = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,15 +85,16 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
       const data = await res.json();
 
       if (data.success) {
-        // 注册/登录成功
         setAuth(data.data.emailHash, email);
         handleClose();
-        // 调用登录成功回调
         onSuccess?.();
         return;
       }
 
-      // 如果返回 409 表示已注册，尝试登录
+      // 如果返回 409（已注册），用 login 重试
+      // ⚠️ 注意：后端已改为"先判断用户状态再验证码"，
+      //    所以第一次 register 请求只做了用户存在性检查（不消耗验证码），
+    //    第二次 login 请求才会真正验证并消耗验证码
       if (res.status === 409) {
         const loginRes = await fetch("/api/auth", {
           method: "POST",
@@ -105,7 +106,6 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
         if (loginData.success) {
           setAuth(loginData.data.emailHash, email);
           handleClose();
-          // 调用登录成功回调
           onSuccess?.();
           return;
         }

@@ -51,17 +51,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 验证验证码
-    if (!(await verifyCode(email, code))) {
-      return NextResponse.json(
-        { success: false, error: "验证码错误或已过期" },
-        { status: 401 }
-      );
-    }
-
     const emailHash = hashEmail(email);
     const existingUser = await findUser(emailHash);
 
+    // 检查用户状态（在验证验证码之前先判断业务逻辑）
     if (action === "register") {
       if (existingUser) {
         return NextResponse.json(
@@ -69,9 +62,6 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-
-      // 创建新用户（KV 存储）
-      await createUser(emailHash);
     } else {
       // login
       if (!existingUser) {
@@ -80,8 +70,20 @@ export async function POST(request: NextRequest) {
           { status: 404 }
         );
       }
+    }
 
-      // 更新最后登录时间
+    // 验证验证码（放在业务逻辑判断之后，只验证一次）
+    if (!(await verifyCode(email, code))) {
+      return NextResponse.json(
+        { success: false, error: "验证码错误或已过期" },
+        { status: 401 }
+      );
+    }
+
+    // 执行业务操作
+    if (action === "register") {
+      await createUser(emailHash);
+    } else {
       await updateLoginTime(emailHash);
     }
 

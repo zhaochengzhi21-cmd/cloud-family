@@ -55,7 +55,6 @@ export function getKv(): Redis {
   kvClient = new Redis({
     url,
     token,
-    automaticDeserialization: true,
   });
 
   // 测试连接

@@ -67,8 +67,16 @@ export async function verifyCode(email: string, inputCode: string): Promise<bool
   console.log(`${LOG}    inputCode = ${inputCode}`);
 
   const storedCodeRaw = await kv.get(key);
-  const storedCode = storedCodeRaw === null || storedCodeRaw === undefined ? null : String(storedCodeRaw);
-  console.log(`${LOG}    storedCode = ${storedCode === null ? "null" : storedCode}`);
+  let storedCode: string | null = null;
+  if (storedCodeRaw === null || storedCodeRaw === undefined) {
+    storedCode = null;
+  } else {
+    const raw = String(storedCodeRaw).trim();
+    // 去除 JSON 字符串的首尾引号（兼容 @upstash/redis v1.x 的反序列化差异）
+    storedCode = raw.replace(/^"|"$/g, "");
+  }
+  console.log(`${LOG}    storedCodeRaw = ${JSON.stringify(storedCodeRaw)}`);
+  console.log(`${LOG}    storedCode    = ${storedCode === null ? "null" : storedCode}`);
   console.log(`${LOG}    storedCode类型 = ${typeof storedCodeRaw}, inputCode类型 = ${typeof inputCode}`);
 
   if (!storedCode) {
