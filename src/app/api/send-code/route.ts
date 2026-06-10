@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const resend = new Resend(resendApiKey);
 
     const { error: sendError } = await resend.emails.send({
-      from: "云族谱 <onboarding@resend.dev>",
+      from: "云族谱 <noreply@mianmianguadie.com>",
       to: email,
       subject: "📧 云族谱 - 邮箱验证码",
       html: `
