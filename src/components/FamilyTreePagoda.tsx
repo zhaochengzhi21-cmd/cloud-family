@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { getImageUrls, createImgFallback } from "@/lib/ipfsGateway";
 import type { Member, FamilyTree } from "@/types/family";
 import MemberMemories from "./MemberMemories";
 
@@ -545,7 +546,14 @@ function MemberCard({
               <>
                 <div className="relative w-full h-36 rounded-lg overflow-hidden bg-[#f5f0e8] border border-[#d4a76a]/20">
                   <img
-                    src={`https://gateway.pinata.cloud/ipfs/${member.photoRestored || member.photoOriginal}`}
+                    src={(() => {
+                      const cid = member.photoRestored || member.photoOriginal || "";
+                      return getImageUrls(cid)[0];
+                    })()}
+                    onError={(() => {
+                      const cid = member.photoRestored || member.photoOriginal || "";
+                      return createImgFallback(getImageUrls(cid));
+                    })()}
                     alt={member.name}
                     className="w-full h-full object-contain"
                   />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { getImageUrls, createImgFallback } from "@/lib/ipfsGateway";
 import type { AlbumPhoto, FamilyTree } from "@/types/family";
 
 // ==================== 单张照片上传信息 ====================
@@ -40,8 +41,9 @@ function PhotoViewer({
   const canNext = index < photos.length - 1;
   const restoredUrl = restoredMap[photo.cid];
   const isRestoring = restoringIndex === index;
+  const photoUrls = getImageUrls(photo.cid);
   const displayUrl = showOriginal || !restoredUrl
-    ? `https://w3s.link/ipfs/${photo.cid}`
+    ? photoUrls[0]
     : restoredUrl;
 
   return (
@@ -100,6 +102,7 @@ function PhotoViewer({
             src={displayUrl}
             alt={photo.caption || "家族照片"}
             className="max-w-full max-h-[70vh] object-contain"
+            onError={createImgFallback(photoUrls)}
           />
 
           {isRestoring && (
@@ -480,7 +483,8 @@ export function FamilyAlbum({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sortedPhotos.map((photo, idx) => {
-            const originalUrl = `https://w3s.link/ipfs/${photo.cid}`;
+            const photoUrls = getImageUrls(photo.cid);
+            const originalUrl = photoUrls[0];
             const displayUrl = restoredMap[photo.cid] || originalUrl;
             const isRestoring = restoringIndex === idx;
 
@@ -499,6 +503,7 @@ export function FamilyAlbum({
                     alt={photo.caption || "家族照片"}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     loading="lazy"
+                    onError={createImgFallback(photoUrls)}
                   />
                   {/* 已修复标记 */}
                   {restoredMap[photo.cid] && (

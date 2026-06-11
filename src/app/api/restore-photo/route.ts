@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getImageUrls } from "@/lib/ipfsGateway";
 
 /**
  * POST /api/restore-photo
@@ -21,8 +22,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "请提供 imageUrl 或 cid" }, { status: 400 });
     }
 
-    // 构造可访问的图片 URL
-    const sourceUrl = imageUrl || `https://gateway.pinata.cloud/ipfs/${cid}`;
+    // 构造可访问的图片 URL（使用 getImageUrls 获取优先网关）
+    const urls = cid ? getImageUrls(cid) : [imageUrl];
+    const sourceUrl = urls[0];
 
     // 尝试 Replicate API
     const apiKey = process.env.RESTORATION_API_KEY;

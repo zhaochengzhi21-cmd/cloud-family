@@ -4,12 +4,7 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "";
 const ALCHEMY_POLYGON_RPC_URL = process.env.ALCHEMY_POLYGON_RPC_URL || "";
 
-// IPFS 公共网关（按优先级降序）
-const IPFS_GATEWAYS = [
-  "https://w3s.link/ipfs",
-  "https://ipfs.io/ipfs",
-  "https://cloudflare-ipfs.com/ipfs",
-];
+import { fetchJsonFromIpfs } from "@/lib/ipfsGateway";
 
 /**
  * familyDataHash(bytes32) 的函数签名 keccak256 前 4 字节 = 0x65023a23
@@ -107,43 +102,15 @@ export async function GET(
       );
     }
 
-    // 5. 从 IPFS 网关获取 JSON 数据（带重试）
-    let ipfsData: Record<string, unknown> | null = null;
-    let fetchError: string | null = null;
-
-    for (const gateway of IPFS_GATEWAYS) {
-      try {
-        const url = `${gateway}/${dataHash}/metadata.json`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-
-        if (!res.ok) {
-          // 有些网关可能把 CID 当作原始文件而非目录，尝试直接获取 CID
-          const fallbackUrl = `${gateway}/${dataHash}`;
-          const fallbackRes = await fetch(fallbackUrl, {
-            signal: AbortSignal.timeout(10000),
-          });
-          if (fallbackRes.ok) {
-            ipfsData = await fallbackRes.json();
-            break;
-          }
-          continue;
-        }
-
-        ipfsData = await res.json();
-        break;
-      } catch (err) {
-        fetchError =
-          err instanceof Error ? err.message : "Failed to fetch from IPFS";
-        continue; // 尝试下一个网关
-      }
-    }
+    // 5. 从 IPFS 网关获取 JSON 数据（自动重试切换网关，复用 ipfsGateway 库）
+    const ipfsData = await fetchJsonFromIpfs(dataHash);
 
     if (!ipfsData) {
       return NextResponse.json({
         success: true,
         dataHash,
         ipfsData: null,
-        warning: `合约中记录了 IPFS CID (${dataHash})，但从 IPFS 网关获取数据失败: ${fetchError}`,
+        warning: `合约中记录了 IPFS CID (${dataHash})，但从所有 IPFS 网关获取数据均失败`,
       });
     }
 

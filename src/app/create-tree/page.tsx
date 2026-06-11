@@ -146,7 +146,7 @@ function VoiceRecordButton({ onMembersReady }: { onMembersReady: (members: Membe
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   // ---------- 开始录音 ----------
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     if (status === "processing" || status === "reviewing") return;
 
     const SpeechRecognitionAPI =
@@ -154,6 +154,16 @@ function VoiceRecordButton({ onMembersReady }: { onMembersReady: (members: Membe
 
     if (!SpeechRecognitionAPI) {
       setErrorMsg("您的浏览器不支持语音识别，请使用 Chrome 浏览器或手动录入。");
+      setStatus("error");
+      return;
+    }
+
+    // 显式请求麦克风权限，避免浏览器静默拒绝
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err: any) {
+      console.error("麦克风权限被拒绝:", err);
+      setErrorMsg("请在浏览器设置中允许麦克风权限。");
       setStatus("error");
       return;
     }
@@ -184,7 +194,11 @@ function VoiceRecordButton({ onMembersReady }: { onMembersReady: (members: Membe
     recognition.onerror = (event: any) => {
       console.error("语音识别错误:", event.error);
       if (event.error === "no-speech") return;
-      setErrorMsg(`语音识别出错: ${event.error}`);
+      if (event.error === "not-allowed") {
+        setErrorMsg("请在浏览器设置中允许麦克风权限。");
+      } else {
+        setErrorMsg(`语音识别出错: ${event.error}`);
+      }
       setStatus("error");
     };
 
