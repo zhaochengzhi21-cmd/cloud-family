@@ -21,6 +21,7 @@
     "@vercel/kv": "^3.0.0",
     "axios": "^1.16.1",
     "dotenv": "^17.4.2",
+    "ethers": "^5.7.2",
     "formidable": "^3.5.4",
     "html-to-image": "^1.11.13",
     "jsonwebtoken": "^9.0.3",
