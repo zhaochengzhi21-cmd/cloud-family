@@ -828,4 +828,197 @@ export default function FamilyPage() {
                     邀请中...
                   </>
                 ) : (
-                  "� 邀请"
+                  "📨 邀请"
+                )}
+              </button>
+            </div>
+
+            {inviteError && (
+              <p className="mt-2 text-sm text-red-500">{inviteError}</p>
+            )}
+            {inviteSuccess && (
+              <p className="mt-2 text-sm text-green-600">{inviteSuccess}</p>
+            )}
+          </section>
+        )}
+
+        {/* ---------- 标签切换：树状图 / 时间轴 ---------- */}
+        {isStructuredTree && result.ipfsData?.data ? (
+          <>
+            {/* 标签按钮 */}
+            <div className="flex justify-center gap-2 mb-6">
+              <button
+                onClick={() => setActiveTab("tree")}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
+                  activeTab === "tree"
+                    ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
+                    : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
+                }`}
+              >
+                🌳 家族树
+              </button>
+              <button
+                onClick={() => setActiveTab("timeline")}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
+                  activeTab === "timeline"
+                    ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
+                    : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
+                }`}
+              >
+                📅 时间轴
+              </button>
+              <button
+                onClick={() => setActiveTab("album")}
+                className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
+                  activeTab === "album"
+                    ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
+                    : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
+                }`}
+              >
+                🖼️ 相册
+              </button>
+            </div>
+
+            {/* 条件渲染 */}
+            {activeTab === "tree" ? (
+              <PagodaTreeView
+                tree={editing && editedTree ? editedTree : result.ipfsData.data}
+                editable={editing}
+                onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                onRequestEdit={enterEditMode}
+              />
+            ) : activeTab === "timeline" ? (
+              <FamilyTimeline
+                tree={editing && editedTree ? editedTree : result.ipfsData.data}
+                editable={editing}
+                onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+              />
+            ) : (
+              <FamilyAlbum
+                tree={editing && editedTree ? editedTree : result.ipfsData.data}
+                editable={editing}
+                onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+              />
+            )}
+          </>
+        ) : (
+          <LegacyContentView ipfsData={ipfsData} dataHash={result?.dataHash} />
+        )}
+
+        {/* ---------- 修订记录 ---------- */}
+        {isStructuredTree && (
+          <RevisionHistory
+            familyId={familyId}
+            contractAddress={process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x9a943CfC5bde0EA506b2A88E5AF653d74C6D06ea"}
+          />
+        )}
+
+        {/* ---------- 数据详情 ---------- */}
+        <section className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/30 p-8">
+          <h2 className="text-xl font-bold text-[#8b0000] mb-6 tracking-wider">
+            数据详情
+          </h2>
+
+          <div className="space-y-4">
+            {/* 数据类型 */}
+            <DataRow label="数据类型">
+              {isStructuredTree ? "结构化家族树" : "老谱影像"}
+            </DataRow>
+
+            {/* 家族ID（完整） */}
+            <DataRow label="家族 ID" mono>
+              {familyId}
+            </DataRow>
+
+            {/* 数据标识 */}
+            {result?.dataHash && (
+              <DataRow label="数据标识" mono>
+                {result.dataHash}
+              </DataRow>
+            )}
+
+            {/* 数据查看链接 */}
+            {result?.dataHash && (
+              <DataRow label="数据网关">
+                <a
+                  href={`https://w3s.link/ipfs/${result.dataHash}/metadata.json`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#8b0000] underline hover:text-[#a52a2a]"
+                >
+                  查看原始数据
+                </a>
+              </DataRow>
+            )}
+
+            {/* 成员数（结构化树） */}
+            {isStructuredTree && result.ipfsData?.data && (
+              <DataRow label="族人数量">
+                {result.ipfsData.data.members.length} 人
+              </DataRow>
+            )}
+
+            {/* 图片数量（老谱模式） */}
+            {!isStructuredTree && ipfsData?.imageCount !== undefined && (
+              <DataRow label="上传图片数">
+                {ipfsData.imageCount} 张
+              </DataRow>
+            )}
+          </div>
+        </section>
+
+        {/* ---------- 关于数据安全 ---------- */}
+        <section className="bg-[#fdfbf7] rounded-2xl border border-[#d4a76a]/20 p-6">
+          <h3 className="text-sm font-bold text-[#5c3a2e] mb-2 tracking-wider">
+            💡 关于数据保存
+          </h3>
+          <p className="text-xs text-[#c4a67a] leading-relaxed">
+            数据一旦保存，将被永久记录且不可篡改。原始文件存储在分布式网络中，只要至少有一个节点保留数据，即可从网络中的任何地方访问。
+          </p>
+          {result?.warning && (
+            <p className="text-xs text-amber-600 mt-2">{result.warning}</p>
+          )}
+        </section>
+      </div>
+
+      {/* ---------- 海报模态框 ---------- */}
+      {showPoster && (
+        <FamilyPoster
+          familyName={familyName}
+          totalGenerations={totalGenerations}
+          totalMembers={totalMembers}
+          founderName={founderName}
+          description={treeData?.members?.find((m) => !m.parentId)?.story || treeData?.familyEvents?.[0]?.description}
+          familyUrl={typeof window !== "undefined" ? window.location.href : ""}
+          onClose={() => setShowPoster(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------- 数据行组件 ----------
+function DataRow({
+  label,
+  mono,
+  children,
+}: {
+  label: string;
+  mono?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4">
+      <span className="flex-shrink-0 text-sm font-bold text-[#5c3a2e] w-24">
+        {label}
+      </span>
+      <span
+        className={`text-sm text-[#5c3a2e] break-all ${
+          mono ? "font-mono text-xs" : ""
+        }`}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}

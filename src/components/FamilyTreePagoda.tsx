@@ -1065,7 +1065,24 @@ export function PagodaTreeView({
   // ===== 保存编辑结果 =====
   const handleSaveEdit = useCallback(
     (data: EditFormData) => {
-      const newMembers = members.map((m) => {
+      // 先从其他成员中移除旧关系引用
+      let updated = members.map((m) => {
+        if (m.id === editTargetMemberId) {
+          return m; // 先不处理目标成员
+        }
+        // 从 childrenIds 中移除 (old)
+        if (m.childrenIds?.includes(editTargetMemberId!)) {
+          return { ...m, childrenIds: m.childrenIds.filter((id) => id !== editTargetMemberId) };
+        }
+        // 从 spouseId 中解除 (old)
+        if (m.spouseId === editTargetMemberId) {
+          return { ...m, spouseId: undefined };
+        }
+        return m;
+      });
+
+      // 更新目标成员自身
+      updated = updated.map((m) => {
         if (m.id === editTargetMemberId) {
           return {
             ...m,
@@ -1081,7 +1098,13 @@ export function PagodaTreeView({
         }
         return m;
       });
-      setMembers(newMembers);
+
+      // 重新建立新关系引用 (如果编辑表单中包含了关系字段)
+      // 注意：Pagoda 的编辑表单不包含 fatherId/motherId/spouseId 选择器，
+      // 所以这里只做基本信息编辑。如果未来表单扩展了关系字段，这里需要同步。
+      // （关系维护主要在 addChild/addSpouse/addParent 中完成）
+
+      setMembers(updated);
       setFormMode(null);
       setCurrentMember(null);
       setEditTargetMemberId(null);
@@ -1101,8 +1124,9 @@ export function PagodaTreeView({
   // ===== 添加父辈 =====
   const handleAddParentSave = useCallback(
     (data: EditFormData) => {
+      const newId = generateId();
       const newMember: Member = {
-        id: generateId(),
+        id: newId,
         name: data.name,
         birth: data.birth,
         death: data.death,
@@ -1111,11 +1135,20 @@ export function PagodaTreeView({
         burialPlace: data.burialPlace,
         burialCoords: data.burialCoords,
         parentId: undefined,
-        spouseOf: editTargetMemberId || undefined,
+        spouseOf: undefined,
+        // 新父辈的 childrenIds 包含当前成员
+        childrenIds: editTargetMemberId ? [editTargetMemberId] : [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      setMembers([...members, newMember]);
+      // 同时更新当前成员的 parentId 指向新父辈
+      const updatedMembers = members.map((m) => {
+        if (m.id === editTargetMemberId) {
+          return { ...m, parentId: newId };
+        }
+        return m;
+      });
+      setMembers([...updatedMembers, newMember]);
       setFormMode(null);
       setCurrentMember(null);
       setEditTargetMemberId(null);
@@ -1126,8 +1159,9 @@ export function PagodaTreeView({
   // ===== 添加子女 =====
   const handleAddChildSave = useCallback(
     (data: EditFormData) => {
+      const newId = generateId();
       const newMember: Member = {
-        id: generateId(),
+        id: newId,
         name: data.name,
         birth: data.birth,
         death: data.death,
@@ -1137,10 +1171,21 @@ export function PagodaTreeView({
         burialCoords: data.burialCoords,
         parentId: editTargetMemberId,
         spouseOf: undefined,
+        childrenIds: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      setMembers([...members, newMember]);
+      // 双向：在父辈的 childrenIds 中加入新子女
+      const updatedMembers = members.map((m) => {
+        if (m.id === editTargetMemberId) {
+          const childrenIds = m.childrenIds || [];
+          if (!childrenIds.includes(newId)) {
+            return { ...m, childrenIds: [...childrenIds, newId] };
+          }
+        }
+        return m;
+      });
+      setMembers([...updatedMembers, newMember]);
       setFormMode(null);
       setCurrentMember(null);
       setEditTargetMemberId(null);
@@ -1151,8 +1196,9 @@ export function PagodaTreeView({
   // ===== 添加配偶 =====
   const handleAddSpouseSave = useCallback(
     (data: EditFormData) => {
+      const newId = generateId();
       const newMember: Member = {
-        id: generateId(),
+        id: newId,
         name: data.name,
         birth: data.birth,
         death: data.death,
@@ -1162,10 +1208,18 @@ export function PagodaTreeView({
         burialCoords: data.burialCoords,
         parentId: currentMember?.parentId || null,
         spouseOf: editTargetMemberId,
+        childrenIds: [],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      setMembers([...members, newMember]);
+      // 双向：在原有成员的 spouseId 中设置新配偶
+      const updatedMembers = members.map((m) => {
+        if (m.id === editTargetMemberId) {
+          return { ...m, spouseId: newId };
+        }
+        return m;
+      });
+      setMembers([...updatedMembers, newMember]);
       setFormMode(null);
       setCurrentMember(null);
       setEditTargetMemberId(null);

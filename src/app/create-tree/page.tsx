@@ -42,9 +42,11 @@ function generateTempId(): string {
   return "temp_" + generateId();
 }
 
+const currentYear = new Date().getFullYear();
+const maxYear = currentYear + 5;
 const YEAR_OPTIONS: DateOption[] = [
   { label: "未知", value: "" },
-  ...Array.from({ length: 2026 - 1900 + 1 }, (_, i) => ({
+  ...Array.from({ length: maxYear - 1900 + 1 }, (_, i) => ({
     label: String(1900 + i),
     value: String(1900 + i),
   })),
@@ -806,19 +808,92 @@ export default function CreateTreePage() {
   }>({ status: "idle", progress: 0, message: "" });
   const [isPublic, setIsPublic] = useState(false);
 
+  // ---------- 辅助：确保成员数组中指定 ID 的父/母/配偶关系同步 ----------
+  const syncRelations = useCallback((prev: Member[], member: Member): Member[] => {
+    // 我们需要同步的关系有：
+    // 1. fatherId → 父亲的 childrenIds 包含该成员
+    // 2. motherId → 母亲的 childrenIds 包含该成员
+    // 3. spouseId → 配偶的 spouseId 指向该成员
+
+    // 先移除该成员从旧关系的引用中
+    let result = prev.map((m) => {
+      // 从 childrenIds 中移除该成员
+      if (m.childrenIds?.includes(member.id)) {
+        return { ...m, childrenIds: m.childrenIds.filter((cid) => cid !== member.id) };
+      }
+      // 从配偶中解除
+      if (m.spouseId === member.id) {
+        return { ...m, spouseId: undefined };
+      }
+      return m;
+    });
+
+    // 添加新关系的引用
+    result = result.map((m) => {
+      if (m.id === member.fatherId || m.id === member.motherId) {
+        // 向父/母亲添加 childrenIds
+        const childrenIds = m.childrenIds || [];
+        if (!childrenIds.includes(member.id)) {
+          return { ...m, childrenIds: [...childrenIds, member.id] };
+        }
+      }
+      if (m.id === member.spouseId) {
+        // 向配偶添加 spouseId
+        return { ...m, spouseId: member.id };
+      }
+      return m;
+    });
+
+    return result;
+  }, []);
+
   // ---------- 添加 / 编辑成员 ----------
   const handleConfirmMember = useCallback((member: Member) => {
     setMembers((prev) => {
       const idx = prev.findIndex((m) => m.id === member.id);
+      let next: Member[];
       if (idx >= 0) {
-        const next = [...prev];
+        next = [...prev];
         next[idx] = member;
-        return next;
+      } else {
+        next = [...prev, member];
       }
-      return [...prev, member];
+      // 双向同步关系
+      next = syncRelations(next, member);
+      return next;
     });
     setShowForm(false);
     setEditingMember(null);
+  }, [syncRelations]);
+
+  const handleDeleteMember = useCallback((id: string) => {
+    setMembers((prev) => {
+      // 先清理其他成员对该成员的引用
+      const cleaned = prev.map((m) => {
+        let updated = { ...m };
+        if (updated.childrenIds?.includes(id)) {
+          updated.childrenIds = updated.childrenIds.filter((cid) => cid !== id);
+        }
+        if (updated.spouseId === id) {
+          updated.spouseId = undefined;
+        }
+        if (updated.fatherId === id) {
+          updated.fatherId = undefined;
+        }
+        if (updated.motherId === id) {
+          updated.motherId = undefined;
+        }
+        if (updated.parentId === id) {
+          updated.parentId = undefined;
+        }
+        if (updated.spouseOf === id) {
+          updated.spouseOf = undefined;
+        }
+        return updated;
+      });
+      // 再删除本身
+      return cleaned.filter((m) => m.id !== id);
+    });
   }, []);
 
   const handleCancelForm = useCallback(() => {
@@ -834,10 +909,6 @@ export default function CreateTreePage() {
   const handleEditMember = useCallback((member: Member) => {
     setEditingMember(member);
     setShowForm(true);
-  }, []);
-
-  const handleDeleteMember = useCallback((id: string) => {
-    setMembers((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
   // ---------- 语音导入 ----------

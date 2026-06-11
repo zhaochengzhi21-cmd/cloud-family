@@ -25,6 +25,8 @@ export interface Member {
   motherId?: string;
   /** 配偶 ID */
   spouseId?: string;
+  /** 子女 ID 列表（双向同步用） */
+  childrenIds?: string[];
   /** 原版照片 IPFS CID */
   photoOriginal?: string;
   /** AI 修复版照片 IPFS CID */
