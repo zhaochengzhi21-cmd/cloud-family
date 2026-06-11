@@ -8,7 +8,7 @@ import crypto from "crypto";
 const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
 /** Token 有效期 */
-const TOKEN_EXPIRY = "7d";
+const TOKEN_EXPIRY = "30d";
 
 /**
  * 计算邮箱哈希值
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60, // 7 天（秒）
+      maxAge: 30 * 24 * 60 * 60, // 30 天（秒）
       path: "/",
     });
 
