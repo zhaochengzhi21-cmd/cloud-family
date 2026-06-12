@@ -140,11 +140,11 @@ export default function FamilyPoster({
               </div>
             </div>
 
-            {/* 始祖 */}
+            {/* 已知最早先辈 */}
             {founderName && (
               <div className="mb-5">
                 <div className="text-sm text-[#5c3a2e]/60 tracking-wider mb-1">
-                  始 祖
+                  已知最早先辈
                 </div>
                 <div
                   className="text-2xl font-bold tracking-wider"

@@ -231,7 +231,7 @@ function buildCoupleGroups(nodes: TreeNode[]): CoupleGroup[] {
 // ==================== 代际标签 ====================
 
 function getGenerationLabel(gen: number): string {
-  const labels = ["始祖", "二世", "三世", "四世", "五世", "六世", "七世", "八世", "九世", "十世"];
+  const labels = ["第一代", "第二代", "第三代", "第四代", "第五代", "第六代", "第七代", "第八代", "第九代", "第十代"];
   if (gen < labels.length) return labels[gen];
   return `${gen + 1}世`;
 }

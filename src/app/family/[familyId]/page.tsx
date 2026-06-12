@@ -973,7 +973,7 @@ export default function FamilyPage() {
             💡 关于数据保存
           </h3>
           <p className="text-xs text-[#c4a67a] leading-relaxed">
-            数据一旦保存，将被永久记录且不可篡改。原始文件存储在分布式网络中，只要至少有一个节点保留数据，即可从网络中的任何地方访问。
+            每次修改都会生成新的数据记录，历史版本永久保存在分布式网络中，可追溯、可恢复。当前展示的是最新版本。
           </p>
           {result?.warning && (
             <p className="text-xs text-amber-600 mt-2">{result.warning}</p>
