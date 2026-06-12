@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import type { Member, FamilyTree } from "@/types/family";
 import MemberMemories from "./MemberMemories";
+import { getImageUrls, createImgFallback } from "@/lib/ipfsGateway";
 
 // ==================== 类型定义 ====================
 
@@ -255,11 +256,82 @@ function MemberCard({
         {birthText && <div className="text-[10px] text-[#5c3a2e]/50 mt-0.5 leading-tight">{birthText}</div>}
       </div>
       {show && (
-        <div className="absolute z-20 top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 text-sm text-[#5c3a2e]" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute z-20 top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 text-sm text-[#5c3a2e]" onClick={(e) => e.stopPropagation()}>
           <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-t border-l border-[#d4a76a]/20 rotate-45" />
           <p className="font-bold text-[#8b0000] mb-1 text-base">{member.name}</p>
           {birthText && <p className="text-xs text-[#5c3a2e]/60 mb-2">{birthText}</p>}
-          {member.info && <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2"><p className="text-xs font-bold text-[#8b0000]/70 mb-1">📜 生平</p><p className="text-xs text-[#5c3a2e]/80 whitespace-pre-wrap">{member.info}</p></div>}
+
+          {/* 照片展示 / 上传引导 */}
+          <div className="mb-3">
+            {member.photoOriginal || member.photoRestored ? (
+              <>
+                <div className="relative w-full h-36 rounded-lg overflow-hidden bg-[#f5f0e8] border border-[#d4a76a]/20">
+                  <img
+                    src={getImageUrls(member.photoRestored || member.photoOriginal || "")[0]}
+                    onError={createImgFallback(getImageUrls(member.photoRestored || member.photoOriginal || ""))}
+                    alt={member.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                {member.photoOriginal && member.photoRestored && member.photoRestored !== member.photoOriginal && (
+                  <p className="text-[10px] text-green-600 mt-1 text-center">✨ AI 修复版</p>
+                )}
+              </>
+            ) : editable ? (
+              <div
+                className="w-full h-24 rounded-lg border-2 border-dashed border-[#d4a76a]/40 bg-[#fdfbf7] flex flex-col items-center justify-center cursor-pointer hover:border-[#8b0000]/50 hover:bg-[#f5f0e8] transition-all"
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = async (e) => {
+                    const file = (e.target as HTMLInputElement).files?.[0];
+                    if (!file) return;
+                    const fd = new FormData();
+                    fd.append('photo', file);
+                    fd.append('memberId', member.id);
+                    try {
+                      const r = await fetch('/api/upload-photo', { method: 'POST', body: fd });
+                      const d = await r.json();
+                      if (d.cid) alert('照片上传成功！请保存修订以永久保存。');
+                      else alert(d.error || '上传失败');
+                    } catch {
+                      alert('网络异常');
+                    }
+                  };
+                  input.click();
+                }}
+              >
+                <span className="text-2xl mb-1">📷</span>
+                <span className="text-xs text-[#c4a67a] font-bold">添加照片，让记忆更完整</span>
+              </div>
+            ) : (
+              <div className="w-full h-24 rounded-lg bg-[#fdfbf7] border border-[#d4a76a]/10 flex items-center justify-center">
+                <span className="text-xs text-[#c4a67a]/60">暂无照片</span>
+              </div>
+            )}
+          </div>
+
+          {/* 安葬地 */}
+          {member.burialPlace && (
+            <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
+              <p className="text-xs font-bold text-[#8b0000]/70 mb-1">🪦 安葬地</p>
+              {member.burialCoords ? (
+                <a
+                  href={`https://www.google.com/maps?q=${member.burialCoords}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[#8b0000] underline hover:text-[#a52a2a]"
+                >
+                  {member.burialPlace} 📍
+                </a>
+              ) : (
+                <p className="text-xs text-[#5c3a2e]/80">{member.burialPlace}</p>
+              )}
+            </div>
+          )}
+
+          {member.info && <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2"><p className="text-xs font-bold text-[#8b0000]/70 mb-1">📜 生平</p><p className="text-xs text-[#5c3a2e]/80 whitespace-pre-wrap leading-relaxed">{member.info}</p></div>}
           {member.story && <StoryBlock story={member.story} />}
           <MemberMemories member={member} editable={editable} onUpdateMember={onUpdateMember} />
           <button className="w-full mt-1 text-xs text-[#c4a67a] hover:text-[#8b0000] py-1" onClick={() => setShow(false)}>关闭</button>
@@ -298,6 +370,8 @@ function MemberEditForm({
           <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">逝世年份</label><input type="text" value={death} onChange={e => setDeath(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" /></div>
           <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">生平简介</label><textarea value={info} onChange={e => setInfo(e.target.value)} rows={3} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7] resize-none" /></div>
           <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">📖 故事</label><textarea ref={storyRef} value={story} onChange={e => setStory(e.target.value)} rows={4} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7] resize-none" /></div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">🪦 安葬地</label><input type="text" value={burialPlace} onChange={e => setBurialPlace(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：河北保定某陵园" /></div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">安葬地坐标（可选）</label><input type="text" value={burialCoords} onChange={e => setBurialCoords(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="纬度,经度" /></div>
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={() => { if (!name.trim()) return; onSave({ name: name.trim(), birth, death, info, story: story.trim() || "", burialPlace: burialPlace.trim() || "", burialCoords: burialCoords.trim() || "" }); }}
