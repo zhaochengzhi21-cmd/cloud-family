@@ -517,8 +517,13 @@ export default function HomePage() {
               <a href="/search" className="text-sm text-[#c4a67a] hover:text-[#8b0000] transition-colors">查看全部 →</a>
             </div>
             {recentLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="w-8 h-8 border-3 border-[#d4a76a]/30 border-t-[#8b0000] rounded-full animate-spin" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div key={i} className="bg-gradient-to-br from-[#fdfbf7] to-[#f5f0e8] border border-[#d4a76a]/20 rounded-xl p-4 animate-pulse">
+                    <div className="h-5 bg-[#d4a76a]/20 rounded w-3/4 mb-3" />
+                    <div className="h-3 bg-[#d4a76a]/10 rounded w-1/3" />
+                  </div>
+                ))}
               </div>
             ) : recentFamilies.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
