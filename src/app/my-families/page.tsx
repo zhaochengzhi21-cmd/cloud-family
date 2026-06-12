@@ -159,15 +159,53 @@ export default function MyFamiliesPage() {
     );
   }
 
-  // ---- 加载中 ----
+  // ---- 加载骨架屏 ----
   if (loading) {
     return (
       <div className="relative min-h-screen bg-[#f5f0e8]">
         <div className="h-1 bg-gradient-to-r from-[#8b0000] via-[#ffd700] to-[#8b0000]" />
-        <div className="flex items-center justify-center min-h-[calc(100vh-56px)]">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-4 border-[#d4a76a]/30 border-t-[#8b0000] rounded-full animate-spin" />
-            <p className="text-[#5c3a2e] text-sm tracking-wider">加载中...</p>
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-10">
+          {/* 骨架标题区 */}
+          <div className="text-center mb-10">
+            <div className="h-10 w-48 bg-gray-200/60 rounded-lg animate-pulse mx-auto mb-3" />
+            <div className="w-20 h-0.5 bg-gradient-to-r from-transparent via-gray-300 to-transparent mx-auto mb-5" />
+            <div className="h-5 w-32 bg-gray-200/60 rounded animate-pulse mx-auto" />
+          </div>
+
+          {/* 骨架按钮 */}
+          <div className="flex justify-center mb-10">
+            <div className="h-12 w-44 bg-gray-200/60 rounded-xl animate-pulse" />
+          </div>
+
+          {/* 骨架卡片列表 */}
+          <div className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="w-full bg-white/70 backdrop-blur-sm rounded-2xl shadow-md border border-[#d4a76a]/10 p-5 md:p-6 animate-pulse"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    {/* 家族名 */}
+                    <div className="h-7 w-3/5 bg-gray-200/70 rounded-md mb-3" />
+                    {/* 详情信息 */}
+                    <div className="flex flex-wrap items-center gap-3 mt-3">
+                      <div className="h-4 w-28 bg-gray-200/50 rounded" />
+                      <div className="h-4 w-32 bg-gray-200/50 rounded" />
+                    </div>
+                    {/* 角色标签 */}
+                    <div className="mt-3">
+                      <div className="h-5 w-16 bg-gray-200/60 rounded-full" />
+                    </div>
+                  </div>
+                  {/* 右侧箭头 */}
+                  <div className="shrink-0 pt-1">
+                    <div className="h-5 w-5 bg-gray-200/40 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

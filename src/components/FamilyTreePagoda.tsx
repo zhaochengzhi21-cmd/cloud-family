@@ -43,6 +43,29 @@ function sortByBirth(a: Member, b: Member) {
 
 const MAX_GENERATION = 30;
 
+/**
+ * 获取某成员的所有子女 ID（兼容 parentId / fatherId / motherId / childrenIds）
+ */
+function getChildIds(member: Member, members: Member[]): string[] {
+  const ids = new Set<string>();
+
+  // 通过 childrenIds 字段
+  if (member.childrenIds) {
+    for (const cid of member.childrenIds) ids.add(cid);
+  }
+
+  // 通过 parentId / fatherId / motherId 反向查找
+  for (const m of members) {
+    if (m.parentId === member.id ||
+        m.fatherId === member.id ||
+        m.motherId === member.id) {
+      ids.add(m.id);
+    }
+  }
+
+  return Array.from(ids);
+}
+
 // ==================== 核心树构建（含递归防护） ====================
 
 function buildPagodaTree(members: Member[]): GenerationRow[] {
@@ -59,25 +82,50 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
     });
   }
 
-  // 2. 配偶关联（双向 spouseOf）
+  // 2. 配偶关联（双向 spouseOf / spouseId）
   for (const m of members) {
+    // 通过 spouseOf
     if (m.spouseOf && nodeMap.has(m.spouseOf)) {
       const node = nodeMap.get(m.id)!;
       const spouseNode = nodeMap.get(m.spouseOf)!;
       node.spouse = spouseNode;
       spouseNode.spouse = node;
     }
+    // 通过 spouseId
+    if (m.spouseId && nodeMap.has(m.spouseId)) {
+      const node = nodeMap.get(m.id)!;
+      const spouseNode = nodeMap.get(m.spouseId)!;
+      node.spouse = spouseNode;
+      spouseNode.spouse = node;
+    }
   }
 
-  // 3. 寻找根节点（parentId 为空 或 指向不存在的节点）
+  // 3. 寻找根节点（没有任何父辈关系的节点）
   const rootIds: string[] = [];
   for (const m of members) {
-    if (!m.parentId || !nodeMap.has(m.parentId)) {
+    const hasParent =
+      (m.parentId && nodeMap.has(m.parentId)) ||
+      (m.fatherId && nodeMap.has(m.fatherId)) ||
+      (m.motherId && nodeMap.has(m.motherId));
+    // 也检查是否别人把自己当子女
+    let isChildOfSomeone = false;
+    for (const other of members) {
+      if (other.id === m.id) continue;
+      if (other.childrenIds?.includes(m.id)) {
+        isChildOfSomeone = true;
+        break;
+      }
+      if (other.parentId === m.id || other.fatherId === m.id || other.motherId === m.id) {
+        isChildOfSomeone = true;
+        break;
+      }
+    }
+    if (!hasParent && !isChildOfSomeone) {
       rootIds.push(m.id);
     }
   }
 
-  // 4. BFS 层级遍历（递归防护：visited Set + 最大深度）
+  // 4. BFS 层级遍历（从根节点开始）
   const visited = new Set<string>();
   const queue: { nodeId: string; gen: number }[] = [];
 
@@ -90,9 +138,7 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
   while (queue.length > 0) {
     const { nodeId, gen } = queue.shift()!;
 
-    // 递归防护：已访问跳过
     if (visited.has(nodeId)) continue;
-    // 深度限制
     if (gen > MAX_GENERATION) continue;
 
     visited.add(nodeId);
@@ -102,12 +148,13 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
 
     node.generation = gen;
 
-    // 找子女
-    for (const m of members) {
-      if (m.parentId === nodeId && nodeMap.has(m.id) && !visited.has(m.id)) {
-        const child = nodeMap.get(m.id)!;
-        node.children.push(child);
-        queue.push({ nodeId: m.id, gen: gen + 1 });
+    // 找子女（兼容各种关联字段）
+    const childIds = getChildIds(node.member, members);
+    for (const cid of childIds) {
+      const childNode = nodeMap.get(cid);
+      if (childNode && !visited.has(cid)) {
+        node.children.push(childNode);
+        queue.push({ nodeId: cid, gen: gen + 1 });
       }
     }
   }
@@ -148,11 +195,17 @@ function buildCoupleGroups(nodes: TreeNode[]): CoupleGroup[] {
     if (used.has(node.member.id)) continue;
 
     if (node.spouse && !used.has(node.spouse.member.id)) {
-      // 有配偶，配对
+      // 有配偶，配对 — 父亲在左、母亲在右
       const spouseNode = node.spouse;
-      const isLeft = node.member.id < spouseNode.member.id;
-      const husband = isLeft ? node : spouseNode;
-      const wife = isLeft ? spouseNode : node;
+
+      // 判断谁是丈夫/父亲（按 gender 字段，或按 ID 排序）
+      const isHusband =
+        node.member.gender === "男" ||
+        (spouseNode.member.gender === "女" && node.member.gender !== "女") ||
+        node.member.id < spouseNode.member.id;
+
+      const husband = isHusband ? node : spouseNode;
+      const wife = isHusband ? spouseNode : node;
 
       groups.push({
         husband,
@@ -183,30 +236,43 @@ function getGenerationLabel(gen: number): string {
   return `${gen + 1}世`;
 }
 
-// ==================== 连线组件 ====================
+// ==================== 连线组件（深棕色 2px 实线） ====================
 
-function VerticalLine({ height = 28 }: { height?: number }) {
+const LINE_COLOR = "#4a2c17"; // 深棕色
+const LINE_WIDTH = 2;
+
+function VerticalLine({ height = 28, color = LINE_COLOR }: { height?: number; color?: string }) {
   return (
     <div className="flex justify-center" style={{ height }}>
-      <div className="bg-[#8b4513] h-full" style={{ width: "3px" }} />
+      <div style={{ backgroundColor: color, height: "100%", width: LINE_WIDTH }} />
     </div>
   );
 }
 
-function HorizontalLine({ width = 16 }: { width?: number }) {
+function HorizontalLine({ width = 16, color = LINE_COLOR }: { width?: number; color?: string }) {
   return (
     <div className="flex items-center" style={{ width }}>
-      <div className="bg-[#8b4513] flex-1" style={{ height: "3px" }} />
+      <div style={{ backgroundColor: color, flex: 1, height: LINE_WIDTH }} />
     </div>
   );
 }
 
-function ConnectorDot({ size = 8 }: { size?: number }) {
+/** 分叉实心圆点 */
+function ConnectorDot({ size = 8, color = LINE_COLOR }: { size?: number; color?: string }) {
   return (
     <div
-      className="rounded-full bg-[#8b4513]"
-      style={{ width: size, height: size, minWidth: size }}
+      className="rounded-full"
+      style={{ width: size, height: size, minWidth: size, backgroundColor: color }}
     />
+  );
+}
+
+/** 浅色兄弟姊妹连线 */
+function SiblingLine({ length = 40 }: { length?: number }) {
+  return (
+    <div className="flex items-center" style={{ width: length }}>
+      <div style={{ backgroundColor: "#c4b5a0", flex: 1, height: 1 }} />
+    </div>
   );
 }
 
@@ -464,7 +530,6 @@ function MemberCard({
           if (editable) {
             onEditStory?.();
           } else {
-            // 不在编辑模式：打开详情弹窗同时请求父页面进入编辑模式
             onRequestEdit?.();
             onEdit?.();
           }
@@ -504,7 +569,7 @@ function MemberCard({
         )}
       </div>
 
-      {/* 详情弹窗：点击卡片时显示 */}
+      {/* 详情弹窗 */}
       {showDetail && (
         <div
           className="absolute z-20 top-full left-1/2 -translate-x-1/2 mt-2 w-64 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 text-sm text-[#5c3a2e] leading-relaxed"
@@ -513,15 +578,12 @@ function MemberCard({
         >
           <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-t border-l border-[#d4a76a]/20 rotate-45" />
           
-          {/* 姓名 */}
           <p className="font-bold text-[#8b0000] mb-1 text-base">{member.name}</p>
           
-          {/* 生卒年份 */}
           {birthText && (
             <p className="text-xs text-[#5c3a2e]/60 mb-2">{birthText}</p>
           )}
 
-          {/* 安葬地 */}
           {member.burialPlace && (
             <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
               <p className="text-xs font-bold text-[#8b0000]/70 mb-1">🪦 安葬地</p>
@@ -566,7 +628,6 @@ function MemberCard({
               <div
                 className="w-full h-24 rounded-lg border-2 border-dashed border-[#d4a76a]/40 bg-[#fdfbf7] flex flex-col items-center justify-center cursor-pointer hover:border-[#8b0000]/50 hover:bg-[#f5f0e8] transition-all"
                 onClick={() => {
-                  // 触发父级照片上传流程
                   const input = document.createElement('input');
                   input.type = 'file';
                   input.accept = 'image/*';
@@ -601,7 +662,6 @@ function MemberCard({
             )}
           </div>
 
-          {/* 生平事迹 / AI 生成的小传 */}
           {member.info && (
             <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
               <p className="text-xs font-bold text-[#8b0000]/70 mb-1">📜 生平</p>
@@ -611,19 +671,16 @@ function MemberCard({
             </div>
           )}
 
-          {/* 家族故事：前50字 + 展开全文 */}
           {member.story && (
             <StoryBlock story={member.story} />
           )}
 
-          {/* 家人回忆 */}
           <MemberMemories
             member={member}
             editable={editable}
             onUpdateMember={onUpdateMember}
           />
 
-          {/* 关闭按钮 */}
           <button
             className="w-full mt-1 text-xs text-[#c4a67a] hover:text-[#8b0000] transition-colors py-1"
             onClick={() => setShowDetail(false)}
@@ -636,98 +693,7 @@ function MemberCard({
   );
 }
 
-// ==================== 子女组合（带连线、分叉圆点） ====================
-
-function ChildrenCluster({
-  children,
-  editable,
-  onEditMember,
-  onEditStory,
-  onAddParent,
-  onAddChild,
-  onAddSpouse,
-  onRequestEdit,
-  onUpdateMember,
-}: {
-  children: TreeNode[];
-  editable: boolean;
-  onEditMember: (m: Member) => void;
-  onEditStory: (m: Member) => void;
-  onAddParent: (m: Member) => void;
-  onAddChild: (m: Member) => void;
-  onAddSpouse: (m: Member) => void;
-  onRequestEdit?: () => void;
-  onUpdateMember?: (updated: Member) => void;
-}) {
-  if (children.length === 0) return null;
-
-  return (
-    <div className="relative flex flex-col items-center w-full">
-      {/* 向下连线 + 分叉 */}
-      <div className="flex items-center justify-center w-full py-1">
-        {children.length === 1 ? (
-          <ConnectorDot size={8} />
-        ) : (
-          <div className="flex items-center justify-center" style={{ width: "100%" }}>
-            <ConnectorDot size={6} />
-            <div className="flex-1 bg-[#8b4513]" style={{ height: "3px" }} />
-            <ConnectorDot size={6} />
-            <div className="flex-1 bg-[#8b4513]" style={{ height: "3px" }} />
-            <ConnectorDot size={6} />
-          </div>
-        )}
-      </div>
-
-      {/* 子女卡片行 */}
-      <div className="flex items-start gap-6 md:gap-8">
-        {children.map((child) => {
-          const spouse = child.spouse;
-          return (
-            <div key={child.member.id} className="flex flex-col items-center">
-              <VerticalLine height={20} />
-              <div className="flex items-center gap-1">
-                <MemberCard
-                  member={child.member}
-                  editable={editable}
-                  onEdit={() => onEditMember(child.member)}
-                  onEditStory={() => onEditStory(child.member)}
-                  onAddParent={() => onAddParent(child.member)}
-                  onAddChild={() => onAddChild(child.member)}
-                  onAddSpouse={() => onAddSpouse(child.member)}
-                  onRequestEdit={onRequestEdit}
-                  onUpdateMember={onUpdateMember}
-                />
-                {spouse && (
-                  <>
-                    <div className="flex items-center">
-                      <HorizontalLine width={12} />
-                      <span className="text-[#8b4513] text-[11px] font-bold mx-0.5">配</span>
-                      <HorizontalLine width={12} />
-                    </div>
-                    <MemberCard
-                      member={spouse.member}
-                      isSpouse
-                      editable={editable}
-                      onEdit={() => onEditMember(spouse.member)}
-                      onEditStory={() => onEditStory(spouse.member)}
-                      onAddParent={() => onAddParent(spouse.member)}
-                      onAddChild={() => onAddChild(spouse.member)}
-                      onAddSpouse={() => onAddSpouse(spouse.member)}
-                      onRequestEdit={onRequestEdit}
-                      onUpdateMember={onUpdateMember}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ==================== 夫妻组（横向连"配"） ====================
+// ==================== 夫妻组（父亲在左、母亲在右，带共享边框） ====================
 
 function CoupleUnit({
   couple,
@@ -754,52 +720,77 @@ function CoupleUnit({
   const wife = couple.wife;
   const children = couple.children;
 
+  // 渲染夫妻卡片
+  const coupleContent = (
+    <div className="flex items-center gap-1">
+      {/* 父亲卡片 */}
+      {husband && (
+        <MemberCard
+          member={husband.member}
+          editable={editable}
+          onEdit={() => onEditMember(husband.member)}
+          onEditStory={() => onEditStory(husband.member)}
+          onAddParent={() => onAddParent(husband.member)}
+          onAddChild={() => onAddChild(husband.member)}
+          onAddSpouse={() => onAddSpouse(husband.member)}
+          onRequestEdit={onRequestEdit}
+          onUpdateMember={onUpdateMember}
+        />
+      )}
+      {/* 夫妻连线：中间用横线 + "配" 字 */}
+      {husband && wife && (
+        <div className="flex items-center">
+          <ConnectorDot size={5} />
+          <HorizontalLine width={10} />
+          <span className="text-[#4a2c17] text-xs font-bold mx-0.5 tracking-widest">配</span>
+          <HorizontalLine width={10} />
+          <ConnectorDot size={5} />
+        </div>
+      )}
+      {/* 母亲卡片 */}
+      {wife && (
+        <MemberCard
+          member={wife.member}
+          isSpouse
+          editable={editable}
+          onEdit={() => onEditMember(wife.member)}
+          onEditStory={() => onEditStory(wife.member)}
+          onAddParent={() => onAddParent(wife.member)}
+          onAddChild={() => onAddChild(wife.member)}
+          onAddSpouse={() => onAddSpouse(wife.member)}
+          onRequestEdit={onRequestEdit}
+          onUpdateMember={onUpdateMember}
+        />
+      )}
+      {/* 仅单身 */}
+      {husband && !wife && (
+        <div className="w-4" />
+      )}
+    </div>
+  );
+
+  // 有配偶时用浅色共享边框包裹
+  const coupleWrapper = husband && wife ? (
+    <div className="border border-[#d4a76a]/30 rounded-xl px-3 py-2 inline-flex items-center">
+      {coupleContent}
+    </div>
+  ) : coupleContent;
+
   return (
     <div className="flex flex-col items-center">
       {/* 夫妻行 */}
-      <div className="flex items-center gap-1">
-        {husband && (
-          <MemberCard
-            member={husband.member}
-            editable={editable}
-            onEdit={() => onEditMember(husband.member)}
-            onEditStory={() => onEditStory(husband.member)}
-            onAddParent={() => onAddParent(husband.member)}
-            onAddChild={() => onAddChild(husband.member)}
-            onAddSpouse={() => onAddSpouse(husband.member)}
-            onRequestEdit={onRequestEdit}
-            onUpdateMember={onUpdateMember}
-          />
-        )}
-        {husband && wife && (
-          <div className="flex items-center">
-            <ConnectorDot size={5} />
-            <HorizontalLine width={10} />
-            <span className="text-[#8b4513] text-xs font-bold mx-0.5 tracking-widest">配</span>
-            <HorizontalLine width={10} />
-            <ConnectorDot size={5} />
-          </div>
-        )}
-        {wife && (
-          <MemberCard
-            member={wife.member}
-            isSpouse
-            editable={editable}
-            onEdit={() => onEditMember(wife.member)}
-            onEditStory={() => onEditStory(wife.member)}
-            onAddParent={() => onAddParent(wife.member)}
-            onAddChild={() => onAddChild(wife.member)}
-            onAddSpouse={() => onAddSpouse(wife.member)}
-            onRequestEdit={onRequestEdit}
-            onUpdateMember={onUpdateMember}
-          />
-        )}
-      </div>
+      {coupleWrapper}
 
-      {/* 向下连线 */}
+      {/* 向下连线 — 从夫妻中间正下方引出 */}
       {children.length > 0 && (
         <>
+          {/* 有配偶时从夫妻中间引出，无配偶时从单人正下方引出 */}
+          <div className="flex justify-center items-center pt-1">
+            <ConnectorDot size={6} />
+          </div>
           <VerticalLine height={24} />
+          
+          {/* 子女簇 */}
           <ChildrenCluster
             children={children}
             editable={editable}
@@ -817,14 +808,10 @@ function CoupleUnit({
   );
 }
 
-// ==================== 代际行（同辈折叠） ====================
+// ==================== 子女组合（兄妹间浅色横线，按出生年份排列） ====================
 
-const COLLAPSE_THRESHOLD = 6;
-
-function GenerationRowView({
-  couples,
-  generation,
-  isLast,
+function ChildrenCluster({
+  children,
   editable,
   onEditMember,
   onEditStory,
@@ -834,9 +821,7 @@ function GenerationRowView({
   onRequestEdit,
   onUpdateMember,
 }: {
-  couples: CoupleGroup[];
-  generation: number;
-  isLast: boolean;
+  children: TreeNode[];
   editable: boolean;
   onEditMember: (m: Member) => void;
   onEditStory: (m: Member) => void;
@@ -846,34 +831,165 @@ function GenerationRowView({
   onRequestEdit?: () => void;
   onUpdateMember?: (updated: Member) => void;
 }) {
-  const totalIndividuals = couples.reduce(
-    (sum, c) => sum + (c.husband ? 1 : 0) + (c.wife ? 1 : 0),
-    0
-  );
-  const [collapsed, setCollapsed] = useState(totalIndividuals > COLLAPSE_THRESHOLD * 1.5);
-  const displayCouples = collapsed ? couples.slice(0, 3) : couples;
-  const hiddenCount = couples.length - displayCouples.length;
-  const hiddenMembers = couples
-    .slice(3)
-    .reduce((sum, c) => sum + (c.husband ? 1 : 0) + (c.wife ? 1 : 0), 0);
+  if (children.length === 0) return null;
 
   return (
-    <div className="flex flex-col items-center w-full">
-      {/* 代际标签 */}
-      <div className="text-[11px] text-[#8b4513]/60 tracking-widest mb-2 font-bold px-3 py-0.5 bg-[#f5f0e8] rounded-full border border-[#d4a76a]/20">
-        {getGenerationLabel(generation)}
+    <div className="flex items-start justify-center gap-2 relative">
+      {children.map((child, idx) => (
+        <div key={child.member.id} className="flex flex-col items-center relative">
+          <VerticalLine height={24} />
+          <ConnectorDot size={5} />
+          <div className="flex items-center gap-0.5">
+            <MemberCard
+              member={child.member}
+              editable={editable}
+              onEdit={() => onEditMember(child.member)}
+              onEditStory={() => onEditStory(child.member)}
+              onAddParent={() => onAddParent(child.member)}
+              onAddChild={() => onAddChild(child.member)}
+              onAddSpouse={() => onAddSpouse(child.member)}
+              onRequestEdit={onRequestEdit}
+              onUpdateMember={onUpdateMember}
+            />
+            {child.spouse && (
+              <>
+                <div className="flex items-center">
+                  <ConnectorDot size={4} />
+                  <HorizontalLine width={6} />
+                  <span className="text-[#4a2c17] text-[10px] font-bold mx-0.5">配</span>
+                  <HorizontalLine width={6} />
+                  <ConnectorDot size={4} />
+                </div>
+                <MemberCard
+                  member={child.spouse!.member}
+                  isSpouse
+                  editable={editable}
+                  onEdit={() => child.spouse && onEditMember(child.spouse.member)}
+                  onEditStory={() => child.spouse && onEditStory(child.spouse.member)}
+                  onAddParent={() => child.spouse && onAddParent(child.spouse.member)}
+                  onAddChild={() => child.spouse && onAddChild(child.spouse.member)}
+                  onAddSpouse={() => child.spouse && onAddSpouse(child.spouse.member)}
+                  onRequestEdit={onRequestEdit}
+                  onUpdateMember={onUpdateMember}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function StoryBlock({ story }: { story: string }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!story) return null;
+  const isLong = story.length > 100;
+  return (
+    <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
+      <button className="w-full text-left" onClick={() => setExpanded(!expanded)}>
+        <p className="text-xs font-bold text-[#8b0000]/70 mb-1">
+          📖 我的故事 {isLong && (expanded ? "▲" : "▼")}
+        </p>
+        <p className="text-xs text-[#5c3a2e]/80 whitespace-pre-wrap leading-relaxed">
+          {isLong && !expanded ? story.slice(0, 100) + "…" : story}
+        </p>
+      </button>
+    </div>
+  );
+}
+
+function GenerationRowView({
+  row,
+  editable,
+  onEditMember,
+  onEditStory,
+  onAddParent,
+  onAddChild,
+  onAddSpouse,
+  onRequestEdit,
+  onUpdateMember,
+}: {
+  row: GenerationRow;
+  editable: boolean;
+  onEditMember: (m: Member) => void;
+  onEditStory: (m: Member) => void;
+  onAddParent: (m: Member) => void;
+  onAddChild: (m: Member) => void;
+  onAddSpouse: (m: Member) => void;
+  onRequestEdit?: () => void;
+  onUpdateMember?: (updated: Member) => void;
+}) {
+  return (
+    <div className="flex flex-col items-center w-full py-4">
+      <div className="mb-3 px-4 py-1 rounded-full bg-[#8b0000]/5 border border-[#d4a76a]/20 text-xs font-bold text-[#8b0000] tracking-wider">
+        {getGenerationLabel(row.generation)}
       </div>
+      <div className="flex items-start justify-center gap-6 md:gap-10 lg:gap-14 flex-wrap">
+        {row.couples.map((couple, idx) => (
+          <CoupleUnit
+            key={`${couple.husband?.member.id ?? "n"}-${couple.wife?.member.id ?? "n"}-${idx}`}
+            couple={couple}
+            editable={editable}
+            onEditMember={onEditMember}
+            onEditStory={onEditStory}
+            onAddParent={onAddParent}
+            onAddChild={onAddChild}
+            onAddSpouse={onAddSpouse}
+            onRequestEdit={onRequestEdit}
+            onUpdateMember={onUpdateMember}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-      {/* 上一代指向本代的连线 */}
-      {generation > 0 && <VerticalLine height={28} />}
+function InterGenerationLine() {
+  return (
+    <div className="flex justify-center py-1">
+      <VerticalLine height={36} />
+    </div>
+  );
+}
 
-      {/* 夫妻组 */}
-      <div className="flex items-start gap-8 md:gap-12 px-4 overflow-x-auto py-2">
-        {displayCouples.map((couple, idx) => (
-          <div key={idx} className="flex items-center shrink-0">
-            {idx > 0 && <div className="w-4 bg-[#8b4513]/20 mx-1" style={{ height: "3px" }} />}
-            <CoupleUnit
-              couple={couple}
+function PagodaView({
+  generations,
+  editable,
+  onEditMember,
+  onEditStory,
+  onAddParent,
+  onAddChild,
+  onAddSpouse,
+  onRequestEdit,
+  onUpdateMember,
+}: {
+  generations: GenerationRow[];
+  editable: boolean;
+  onEditMember: (m: Member) => void;
+  onEditStory: (m: Member) => void;
+  onAddParent: (m: Member) => void;
+  onAddChild: (m: Member) => void;
+  onAddSpouse: (m: Member) => void;
+  onRequestEdit?: () => void;
+  onUpdateMember?: (updated: Member) => void;
+}) {
+  if (generations.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-[#c4a67a]">
+        <div className="text-5xl mb-4">🌳</div>
+        <p className="text-lg font-bold tracking-wider">暂无家族成员</p>
+        <p className="text-sm mt-2">点击卡片上的 + 添加第一位家族成员</p>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center w-full max-w-full overflow-x-auto py-6 px-4">
+      <div className="flex flex-col items-center min-w-max">
+        {generations.map((row, idx) => (
+          <div key={row.generation} className="flex flex-col items-center">
+            <GenerationRowView
+              row={row}
               editable={editable}
               onEditMember={onEditMember}
               onEditStory={onEditStory}
@@ -883,59 +999,7 @@ function GenerationRowView({
               onRequestEdit={onRequestEdit}
               onUpdateMember={onUpdateMember}
             />
-          </div>
-        ))}
-      </div>
-
-      {/* 折叠展开按钮 */}
-      {collapsed && hiddenCount > 0 && (
-        <button
-          onClick={() => setCollapsed(false)}
-          className="mt-2 px-4 py-1.5 text-xs text-[#c4a67a] hover:text-[#8b0000] bg-white/80 rounded-full border border-[#d4a76a]/20 hover:border-[#8b0000]/30 transition-colors shadow-sm"
-        >
-          展开剩余 {hiddenMembers} 位族人...
-        </button>
-      )}
-      {!collapsed && totalIndividuals > COLLAPSE_THRESHOLD * 1.5 && (
-        <button
-          onClick={() => setCollapsed(true)}
-          className="mt-2 px-4 py-1.5 text-xs text-[#c4a67a] hover:text-[#8b0000] bg-white/80 rounded-full border border-[#d4a76a]/20 hover:border-[#8b0000]/30 transition-colors shadow-sm"
-        >
-          折叠
-        </button>
-      )}
-
-      {/* 代际分隔 */}
-      {!isLast && (
-        <div className="w-full max-w-3xl mx-auto mt-4 mb-2">
-          <div className="h-px bg-gradient-to-r from-transparent via-[#8b4513]/20 to-transparent" />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ==================== 全部族人一览 ====================
-
-function MembersOverview({ members }: { members: Member[] }) {
-  return (
-    <div className="mt-8 pt-6 border-t border-[#d4a76a]/20">
-      <h3 className="text-sm font-bold text-[#5c3a2e] mb-4 tracking-wider">
-        全部族人一览
-      </h3>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-        {members.map((m) => (
-          <div
-            key={m.id}
-            className="px-3 py-2 bg-[#f5f0e8] rounded-lg text-center text-sm text-[#5c3a2e] hover:bg-[#e8dcc8] transition-colors"
-          >
-            <div className="font-bold text-[#8b0000]">{m.name}</div>
-            {m.birth && (
-              <div className="text-xs text-[#5c3a2e]/60">
-                {m.birth}
-                {m.death ? `—${m.death}` : ""}
-              </div>
-            )}
+            {idx < generations.length - 1 && <InterGenerationLine />}
           </div>
         ))}
       </div>
@@ -943,472 +1007,147 @@ function MembersOverview({ members }: { members: Member[] }) {
   );
 }
 
-// ==================== 空状态 ====================
-
-function EmptyState() {
-  return (
-    <div className="text-center py-16">
-      <div className="text-6xl mb-4">🏛️</div>
-      <h3 className="text-xl font-bold text-[#8b0000] mb-2 tracking-wider">
-        家族树暂无数据
-      </h3>
-      <p className="text-[#5c3a2e] text-sm">
-        点击编辑开始添加成员
-      </p>
-    </div>
-  );
+interface TempMember {
+  name: string;
+  birth: string;
+  death: string;
+  info: string;
+  story: string;
+  burialPlace: string;
+  burialCoords: string;
 }
 
-// ==================== 故事展开块（前50字摘要 + 点击全文） ====================
-
-function StoryBlock({ story }: { story: string }) {
-  const [expanded, setExpanded] = useState(false);
-  const isLong = story.length > 50;
-  const display = expanded || !isLong ? story : story.slice(0, 50) + "…";
-
-  return (
-    <div className="bg-[#fefcf5] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
-      <p className="text-xs font-bold text-[#8b0000]/70 mb-1">📖 家族故事</p>
-      <p className="text-xs text-[#5c3a2e]/80 whitespace-pre-wrap leading-relaxed">
-        {display}
-        {isLong && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-[#8b0000] font-bold ml-1 hover:text-[#a52a2a] transition-colors"
-          >
-            {expanded ? "收起" : "阅读全文"}
-          </button>
-        )}
-      </p>
-    </div>
-  );
-}
-
-// ==================== 主视图 - 宝塔式树状图 ====================
-
+/** 旧接口兼容导出（供 family/[familyId]/page.tsx 使用） */
 export function PagodaTreeView({
   tree,
-  editable = false,
+  editable,
   onTreeChange,
   onRequestEdit,
 }: {
   tree: FamilyTree;
   editable?: boolean;
-  onTreeChange?: (newTree: FamilyTree) => void;
+  onTreeChange?: (updated: FamilyTree) => void;
   onRequestEdit?: () => void;
 }) {
-  const [formMode, setFormMode] = useState<"edit" | "addParent" | "addChild" | "addSpouse" | "addRoot" | "editStory" | null>(null);
-  const [currentMember, setCurrentMember] = useState<Member | null>(null);
-  const [editTargetMemberId, setEditTargetMemberId] = useState<string | null>(null);
-  const [storyFocusMemberId, setStoryFocusMemberId] = useState<string | null>(null);
-
-  // 克隆成员列表
-  const members = tree.members || [];
-
-  // 构建树
-  const generations = useMemo(() => buildPagodaTree(members), [members]);
-
-  const setMembers = useCallback(
-    (newMembers: Member[]) => {
-      onTreeChange?.({
-        ...tree,
-        members: newMembers,
-        updatedAt: new Date().toISOString(),
-      });
-    },
-    [tree, onTreeChange]
-  );
-
-  // ===== 编辑现有成员 =====
-  const handleEditMember = useCallback((member: Member) => {
-    setCurrentMember({ ...member });
-    setFormMode("edit");
-    setEditTargetMemberId(member.id);
-  }, []);
-
-  // ===== 编辑故事 =====
-  const handleEditStory = useCallback((member: Member) => {
-    setCurrentMember({ ...member });
-    setFormMode("editStory");
-    setEditTargetMemberId(member.id);
-    setStoryFocusMemberId(member.id);
-  }, []);
-
-  // ===== 添加父辈 =====
-  const handleAddParent = useCallback((member: Member) => {
-    setCurrentMember(null);
-    setFormMode("addParent");
-    setEditTargetMemberId(member.id);
-  }, []);
-
-  // ===== 添加子女 =====
-  const handleAddChild = useCallback((member: Member) => {
-    setCurrentMember({ ...member });
-    setFormMode("addChild");
-    setEditTargetMemberId(member.id);
-  }, []);
-
-  // ===== 添加配偶 =====
-  const handleAddSpouse = useCallback((member: Member) => {
-    setCurrentMember({ ...member });
-    setFormMode("addSpouse");
-    setEditTargetMemberId(member.id);
-  }, []);
-
-  // ===== 添加始祖 =====
-  const handleAddRoot = useCallback(() => {
-    setCurrentMember(null);
-    setFormMode("addRoot");
-    setEditTargetMemberId(null);
-  }, []);
-
-  // ===== 保存编辑结果 =====
-  const handleSaveEdit = useCallback(
-    (data: EditFormData) => {
-      // 先从其他成员中移除旧关系引用
-      let updated = members.map((m) => {
-        if (m.id === editTargetMemberId) {
-          return m; // 先不处理目标成员
-        }
-        // 从 childrenIds 中移除 (old)
-        if (m.childrenIds?.includes(editTargetMemberId!)) {
-          return { ...m, childrenIds: m.childrenIds.filter((id) => id !== editTargetMemberId) };
-        }
-        // 从 spouseId 中解除 (old)
-        if (m.spouseId === editTargetMemberId) {
-          return { ...m, spouseId: undefined };
-        }
-        return m;
-      });
-
-      // 更新目标成员自身
-      updated = updated.map((m) => {
-        if (m.id === editTargetMemberId) {
-          return {
-            ...m,
-            name: data.name,
-            birth: data.birth,
-            death: data.death,
-            info: data.info,
-            story: data.story,
-            burialPlace: data.burialPlace,
-            burialCoords: data.burialCoords,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return m;
-      });
-
-      // 重新建立新关系引用 (如果编辑表单中包含了关系字段)
-      // 注意：Pagoda 的编辑表单不包含 fatherId/motherId/spouseId 选择器，
-      // 所以这里只做基本信息编辑。如果未来表单扩展了关系字段，这里需要同步。
-      // （关系维护主要在 addChild/addSpouse/addParent 中完成）
-
-      setMembers(updated);
-      setFormMode(null);
-      setCurrentMember(null);
-      setEditTargetMemberId(null);
-      setStoryFocusMemberId(null);
-    },
-    [members, editTargetMemberId, setMembers]
-  );
-
-  // ===== 保存故事编辑 =====
-  const handleSaveStory = useCallback(
-    (data: EditFormData) => {
-      handleSaveEdit(data);
-    },
-    [handleSaveEdit]
-  );
-
-  // ===== 添加父辈 =====
-  const handleAddParentSave = useCallback(
-    (data: EditFormData) => {
-      const newId = generateId();
-      const newMember: Member = {
-        id: newId,
-        name: data.name,
-        birth: data.birth,
-        death: data.death,
-        info: data.info,
-        story: data.story,
-        burialPlace: data.burialPlace,
-        burialCoords: data.burialCoords,
-        parentId: undefined,
-        spouseOf: undefined,
-        // 新父辈的 childrenIds 包含当前成员
-        childrenIds: editTargetMemberId ? [editTargetMemberId] : [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      // 同时更新当前成员的 parentId 指向新父辈
-      const updatedMembers = members.map((m) => {
-        if (m.id === editTargetMemberId) {
-          return { ...m, parentId: newId };
-        }
-        return m;
-      });
-      setMembers([...updatedMembers, newMember]);
-      setFormMode(null);
-      setCurrentMember(null);
-      setEditTargetMemberId(null);
-    },
-    [members, editTargetMemberId, setMembers]
-  );
-
-  // ===== 添加子女 =====
-  const handleAddChildSave = useCallback(
-    (data: EditFormData) => {
-      const newId = generateId();
-      const newMember: Member = {
-        id: newId,
-        name: data.name,
-        birth: data.birth,
-        death: data.death,
-        info: data.info,
-        story: data.story,
-        burialPlace: data.burialPlace,
-        burialCoords: data.burialCoords,
-        parentId: editTargetMemberId,
-        spouseOf: undefined,
-        childrenIds: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      // 双向：在父辈的 childrenIds 中加入新子女
-      const updatedMembers = members.map((m) => {
-        if (m.id === editTargetMemberId) {
-          const childrenIds = m.childrenIds || [];
-          if (!childrenIds.includes(newId)) {
-            return { ...m, childrenIds: [...childrenIds, newId] };
-          }
-        }
-        return m;
-      });
-      setMembers([...updatedMembers, newMember]);
-      setFormMode(null);
-      setCurrentMember(null);
-      setEditTargetMemberId(null);
-    },
-    [members, editTargetMemberId, setMembers]
-  );
-
-  // ===== 添加配偶 =====
-  const handleAddSpouseSave = useCallback(
-    (data: EditFormData) => {
-      const newId = generateId();
-      const newMember: Member = {
-        id: newId,
-        name: data.name,
-        birth: data.birth,
-        death: data.death,
-        info: data.info,
-        story: data.story,
-        burialPlace: data.burialPlace,
-        burialCoords: data.burialCoords,
-        parentId: currentMember?.parentId || null,
-        spouseOf: editTargetMemberId,
-        childrenIds: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      // 双向：在原有成员的 spouseId 中设置新配偶
-      const updatedMembers = members.map((m) => {
-        if (m.id === editTargetMemberId) {
-          return { ...m, spouseId: newId };
-        }
-        return m;
-      });
-      setMembers([...updatedMembers, newMember]);
-      setFormMode(null);
-      setCurrentMember(null);
-      setEditTargetMemberId(null);
-    },
-    [members, currentMember, editTargetMemberId, setMembers]
-  );
-
-  // ===== 更新单个成员（用于家人回忆） =====
-  const handleUpdateMember = useCallback(
-    (updated: Member) => {
-      const newMembers = members.map((m) =>
-        m.id === updated.id ? { ...m, ...updated } : m
-      );
-      setMembers(newMembers);
-    },
-    [members, setMembers]
-  );
-
-  // ===== 添加始祖（无parentId，无配偶） =====
-  const handleAddRootSave = useCallback(
-    (data: EditFormData) => {
-      const newMember: Member = {
-        id: generateId(),
-        name: data.name,
-        birth: data.birth,
-        death: data.death,
-        info: data.info,
-        story: data.story,
-        burialPlace: data.burialPlace,
-        burialCoords: data.burialCoords,
-        parentId: null,
-        spouseOf: undefined,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setMembers([...members, newMember]);
-      setFormMode(null);
-      setCurrentMember(null);
-      setEditTargetMemberId(null);
-    },
-    [members, setMembers]
-  );
-
-  // ===== 渲染表单 =====
-  const renderForm = () => {
-    if (formMode === "edit" || formMode === "editStory") {
-      const member = members.find((m) => m.id === editTargetMemberId);
-      if (!member) return null;
-      return (
-        <MemberEditForm
-          initial={{
-            name: member.name,
-            birth: member.birth || "",
-            death: member.death || "",
-            info: member.info || "",
-            story: member.story || "",
-            burialPlace: member.burialPlace || "",
-            burialCoords: member.burialCoords || "",
-          }}
-          onSave={formMode === "editStory" ? handleSaveStory : handleSaveEdit}
-          onCancel={() => { setFormMode(null); setCurrentMember(null); setEditTargetMemberId(null); setStoryFocusMemberId(null); }}
-          title={formMode === "editStory" ? `📖 ${member.name} 的故事` : `✏️ 编辑 ${member.name}`}
-          storyFocus={formMode === "editStory"}
-        />
-      );
-    }
-    if (formMode === "addParent") {
-      return (
-        <MemberEditForm
-          initial={{ name: "", birth: "", death: "", info: "", story: "", burialPlace: "", burialCoords: "" }}
-          onSave={handleAddParentSave}
-          onCancel={() => { setFormMode(null); setCurrentMember(null); setEditTargetMemberId(null); }}
-          title="⬆️ 添加父辈"
-        />
-      );
-    }
-    if (formMode === "addChild") {
-      return (
-        <MemberEditForm
-          initial={{ name: "", birth: "", death: "", info: "", story: "", burialPlace: "", burialCoords: "" }}
-          onSave={handleAddChildSave}
-          onCancel={() => { setFormMode(null); setCurrentMember(null); setEditTargetMemberId(null); }}
-          title="⬇️ 添加子女"
-        />
-      );
-    }
-    if (formMode === "addSpouse") {
-      return (
-        <MemberEditForm
-          initial={{ name: "", birth: "", death: "", info: "", story: "", burialPlace: "", burialCoords: "" }}
-          onSave={handleAddSpouseSave}
-          onCancel={() => { setFormMode(null); setCurrentMember(null); setEditTargetMemberId(null); }}
-          title="👩‍❤️‍👨 添加配偶"
-        />
-      );
-    }
-    if (formMode === "addRoot") {
-      return (
-        <MemberEditForm
-          initial={{ name: "", birth: "", death: "", info: "", story: "", burialPlace: "", burialCoords: "" }}
-          onSave={handleAddRootSave}
-          onCancel={() => { setFormMode(null); setCurrentMember(null); setEditTargetMemberId(null); }}
-          title="🏛️ 添加始祖"
-        />
-      );
-    }
-    return null;
-  };
-
   return (
-    <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/30 p-6 md:p-8">
-      {/* 标题 */}
-      <div className="text-center mb-6">
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-2xl">🌳</span>
-          <h2 className="text-xl md:text-2xl font-black text-[#8b0000] tracking-wider">
-            宝塔式宗亲世系图
-          </h2>
-        </div>
-        <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-[#8b0000] to-transparent mx-auto mt-2 mb-2" />
-        <p className="text-[#5c3a2e] text-sm">
-          共计 {members.length} 位族人 · {generations.length} 代
-        </p>
-      </div>
-
-      {/* 编辑模式：添加始祖 */}
-      {editable && members.length === 0 && (
-        <div className="text-center mb-6">
-          <button
-            onClick={handleAddRoot}
-            className="px-6 py-3 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors shadow-lg shadow-[#8b0000]/20"
-          >
-            🏛️ 添加始祖
-          </button>
-        </div>
-      )}
-
-      {/* 空状态 */}
-      {members.length === 0 && !editable && <EmptyState />}
-
-      {/* 树图主体 */}
-      {members.length > 0 && (
-        <div className="overflow-x-auto pb-6">
-          <div className="flex flex-col items-center min-w-[300px]">
-            {generations.map((gen, index) => (
-            <GenerationRowView
-                key={gen.generation}
-                couples={gen.couples}
-                generation={gen.generation}
-                isLast={index === generations.length - 1}
-                editable={editable}
-                onEditMember={handleEditMember}
-                onEditStory={handleEditStory}
-                onAddParent={handleAddParent}
-                onAddChild={handleAddChild}
-                onAddSpouse={handleAddSpouse}
-                onRequestEdit={onRequestEdit}
-                onUpdateMember={handleUpdateMember}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* 全部族人一览 */}
-      {members.length > 0 && <MembersOverview members={members} />}
-
-      {/* 编辑模式：底部添加始祖按钮 */}
-      {editable && members.length > 0 && (
-        <div className="text-center mt-6">
-          <button
-            onClick={handleAddRoot}
-            className="px-5 py-2.5 bg-white text-[#8b0000] rounded-xl font-bold text-sm hover:bg-[#fdfbf7] transition-colors border-2 border-[#8b0000]/30 hover:border-[#8b0000] shadow-lg"
-          >
-            🏛️ 添加始祖
-          </button>
-        </div>
-      )}
-
-      {/* 表单弹窗 */}
-      {renderForm()}
-    </div>
+    <FamilyTreePagoda
+      tree={tree}
+      editable={editable}
+      onUpdateTree={onTreeChange}
+      onRequestEdit={onRequestEdit}
+    />
   );
 }
 
-export const displayPagodaTooltip = (member: Member) => {
-  const parts: string[] = [];
-  if (member.birth) parts.push(`生于 ${member.birth}`);
-  if (member.death) parts.push(`卒于 ${member.death}`);
-  if (member.info) parts.push(member.info);
-  return parts.join("\n");
-};
+export default function FamilyTreePagoda({
+  tree,
+  editable = false,
+  onUpdateTree,
+  onRequestEdit,
+}: {
+  tree: FamilyTree;
+  editable?: boolean;
+  onUpdateTree?: (updated: FamilyTree) => void;
+  onRequestEdit?: () => void;
+}) {
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [editingStoryMember, setEditingStoryMember] = useState<Member | null>(null);
+  const [addingRelation, setAddingRelation] = useState<{ type: "parent" | "child" | "spouse"; target: Member } | null>(null);
+  const [requestEditModal, setRequestEditModal] = useState(false);
+
+  const generations = useMemo(() => buildPagodaTree(tree.members), [tree.members]);
+
+  const handleUpdateMember = useCallback((updated: Member) => {
+    if (!onUpdateTree) return;
+    const newMembers = tree.members.map((m) => (m.id === updated.id ? updated : m));
+    onUpdateTree({ ...tree, members: newMembers });
+  }, [tree, onUpdateTree]);
+
+  const handleSaveEdit = useCallback((data: EditFormData) => {
+    if (!editingMember || !onUpdateTree) return;
+    const updated = { ...editingMember, name: data.name, birth: data.birth, death: data.death, info: data.info, story: data.story, burialPlace: data.burialPlace, burialCoords: data.burialCoords, updatedAt: new Date().toISOString() };
+    handleUpdateMember(updated);
+    setEditingMember(null);
+  }, [editingMember, onUpdateTree, handleUpdateMember]);
+
+  const handleSaveStory = useCallback((data: EditFormData) => {
+    if (!editingStoryMember || !onUpdateTree) return;
+    const updated = { ...editingStoryMember, name: data.name, story: data.story, updatedAt: new Date().toISOString() };
+    handleUpdateMember(updated);
+    setEditingStoryMember(null);
+  }, [editingStoryMember, onUpdateTree, handleUpdateMember]);
+
+  const handleSaveRelation = useCallback((data: TempMember) => {
+    if (!addingRelation || !onUpdateTree) return;
+    const newMember: Member = { id: generateId(), name: data.name || "未知", birth: data.birth, death: data.death, info: data.info, story: data.story, burialPlace: data.burialPlace, burialCoords: data.burialCoords, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const { type, target } = addingRelation;
+    if (type === "parent") {
+      newMember.childrenIds = [target.id];
+    } else if (type === "child") {
+      if (target.gender === "男") newMember.fatherId = target.id;
+      else if (target.gender === "女") newMember.motherId = target.id;
+      else newMember.parentId = target.id;
+      const tu = tree.members.find((m) => m.id === target.id);
+      if (tu) handleUpdateMember({ ...tu, childrenIds: [...(tu.childrenIds || []), newMember.id] });
+    } else if (type === "spouse") {
+      newMember.spouseOf = target.id;
+      newMember.spouseId = target.id;
+      newMember.gender = target.gender === "男" ? "女" : "男";
+      const tu = tree.members.find((m) => m.id === target.id);
+      if (tu) handleUpdateMember({ ...tu, spouseId: newMember.id });
+    }
+    onUpdateTree({ ...tree, members: [...tree.members, newMember] });
+    setAddingRelation(null);
+  }, [addingRelation, tree, onUpdateTree, handleUpdateMember]);
+
+  return (
+    <div className="relative">
+      <PagodaView
+        generations={generations}
+        editable={editable}
+        onEditMember={(m) => setEditingMember(m)}
+        onEditStory={(m) => setEditingStoryMember(m)}
+        onAddParent={(m) => setAddingRelation({ type: "parent", target: m })}
+        onAddChild={(m) => setAddingRelation({ type: "child", target: m })}
+        onAddSpouse={(m) => setAddingRelation({ type: "spouse", target: m })}
+        onRequestEdit={() => setRequestEditModal(true)}
+        onUpdateMember={handleUpdateMember}
+      />
+      {editingMember && (
+        <MemberEditForm
+          initial={{ name: editingMember.name, birth: editingMember.birth || "", death: editingMember.death || "", info: editingMember.info || "", story: editingMember.story || "", burialPlace: editingMember.burialPlace || "", burialCoords: editingMember.burialCoords || "" }}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditingMember(null)}
+          title={`编辑 - ${editingMember.name}`}
+        />
+      )}
+      {editingStoryMember && (
+        <MemberEditForm
+          initial={{ name: editingStoryMember.name, birth: editingStoryMember.birth || "", death: editingStoryMember.death || "", info: editingStoryMember.info || "", story: editingStoryMember.story || "", burialPlace: editingStoryMember.burialPlace || "", burialCoords: editingStoryMember.burialCoords || "" }}
+          onSave={handleSaveStory}
+          onCancel={() => setEditingStoryMember(null)}
+          title={`📖 编辑故事 - ${editingStoryMember.name}`}
+          storyFocus
+        />
+      )}
+      {addingRelation && (
+        <MemberEditForm
+          initial={{ name: "", birth: "", death: "", info: "", story: "", burialPlace: "", burialCoords: "" }}
+          onSave={(data) => { if (addingRelation.type === "spouse" && !data.name) data.name = "未知"; handleSaveRelation(data); }}
+          onCancel={() => setAddingRelation(null)}
+          title={addingRelation.type === "parent" ? "⬆️ 添加父辈" : addingRelation.type === "child" ? "⬇️ 添加子嗣" : "👩‍❤️‍👨 添加配偶"}
+        />
+      )}
+      {requestEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setRequestEditModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#d4a76a]/30 p-6 w-full max-w-sm mx-4 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="text-4xl mb-3">🔒</div>
+            <h3 className="text-lg font-bold text-[#8b0000] mb-2">需要编辑权限</h3>
+            <p className="text-sm text-[#5c3a2e] mb-6">您需要被邀请为编辑者才能修改此家族的成员信息。<br />请联系家族创建者邀请您。</p>
+            <button onClick={() => setRequestEditModal(false)} className="px-6 py-2 rounded-xl bg-[#8b0000] text-white font-bold text-sm hover:bg-[#a52a2a] transition-colors">我知道了</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

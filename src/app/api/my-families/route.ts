@@ -6,6 +6,10 @@ import type { FamilyBinding, FamilyMeta } from "@/lib/familyStore";
 /** JWT 密钥（与 auth/route.ts 保持一致） */
 const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
+/** 5 分钟缓存：key → { data, expiry } */
+const cache = new Map<string, { data: unknown; expiry: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 分钟
+
 /**
  * 从请求中解析 JWT token 并获取 emailHash
  */
@@ -45,6 +49,13 @@ export async function GET(request: NextRequest) {
         { success: false, error: "未登录或登录已过期" },
         { status: 401 }
       );
+    }
+
+    // 缓存命中检查
+    const cacheKey = `my-families:${emailHash}`;
+    const cached = cache.get(cacheKey);
+    if (cached && Date.now() < cached.expiry) {
+      return NextResponse.json(cached.data);
     }
 
     // 从 KV 获取用户创建和编辑的家族
@@ -89,10 +100,12 @@ export async function GET(request: NextRequest) {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
-    return NextResponse.json({
-      success: true,
-      families: allMyFamilies,
-    });
+    const result = { success: true, families: allMyFamilies };
+
+    // 写入 5 分钟缓存
+    cache.set(cacheKey, { data: result, expiry: Date.now() + CACHE_TTL_MS });
+
+    return NextResponse.json(result);
   } catch (err) {
     console.error("my-families API error:", err);
     return NextResponse.json(
