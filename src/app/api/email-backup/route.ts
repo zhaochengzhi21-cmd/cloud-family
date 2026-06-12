@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
                   📂 打开族谱
                 </a>
                 <p style="font-size:12px; color:#c4a67a; text-align:center;">
-                  此链接基于区块链和 IPFS 技术，数据永久保存、不可篡改。
+                  此链接基于区块链和 IPFS 技术，历史版本永久保存，可追溯可验证。
                 </p>
                 <hr class="divider" />
                 <div class="footer">

@@ -732,165 +732,275 @@ function TreeDebugPanel({ members }: { members: Member[] }) {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <button onClick={() => setOpen(!open)}
-        className="px-3 py-1.5 bg-[#8b0000] text-white text-xs rounded-full shadow-lg hover:bg-[#a52a2a] transition-colors">
-        {open ? "关闭调试" : "🌳 树结构调试"}
+      <button onClick={() => setOpen(!open)} className="px-3 py-1.5 bg-[#8b0000] text-white rounded-lg text-xs font-bold hover:bg-[#a52a2a] transition-colors">
+        {open ? "关闭调试" : "🔧 树结构调试"}
       </button>
       {open && (
-        <div className="absolute bottom-10 right-0 w-96 max-h-80 overflow-auto bg-white rounded-xl shadow-2xl border border-[#d4a76a]/20 p-4 text-xs text-[#5c3a2e] font-mono whitespace-pre-wrap">
-          {info || "暂无数据"}
+        <div className="mt-2 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 max-w-md max-h-96 overflow-auto">
+          <pre className="text-xs text-[#5c3a2e] whitespace-pre-wrap">{info}</pre>
         </div>
       )}
     </div>
   );
 }
 
-// ==================== 主组件 ====================
+// ==================== PagodaTreeView 包装组件（供 page.tsx 使用） ====================
 
-export default function FamilyTreePagoda({
+export function PagodaTreeView({
+  tree,
+  editable = false,
+  onTreeChange,
+  onRequestEdit,
+}: {
+  tree: FamilyTree;
+  editable?: boolean;
+  onTreeChange?: (tree: FamilyTree) => void;
+  onRequestEdit?: () => void;
+}) {
+  return <FamilyTreePagodaWithDefaults familyTree={tree} editable={editable} onTreeChange={onTreeChange} onRequestEdit={onRequestEdit} />;
+}
+
+// ==================== 带默认参数的主组件（供 page.tsx 使用） ====================
+
+function FamilyTreePagodaWithDefaults({
   familyTree,
   editable = false,
   onRevisionCreated,
+  onTreeChange,
+  onRequestEdit,
 }: {
   familyTree: FamilyTree;
   editable?: boolean;
   onRevisionCreated?: () => void;
+  onTreeChange?: (tree: FamilyTree) => void;
+  onRequestEdit?: () => void;
 }) {
-  const members = familyTree?.members ?? [];
+  const [expandedGen, setExpandedGen] = useState<number | null>(null);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [storyEditingMember, setStoryEditingMember] = useState<Member | null>(null);
+  const [addingParentFor, setAddingParentFor] = useState<Member | null>(null);
+  const [addingChildFor, setAddingChildFor] = useState<Member | null>(null);
+  const [addingSpouseFor, setAddingSpouseFor] = useState<Member | null>(null);
 
-  // 计算树结构
-  const generations = useMemo(() => buildPagodaTree(members), [members]);
+  const generations = useMemo(() => buildPagodaTree(familyTree.members), [familyTree.members]);
+  const totalGenerations = generations.length;
+  const totalMembers = familyTree.members.length;
 
-  // 编辑状态
-  const [editMember, setEditMember] = useState<Member | null>(null);
-  const [editStoryMember, setEditStoryMember] = useState<Member | null>(null);
-  const [addTarget, setAddTarget] = useState<{
-    type: "parent" | "child" | "spouse";
-    member: Member;
-  } | null>(null);
+  // 自动展开中间代
+  useEffect(() => {
+    if (generations.length > 0 && expandedGen === null) {
+      const mid = Math.floor(generations.length / 2);
+      setExpandedGen(generations[mid]?.generation ?? generations[0].generation);
+    }
+  }, [generations, expandedGen]);
 
-  const handleSave = useCallback(async (data: EditFormData) => {
-    // 保存逻辑...
-  }, []);
+  const updateMemberInTree = useCallback((updatedMember: Member) => {
+    if (!onTreeChange) return;
+    const newMembers = familyTree.members.map((m) =>
+      m.id === updatedMember.id ? updatedMember : m
+    );
+    onTreeChange({ ...familyTree, members: newMembers });
+  }, [familyTree, onTreeChange]);
 
-  const handleSaveStory = useCallback(async (data: EditFormData) => {
-    // 保存故事逻辑...
-  }, []);
+  const handleSaveEdit = useCallback((data: EditFormData) => {
+    if (!editingMember) return;
+    updateMemberInTree({
+      ...editingMember,
+      name: data.name,
+      birth: data.birth,
+      death: data.death,
+      info: data.info,
+      story: data.story,
+      burialPlace: data.burialPlace,
+      burialCoords: data.burialCoords,
+    });
+    setEditingMember(null);
+  }, [editingMember, updateMemberInTree]);
 
-  const handleAddRelation = useCallback(async (data: EditFormData) => {
-    // 添加关系逻辑...
-  }, []);
+  const handleSaveStory = useCallback((data: EditFormData) => {
+    if (!storyEditingMember) return;
+    updateMemberInTree({
+      ...storyEditingMember,
+      name: data.name,
+      birth: data.birth,
+      death: data.death,
+      info: data.info,
+      story: data.story,
+    });
+    setStoryEditingMember(null);
+  }, [storyEditingMember, updateMemberInTree]);
+
+  const createNewMember = useCallback((partial: Partial<Member>): Member => ({
+    id: generateId(),
+    name: "",
+    gender: "男",
+    birth: "",
+    death: "",
+    info: "",
+    story: "",
+    burialPlace: "",
+    burialCoords: "",
+    childrenIds: [],
+    ...partial,
+  }), []);
+
+  const handleAddParent = useCallback((member: Member) => {
+    if (!onTreeChange) return;
+    const parent = createNewMember({ id: generateId(), name: "待编辑", gender: "男" });
+    parent.childrenIds = [member.id];
+    const newMembers = [...familyTree.members, parent];
+    onTreeChange({ ...familyTree, members: newMembers });
+    setAddingParentFor(null);
+    setEditingMember(parent);
+  }, [familyTree, onTreeChange, createNewMember]);
+
+  const handleAddChild = useCallback((member: Member) => {
+    if (!onTreeChange) return;
+    const child = createNewMember({ id: generateId(), name: "待编辑", gender: "男", parentId: member.id });
+    const updatedMembers = familyTree.members.map((m) =>
+      m.id === member.id
+        ? { ...m, childrenIds: [...(m.childrenIds || []), child.id] }
+        : m
+    );
+    onTreeChange({ ...familyTree, members: [...updatedMembers, child] });
+    setAddingChildFor(null);
+    setEditingMember(child);
+  }, [familyTree, onTreeChange, createNewMember]);
+
+  const handleAddSpouse = useCallback((member: Member) => {
+    if (!onTreeChange) return;
+    const spouse = createNewMember({
+      id: generateId(),
+      name: "待编辑",
+      gender: member.gender === "男" ? "女" : "男",
+      spouseOf: member.id,
+    });
+    const updatedMembers = familyTree.members.map((m) =>
+      m.id === member.id ? { ...m, spouseId: spouse.id } : m
+    );
+    onTreeChange({ ...familyTree, members: [...updatedMembers, spouse] });
+    setAddingSpouseFor(null);
+    setEditingMember(spouse);
+  }, [familyTree, onTreeChange, createNewMember]);
+
+  if (!familyTree || !familyTree.members || familyTree.members.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 bg-[#fdfbf7] rounded-2xl border border-[#d4a76a]/20">
+        <span className="text-4xl mb-4">🌳</span>
+        <p className="text-[#5c3a2e] text-lg font-bold">暂无家族成员</p>
+        <p className="text-[#c4a67a] text-sm mt-1">点击上方「编辑」开始添加</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full overflow-auto py-8 px-4" style={{ minHeight: "500px" }}>
-      {/* 如果没有任何成员，显示空状态 */}
-      {members.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-[#c4a67a]">
-          <div className="text-6xl mb-4">🏯</div>
-          <p className="text-lg font-bold mb-2">家族谱尚未建立</p>
-          <p className="text-sm">点击"编辑"按钮开始添加家族成员</p>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-2">
+    <div className="relative">
+      {/* 树形图主体 */}
+      <div className="overflow-x-auto pb-6">
+        <div className="flex flex-col items-center min-w-max px-4">
           {generations.map((gen) => (
             <div key={gen.generation} className="flex flex-col items-center">
-              {/* 代际标签 */}
-              <div className="text-[#8b0000] text-xs font-bold tracking-wider mb-1 bg-[#fdfbf7] px-3 py-0.5 rounded-full border border-[#d4a76a]/20">
-                {getGenerationLabel(gen.generation)}
-              </div>
+              {/* 代际标签 + 折叠开关 */}
+              <button
+                onClick={() => setExpandedGen(expandedGen === gen.generation ? null : gen.generation)}
+                className={`group flex items-center gap-2 px-4 py-1.5 mb-2 rounded-full text-sm font-bold transition-all duration-200 tracking-wider
+                  ${expandedGen === gen.generation
+                    ? "bg-[#8b0000] text-white shadow-md"
+                    : "bg-[#f5f0e8] text-[#5c3a2e] border border-[#d4a76a]/30 hover:bg-[#e8dcc8]"
+                  }`}
+              >
+                <span>{getGenerationLabel(gen.generation)}</span>
+                <span className={`text-[10px] transition-transform duration-200 ${expandedGen === gen.generation ? "rotate-180" : ""}`}>
+                  ▼
+                </span>
+              </button>
 
-              {/* 代际连线（从上一代到这一代） */}
-              {gen.generation > 0 && (
-                <div className="flex items-center justify-center my-1">
-                  <VerticalLine height={20} />
+              {/* 代际内容 */}
+              <div className={`transition-all duration-300 overflow-hidden ${expandedGen === gen.generation ? "opacity-100 max-h-[2000px] mb-4" : "opacity-0 max-h-0 mb-0"}`}>
+                <div className="flex flex-col items-center">
+                  {/* 配偶组行 */}
+                  <div className="flex items-center justify-center gap-4">
+                    {gen.couples.map((couple, idx) => (
+                      <div key={`${couple.husband?.member.id ?? "x"}-${couple.wife?.member.id ?? "y"}`} className="flex items-center">
+                        {idx > 0 && <SiblingLine length={24} />}
+                        <CoupleUnit
+                          couple={couple}
+                          editable={editable}
+                          onEditMember={(m) => setEditingMember(m)}
+                          onEditStory={(m) => setStoryEditingMember(m)}
+                          onAddParent={(m) => setAddingParentFor(m)}
+                          onAddChild={(m) => setAddingChildFor(m)}
+                          onAddSpouse={(m) => setAddingSpouseFor(m)}
+                          onRequestEdit={onRequestEdit}
+                          onUpdateMember={updateMemberInTree}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 代际间连线 */}
+                  {gen.generation < totalGenerations - 1 && (
+                    <div className="flex justify-center mt-2">
+                      <VerticalLine height={32} />
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* 这一代的所有夫妻组 */}
-              <div className="flex items-start justify-center gap-8">
-                {gen.couples.map((couple, idx) => (
-                  <CoupleUnit
-                    key={`${couple.husband?.member.id ?? "h"}-${couple.wife?.member.id ?? "w"}-${idx}`}
-                    couple={couple}
-                    editable={editable}
-                    onEditMember={(m) => setEditMember(m)}
-                    onEditStory={(m) => setEditStoryMember(m)}
-                    onAddParent={(m) => setAddTarget({ type: "parent", member: m })}
-                    onAddChild={(m) => setAddTarget({ type: "child", member: m })}
-                    onAddSpouse={(m) => setAddTarget({ type: "spouse", member: m })}
-                    onUpdateMember={() => {}}
-                  />
-                ))}
               </div>
             </div>
           ))}
         </div>
-      )}
-
-      {/* 调试面板 */}
-      <TreeDebugPanel members={members} />
+      </div>
 
       {/* 编辑弹窗 */}
-      {editMember && (
+      {editingMember && (
         <MemberEditForm
+          title={`编辑成员：${editingMember.name || "新成员"}`}
           initial={{
-            name: editMember.name,
-            birth: editMember.birth ?? "",
-            death: editMember.death ?? "",
-            info: editMember.info ?? "",
-            story: editMember.story ?? "",
-            burialPlace: editMember.burialPlace ?? "",
-            burialCoords: editMember.burialCoords ?? "",
+            name: editingMember.name || "",
+            birth: editingMember.birth || "",
+            death: editingMember.death || "",
+            info: editingMember.info || "",
+            story: editingMember.story || "",
+            burialPlace: editingMember.burialPlace || "",
+            burialCoords: editingMember.burialCoords || "",
           }}
-          onSave={async (data) => {
-            await handleSave(data);
-            setEditMember(null);
-          }}
-          onCancel={() => setEditMember(null)}
-          title={`编辑 ${editMember.name}`}
+          onSave={handleSaveEdit}
+          onCancel={() => setEditingMember(null)}
         />
       )}
 
-      {/* 故事编辑弹窗 */}
-      {editStoryMember && (
+      {storyEditingMember && (
         <MemberEditForm
+          title={`📖 讲述${storyEditingMember.name}的故事`}
           initial={{
-            name: editStoryMember.name,
-            birth: editStoryMember.birth ?? "",
-            death: editStoryMember.death ?? "",
-            info: editStoryMember.info ?? "",
-            story: editStoryMember.story ?? "",
-            burialPlace: editStoryMember.burialPlace ?? "",
-            burialCoords: editStoryMember.burialCoords ?? "",
+            name: storyEditingMember.name || "",
+            birth: storyEditingMember.birth || "",
+            death: storyEditingMember.death || "",
+            info: storyEditingMember.info || "",
+            story: storyEditingMember.story || "",
+            burialPlace: storyEditingMember.burialPlace || "",
+            burialCoords: storyEditingMember.burialCoords || "",
           }}
-          onSave={async (data) => {
-            await handleSaveStory(data);
-            setEditStoryMember(null);
-          }}
-          onCancel={() => setEditStoryMember(null)}
-          title={`📖 ${editStoryMember.name} 的故事`}
+          onSave={handleSaveStory}
+          onCancel={() => setStoryEditingMember(null)}
           storyFocus
         />
       )}
 
-      {/* 添加关系弹窗 */}
-      {addTarget && (
-        <MemberEditForm
-          initial={{ name: "", birth: "", death: "", info: "", story: "", burialPlace: "", burialCoords: "" }}
-          onSave={async (data) => {
-            await handleAddRelation(data);
-            setAddTarget(null);
-          }}
-          onCancel={() => setAddTarget(null)}
-          title={
-            addTarget.type === "parent"
-              ? `为 ${addTarget.member.name} 添加父辈`
-              : addTarget.type === "child"
-                ? `为 ${addTarget.member.name} 添加子嗣`
-                : `为 ${addTarget.member.name} 添加配偶`
-          }
-        />
-      )}
+      {/* 信息统计 */}
+      <div className="mt-4 px-4 py-2 bg-[#fdfbf7] rounded-xl border border-[#d4a76a]/10 text-center">
+        <span className="text-xs text-[#5c3a2e]">
+          🌳 共 {totalGenerations} 代 · {totalMembers} 位成员
+        </span>
+      </div>
+
+      {/* 调试面板 */}
+      {process.env.NODE_ENV === "development" && <TreeDebugPanel members={familyTree.members} />}
     </div>
   );
 }
+
+// ==================== 默认导出（向后兼容） ====================
+
+const FamilyTreePagoda = FamilyTreePagodaWithDefaults;
+export default FamilyTreePagoda;

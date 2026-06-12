@@ -8,7 +8,6 @@ import { PagodaTreeView } from "@/components/FamilyTreePagoda";
 import { FamilyTimeline } from "@/components/FamilyTimeline";
 import RevisionHistory from "@/components/RevisionHistory";
 import FamilyPoster from "@/components/FamilyPoster";
-import { useAuth } from "@/lib/AuthContext";
 import { FamilyAlbum } from "@/components/FamilyAlbum";
 import { getImageUrls } from "@/lib/ipfsGateway";
 import type { FamilyTree } from "@/types/family";
@@ -183,6 +182,38 @@ function LegacyContentView({ ipfsData, dataHash }: { ipfsData: IpfsData; dataHas
   );
 }
 
+// ==================== Hero 区域组件 ====================
+function FamilyHero({
+  familyName,
+  totalGenerations,
+  totalMembers,
+}: {
+  familyName: string;
+  totalGenerations: number;
+  totalMembers: number;
+}) {
+  return (
+    <section className="text-center py-8 md:py-12">
+      {/* 家族名称大标题 */}
+      <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-[#8b0000] tracking-widest mb-4">
+        {familyName}
+      </h1>
+      {/* 装饰分隔线 */}
+      <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-[#8b0000] to-transparent mx-auto mb-4" />
+      {/* 代数 + 成员数 */}
+      <p className="text-base md:text-lg text-[#5c3a2e] tracking-wider">
+        <span className="inline-flex items-center gap-1.5">
+          <span>🌳</span>
+          <span className="font-bold text-[#8b0000]">{totalGenerations}</span>
+          <span>代 ·</span>
+          <span className="font-bold text-[#8b0000]">{totalMembers}</span>
+          <span>位族人</span>
+        </span>
+      </p>
+    </section>
+  );
+}
+
 // ==================== 主页面 ====================
 export default function FamilyPage() {
   const params = useParams();
@@ -195,7 +226,7 @@ export default function FamilyPage() {
   const [editing, setEditing] = useState(false);
   const [editedTree, setEditedTree] = useState<FamilyTree | null>(null);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<"tree" | "timeline" | "album">("tree");
+  const [activeTab, setActiveTab] = useState<"timeline" | "album" | "memories">("timeline");
 
   // 邮箱备份状态
   const [email, setEmail] = useState("");
@@ -299,7 +330,6 @@ export default function FamilyPage() {
 
   // 防搜索引擎收录
   useEffect(() => {
-    // 添加 noindex meta 标签
     let meta = document.querySelector('meta[name="robots"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -309,17 +339,56 @@ export default function FamilyPage() {
     meta.setAttribute("content", "noindex, nofollow");
   }, []);
 
-  // ---------- 智能判断数据类型（从 result 计算，在回调之前声明）----------
+  // ---------- 智能判断数据类型 ----------
   const isStructuredTree =
     result?.ipfsData &&
     result.ipfsData.type === "family-tree" &&
     Array.isArray(result.ipfsData.data?.members);
 
-  // ---------- 提取展示用数据（在回调之前声明）----------
+  // ---------- 提取展示用数据 ----------
   const ipfsData = result?.ipfsData;
   const familyName = isStructuredTree
     ? ipfsData?.data?.familyName || "家族族谱"
     : ipfsData?.familyName || "家族族谱";
+
+  // ---------- 代数/成员数计算 ----------
+  const treeData = result?.ipfsData?.data;
+  const totalMembers = treeData?.members?.length || 0;
+
+  const totalGenerations = (() => {
+    const members = treeData?.members;
+    if (!members || members.length === 0) return 1;
+    const roots = members.filter((m) => !m.parentId);
+    const genMap: Record<string, number> = {};
+    const queue: { id: string; gen: number }[] = roots.map((r) => ({ id: r.id, gen: 1 }));
+    let maxGen = 1;
+    while (queue.length > 0) {
+      const { id, gen } = queue.shift()!;
+      genMap[id] = gen;
+      maxGen = Math.max(maxGen, gen);
+      const children = members.filter((m) => m.parentId === id);
+      for (const child of children) {
+        queue.push({ id: child.id, gen: gen + 1 });
+      }
+    }
+    return maxGen;
+  })();
+
+  // 找始祖
+  const founderName = treeData?.members?.find((m) => !m.parentId)?.name || treeData?.members?.[0]?.name || "";
+
+  const rawTimestamp = ipfsData?.timestamp;
+  const displayTimestamp = rawTimestamp
+    ? new Date(rawTimestamp).toLocaleString("zh-CN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "Asia/Shanghai",
+      })
+    : undefined;
 
   // 重新加载数据
   const reloadData = useCallback(async () => {
@@ -363,7 +432,6 @@ export default function FamilyPage() {
       }
     };
 
-    // 延迟一点点，让骨架屏先展示
     const timer = setTimeout(fetchData, 300);
     return () => clearTimeout(timer);
   }, [familyId]);
@@ -384,7 +452,6 @@ export default function FamilyPage() {
         return;
       }
       alert("保存成功！页面将刷新展示最新数据。");
-      // API 返回新的 familyId，导航到新地址以展示最新数据
       if (data.familyId && data.familyId !== familyId) {
         router.replace(`/family/${data.familyId}`);
       } else {
@@ -405,6 +472,12 @@ export default function FamilyPage() {
     }
   }, [result]);
 
+  // 取消编辑
+  const cancelEdit = useCallback(() => {
+    setEditing(false);
+    setEditedTree(null);
+  }, []);
+
   // 复制链接
   const handleCopyLink = useCallback(async () => {
     try {
@@ -416,7 +489,7 @@ export default function FamilyPage() {
     }
   }, []);
 
-  // 收藏（localStorage 实现）
+  // 收藏
   const handleFavorite = useCallback(() => {
     try {
       const favKey = "yunzupu_favorites";
@@ -464,7 +537,7 @@ export default function FamilyPage() {
     }
   }, [handleCopyLink]);
 
-  // 下载证书（滚动到证书区域，由证书组件自带的保存按钮处理）
+  // 下载证书
   const handleDownloadCert = useCallback(() => {
     const certEl = document.getElementById("family-certificate-wrapper");
     if (certEl) {
@@ -505,48 +578,6 @@ export default function FamilyPage() {
       setEmailSending(false);
     }
   }, [email, familyId, familyName]);
-  // ---------- 海报计算 ----------
-  const treeData = result?.ipfsData?.data;
-  const totalMembers = treeData?.members?.length || 0;
-
-  // 通过 parentId 推算代数层级（根节点代数=1）
-  const totalGenerations = (() => {
-    const members = treeData?.members;
-    if (!members || members.length === 0) return 1;
-    // 找没有 parentId 的根节点（代数=1）
-    const parentIds = new Set(members.map((m) => m.parentId).filter(Boolean));
-    const roots = members.filter((m) => !m.parentId);
-    // 计算每个人的代级（BFS/拓扑排序）
-    const genMap: Record<string, number> = {};
-    const queue: { id: string; gen: number }[] = roots.map((r) => ({ id: r.id, gen: 1 }));
-    let maxGen = 1;
-    while (queue.length > 0) {
-      const { id, gen } = queue.shift()!;
-      genMap[id] = gen;
-      maxGen = Math.max(maxGen, gen);
-      const children = members.filter((m) => m.parentId === id);
-      for (const child of children) {
-        queue.push({ id: child.id, gen: gen + 1 });
-      }
-    }
-    return maxGen;
-  })();
-
-  // 找始祖（没有 parentId 的第一个成员）
-  const founderName = treeData?.members?.find((m) => !m.parentId)?.name || treeData?.members?.[0]?.name || "";
-
-  const rawTimestamp = ipfsData?.timestamp;
-  const displayTimestamp = rawTimestamp
-    ? new Date(rawTimestamp).toLocaleString("zh-CN", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZone: "Asia/Shanghai",
-      })
-    : undefined;
 
   // ---------- 加载中 ----------
   if (loading) return <LoadingSkeleton />;
@@ -558,7 +589,7 @@ export default function FamilyPage() {
   if (!ipfsData) {
     return (
       <div className="min-h-screen bg-[#f5f0e8]">
-        <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="max-w-5xl mx-auto px-4 py-12">
           <ErrorView message={result?.warning || "无法获取数据"} />
         </div>
       </div>
@@ -569,456 +600,401 @@ export default function FamilyPage() {
   return (
     <div className="min-h-screen bg-[#f5f0e8]">
       {/* 顶部导航 */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-[#d4a76a]/20">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="bg-white/80 backdrop-blur-sm border-b border-[#d4a76a]/20 sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link
             href="/"
             className="text-[#8b0000] font-black text-xl tracking-widest hover:opacity-80 transition-opacity"
           >
             云族谱
           </Link>
-          <Link
-            href="/"
-            className="text-sm text-[#5c3a2e] hover:text-[#8b0000] transition-colors"
-          >
-            ← 返回首页
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleFavorite}
+              className={`text-xl transition-all duration-200 hover:scale-110 ${
+                favorited ? "opacity-100" : "opacity-60 hover:opacity-100"
+              }`}
+              title={favorited ? "已收藏" : "收藏"}
+            >
+              {favorited ? "❤️" : "🤍"}
+            </button>
+            <button
+              onClick={handleCopyLink}
+              className="text-xl opacity-60 hover:opacity-100 hover:scale-110 transition-all duration-200"
+              title={copied ? "已复制" : "复制链接"}
+            >
+              🔗
+            </button>
+            <button
+              onClick={handleShare}
+              className="text-xl opacity-60 hover:opacity-100 hover:scale-110 transition-all duration-200"
+              title="分享"
+            >
+              📤
+            </button>
+            <Link
+              href="/"
+              className="text-sm text-[#5c3a2e] hover:text-[#8b0000] transition-colors ml-2"
+            >
+              ← 返回
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* 主内容 */}
-      <div className="max-w-4xl mx-auto px-4 py-12 space-y-10">
-        {/* ---------- 证书 ---------- */}
-        <section id="family-certificate-wrapper">
+      <div className="max-w-5xl mx-auto px-4 py-6 md:py-8">
+        {/* ====== Hero 区域 ====== */}
+        {isStructuredTree ? (
+          <FamilyHero
+            familyName={familyName}
+            totalGenerations={totalGenerations}
+            totalMembers={totalMembers}
+          />
+        ) : (
+          <section className="text-center py-8">
+            <h1 className="text-4xl md:text-5xl font-black text-[#8b0000] tracking-widest mb-3">
+              {familyName}
+            </h1>
+            <div className="w-24 h-0.5 bg-gradient-to-r from-transparent via-[#8b0000] to-transparent mx-auto mb-5" />
+            <p className="text-lg text-[#5c3a2e]">老谱影像</p>
+          </section>
+        )}
+
+        {/* ====== 结构化家族树内容 ====== */}
+        {isStructuredTree && result.ipfsData?.data ? (
+          <>
+            {/* ====== 工具栏（家族树上方） ====== */}
+            <section className="mb-6">
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                {/* 编辑/保存按钮 */}
+                {settingsLoaded && canEdit && (
+                  editing ? (
+                    <>
+                      <button
+                        onClick={handleSaveRevision}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 shadow-lg shadow-[#8b0000]/20"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            保存中...
+                          </>
+                        ) : (
+                          <>
+                            <span>💾</span>
+                            <span>保存修订</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        disabled={saving}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#f5f0e8] text-[#5c3a2e] rounded-xl font-bold text-sm hover:bg-[#e8dcc8] transition-colors disabled:opacity-40"
+                      >
+                        <span>✕</span>
+                        <span>取消</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={enterEditMode}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors shadow-lg shadow-[#8b0000]/20"
+                    >
+                      <span>✏️</span>
+                      <span>编辑</span>
+                    </button>
+                  )
+                )}
+
+                {/* 生成海报 */}
+                <button
+                  onClick={() => setShowPoster(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-[#5c3a2e] rounded-xl font-bold text-sm border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7] transition-all duration-200"
+                >
+                  <span>🖼️</span>
+                  <span>生成海报</span>
+                </button>
+
+                {/* 下载证书 */}
+                <button
+                  onClick={handleDownloadCert}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-[#5c3a2e] rounded-xl font-bold text-sm border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7] transition-all duration-200"
+                >
+                  <span>📄</span>
+                  <span>下载证书</span>
+                </button>
+
+                {/* 邮箱备份 */}
+                <button
+                  onClick={() => {
+                    const emailSection = document.getElementById("email-backup-section");
+                    if (emailSection) {
+                      emailSection.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-[#5c3a2e] rounded-xl font-bold text-sm border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7] transition-all duration-200"
+                >
+                  <span>📧</span>
+                  <span>邮箱备份</span>
+                </button>
+              </div>
+
+              {/* 编辑模式提示 */}
+              {editing && (
+                <div className="mt-3 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                  <p className="text-xs text-amber-700 font-bold">
+                    ✏️ 您正在编辑家族树 — 点击成员卡片上的「+」按钮添加父辈/子嗣/配偶，或点击卡片修改信息
+                  </p>
+                </div>
+              )}
+            </section>
+
+            {/* ====== 家族树（始终可见，核心区域） ====== */}
+            <section className="mb-8">
+              <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-4 md:p-6">
+                <PagodaTreeView
+                  tree={editing && editedTree ? editedTree : result.ipfsData.data}
+                  editable={editing}
+                  onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                  onRequestEdit={enterEditMode}
+                />
+              </div>
+            </section>
+
+            {/* ====== 标签页切换（家族树下方） ====== */}
+            <section className="mb-8">
+              {/* 标签按钮 */}
+              <div className="flex justify-center gap-2 mb-6">
+                <button
+                  onClick={() => setActiveTab("timeline")}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
+                    activeTab === "timeline"
+                      ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
+                      : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
+                  }`}
+                >
+                  📅 时间轴
+                </button>
+                <button
+                  onClick={() => setActiveTab("album")}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
+                    activeTab === "album"
+                      ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
+                      : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
+                  }`}
+                >
+                  🖼️ 相册
+                </button>
+                <button
+                  onClick={() => setActiveTab("memories")}
+                  className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
+                    activeTab === "memories"
+                      ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
+                      : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
+                  }`}
+                >
+                  💭 回忆留言
+                </button>
+              </div>
+
+              {/* 标签内容 */}
+              {activeTab === "timeline" ? (
+                <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-4 md:p-6">
+                  <FamilyTimeline
+                    tree={editing && editedTree ? editedTree : result.ipfsData.data}
+                    editable={editing}
+                    onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                  />
+                </div>
+              ) : activeTab === "album" ? (
+                <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-4 md:p-6">
+                  <FamilyAlbum
+                    tree={editing && editedTree ? editedTree : result.ipfsData.data}
+                    editable={editing}
+                    onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                  />
+                </div>
+              ) : (
+                <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-8 text-center">
+                  <div className="text-4xl mb-3">💭</div>
+                  <p className="text-[#5c3a2e] font-bold text-lg mb-2">回忆留言</p>
+                  <p className="text-sm text-[#c4a67a]">
+                    族人可在此留下对先人的追思与回忆，功能即将上线。
+                  </p>
+                </div>
+              )}
+            </section>
+          </>
+        ) : (
+          // 老谱模式
+          <div className="space-y-8">
+            <LegacyContentView ipfsData={ipfsData} dataHash={result?.dataHash} />
+          </div>
+        )}
+
+        {/* ====== 证书区域 ====== */}
+        <section id="family-certificate-wrapper" className="mb-8">
           <FamilyCertificate
             familyName={familyName}
             familyId={familyId}
-            txHash={undefined}
-            ipfsCID={result?.dataHash}
             timestamp={displayTimestamp}
           />
         </section>
 
-        {/* ---------- 备份引导：收藏、复制链接、分享、下载证书 ---------- */}
-        <section className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/30 p-8">
-          <h2 className="text-xl font-bold text-[#8b0000] mb-4 tracking-wider text-center">
-            📌 保存本谱
-          </h2>
-          <p className="text-sm text-[#5c3a2e] text-center mb-6">
-            族谱是家族的根脉传承，请妥善保存，以备后世查阅
-          </p>
-
-          {/* 五个按钮 */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {/* 收藏 */}
-            <button
-              onClick={handleFavorite}
-              className={`flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border transition-all duration-200 active:scale-95 ${
-                favorited
-                  ? "bg-[#8b0000]/10 border-[#8b0000] text-[#8b0000]"
-                  : "bg-[#fdfbf7] border-[#d4a76a]/30 text-[#5c3a2e] hover:border-[#8b0000]/40 hover:bg-[#8b0000]/5"
-              }`}
-            >
-              <span className="text-2xl">{favorited ? "❤️" : "🤍"}</span>
-              <span className="text-xs font-bold tracking-wider">
-                {favorited ? "已收藏" : "收藏本谱"}
-              </span>
-            </button>
-
-            {/* 复制链接 */}
-            <button
-              onClick={handleCopyLink}
-              className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border border-[#d4a76a]/30 bg-[#fdfbf7] text-[#5c3a2e] hover:border-[#8b0000]/40 hover:bg-[#8b0000]/5 transition-all duration-200 active:scale-95"
-            >
-              <span className="text-2xl">🔗</span>
-              <span className="text-xs font-bold tracking-wider">
-                {copied ? "已复制 ✓" : "复制链接"}
-              </span>
-            </button>
-
-            {/* 分享 */}
-            <button
-              onClick={handleShare}
-              className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border border-[#d4a76a]/30 bg-[#fdfbf7] text-[#5c3a2e] hover:border-[#8b0000]/40 hover:bg-[#8b0000]/5 transition-all duration-200 active:scale-95"
-            >
-              <span className="text-2xl">📤</span>
-              <span className="text-xs font-bold tracking-wider">分享给族人</span>
-            </button>
-
-            {/* 下载证书 */}
-            <button
-              onClick={handleDownloadCert}
-              className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border border-[#d4a76a]/30 bg-[#fdfbf7] text-[#5c3a2e] hover:border-[#8b0000]/40 hover:bg-[#8b0000]/5 transition-all duration-200 active:scale-95"
-            >
-              <span className="text-2xl">📄</span>
-              <span className="text-xs font-bold tracking-wider">下载证书</span>
-            </button>
-
-            {/* 生成海报 */}
-            <button
-              onClick={() => setShowPoster(true)}
-              className="flex flex-col items-center justify-center gap-1.5 p-4 rounded-xl border border-[#d4a76a]/30 bg-[#fdfbf7] text-[#5c3a2e] hover:border-[#8b0000]/40 hover:bg-[#8b0000]/5 transition-all duration-200 active:scale-95"
-            >
-              <span className="text-2xl">🖼️</span>
-              <span className="text-xs font-bold tracking-wider">生成海报</span>
-            </button>
-          </div>
-
-          {/* 引导说明 */}
-          <div className="mt-5 p-4 bg-[#fdfbf7] rounded-xl border border-[#d4a76a]/20">
-            <p className="text-xs text-[#c4a67a] leading-relaxed">
-              💡 <strong>温馨提示：</strong>
-              收藏本谱可快速在首页查阅；分享链接给族人共同完善；下载证书图片留存纪念。
-            </p>
-          </div>
-        </section>
-
-        {/* ---------- 邮箱备份 ---------- */}
-        <section className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/30 p-8">
-          <h2 className="text-xl font-bold text-[#8b0000] mb-4 tracking-wider text-center">
-            📧 邮箱备份
-          </h2>
-          <p className="text-sm text-[#5c3a2e] text-center mb-5">
-            将本谱链接发送至您的邮箱，方便日后查找
-          </p>
-
-          {emailSent ? (
-            <div className="text-center py-4">
-              <span className="text-4xl">✅</span>
-              <p className="text-[#5c3a2e] font-bold mt-2">发送成功！</p>
-              <p className="text-xs text-[#c4a67a] mt-1">
-                请查收邮箱中的备份邮件
-              </p>
-              <button
-                onClick={() => { setEmailSent(false); setEmail(""); }}
-                className="mt-3 text-sm text-[#8b0000] underline hover:text-[#a52a2a]"
-              >
-                发送到其他邮箱
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
-                placeholder="请输入您的邮箱地址"
-                className="flex-1 px-4 py-2.5 rounded-xl border border-[#d4a76a]/40 bg-[#fdfbf7] text-[#5c3a2e] placeholder-[#c4a67a] focus:outline-none focus:ring-2 focus:ring-[#8b0000]/20 focus:border-[#8b0000] transition-all text-sm"
-                disabled={emailSending}
-              />
-              <button
-                onClick={handleEmailBackup}
-                disabled={emailSending || !email.trim()}
-                className="px-6 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-[#8b0000]/20"
-              >
-                {emailSending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    发送中...
-                  </>
-                ) : (
-                  "💌 发送"
-                )}
-              </button>
-            </div>
-          )}
-
-          {emailError && (
-            <p className="mt-2 text-sm text-red-500">{emailError}</p>
-          )}
-        </section>
-
-        {/* ---------- 编辑/保存按钮（仅创建者和编辑者可见） ---------- */}
-        {isStructuredTree && !loading && settingsLoaded && canEdit && (
-          <section className="flex justify-end gap-3">
-            {editing ? (
-              <>
-                <button
-                  onClick={handleSaveRevision}
-                  disabled={saving}
-                  className="px-5 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 flex items-center gap-2 shadow-lg shadow-[#8b0000]/20"
-                >
-                  {saving ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      保存中...
-                    </>
-                  ) : (
-                    "💾 保存修订"
-                  )}
-                </button>
-                <button
-                  onClick={() => {
-                    setEditing(false);
-                    setEditedTree(null);
-                  }}
-                  disabled={saving}
-                  className="px-5 py-2.5 bg-[#f5f0e8] text-[#5c3a2e] rounded-xl font-bold text-sm hover:bg-[#e8dcc8] transition-colors disabled:opacity-40"
-                >
-                  取消编辑
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={enterEditMode}
-                className="px-5 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors shadow-lg shadow-[#8b0000]/20 flex items-center gap-2"
-              >
-                ✏️ 编辑宗谱
-              </button>
-            )}
-          </section>
-        )}
-
-        {/* ---------- 邀请编辑者（仅创建者可见） ---------- */}
-        {settingsLoaded && isCreator && (
-          <section className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/30 p-8">
-            <h2 className="text-xl font-bold text-[#8b0000] mb-4 tracking-wider text-center">
-              👥 管理编辑者
-            </h2>
-            <p className="text-sm text-[#5c3a2e] text-center mb-6">
-              邀请其他族人共同编辑本谱
-            </p>
-
-            {/* 当前编辑者列表 */}
-            {editors.length > 0 && (
-              <div className="mb-5 space-y-2">
-                <p className="text-xs font-bold text-[#5c3a2e] tracking-wider">当前编辑者：</p>
-                {editors.map((hash) => (
-                  <div
-                    key={hash}
-                    className="flex items-center justify-between bg-[#fdfbf7] rounded-xl px-4 py-2 border border-[#d4a76a]/20"
-                  >
-                    <span className="text-xs font-mono text-[#5c3a2e] truncate flex-1">
-                      {hash.slice(0, 12)}...{hash.slice(-6)}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveEditor(hash)}
-                      disabled={removeSending && removeEditorHash === hash}
-                      className="ml-2 px-3 py-1 text-xs font-bold text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-40 flex items-center gap-1"
-                    >
-                      {removeSending && removeEditorHash === hash ? (
-                        <div className="w-3 h-3 border-2 border-red-300 border-t-red-500 rounded-full animate-spin" />
-                      ) : (
-                        "移除"
-                      )}
-                    </button>
-                  </div>
-                ))}
+        {/* ====== 邮箱备份 ====== */}
+        <section id="email-backup-section" className="mb-8">
+          <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
+            <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
+              📧 邮箱备份
+            </h3>
+            {emailSent ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                <p className="text-green-700 font-bold">
+                  ✅ 备份请求已发送！请检查您的邮箱。
+                </p>
               </div>
-            )}
-
-            {/* 邀请输入框 */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => { setInviteEmail(e.target.value); setInviteError(null); setInviteSuccess(null); }}
-                placeholder="输入对方邮箱地址"
-                className="flex-1 px-4 py-2.5 rounded-xl border border-[#d4a76a]/40 bg-[#fdfbf7] text-[#5c3a2e] placeholder-[#c4a67a] focus:outline-none focus:ring-2 focus:ring-[#8b0000]/20 focus:border-[#8b0000] transition-all text-sm"
-                disabled={inviteSending}
-              />
-              <button
-                onClick={handleInviteEditor}
-                disabled={inviteSending || !inviteEmail.trim()}
-                className="px-6 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 flex items-center justify-center gap-2 shadow-lg shadow-[#8b0000]/20"
-              >
-                {inviteSending ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    邀请中...
-                  </>
-                ) : (
-                  "📨 邀请"
-                )}
-              </button>
-            </div>
-
-            {inviteError && (
-              <p className="mt-2 text-sm text-red-500">{inviteError}</p>
-            )}
-            {inviteSuccess && (
-              <p className="mt-2 text-sm text-green-600">{inviteSuccess}</p>
-            )}
-          </section>
-        )}
-
-        {/* ---------- 标签切换：树状图 / 时间轴 ---------- */}
-        {isStructuredTree && result.ipfsData?.data ? (
-          <>
-            {/* 标签按钮 */}
-            <div className="flex justify-center gap-2 mb-6">
-              <button
-                onClick={() => setActiveTab("tree")}
-                className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
-                  activeTab === "tree"
-                    ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
-                    : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
-                }`}
-              >
-                🌳 家族树
-              </button>
-              <button
-                onClick={() => setActiveTab("timeline")}
-                className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
-                  activeTab === "timeline"
-                    ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
-                    : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
-                }`}
-              >
-                📅 时间轴
-              </button>
-              <button
-                onClick={() => setActiveTab("album")}
-                className={`px-6 py-2.5 rounded-xl font-bold text-sm tracking-wider transition-all duration-200 ${
-                  activeTab === "album"
-                    ? "bg-[#8b0000] text-white shadow-lg shadow-[#8b0000]/20"
-                    : "bg-white text-[#5c3a2e] border border-[#d4a76a]/30 hover:border-[#8b0000]/40 hover:bg-[#fdfbf7]"
-                }`}
-              >
-                🖼️ 相册
-              </button>
-            </div>
-
-            {/* 条件渲染 */}
-            {activeTab === "tree" ? (
-              <PagodaTreeView
-                tree={editing && editedTree ? editedTree : result.ipfsData.data}
-                editable={editing}
-                onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
-                onRequestEdit={enterEditMode}
-              />
-            ) : activeTab === "timeline" ? (
-              <FamilyTimeline
-                tree={editing && editedTree ? editedTree : result.ipfsData.data}
-                editable={editing}
-                onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
-              />
             ) : (
-              <FamilyAlbum
-                tree={editing && editedTree ? editedTree : result.ipfsData.data}
-                editable={editing}
-                onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
-              />
-            )}
-          </>
-        ) : (
-          <LegacyContentView ipfsData={ipfsData} dataHash={result?.dataHash} />
-        )}
-
-        {/* ---------- 修订记录 ---------- */}
-        {isStructuredTree && (
-          <RevisionHistory
-            familyId={familyId}
-            contractAddress={process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "0x9a943CfC5bde0EA506b2A88E5AF653d74C6D06ea"}
-          />
-        )}
-
-        {/* ---------- 数据详情 ---------- */}
-        <section className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/30 p-8">
-          <h2 className="text-xl font-bold text-[#8b0000] mb-6 tracking-wider">
-            数据详情
-          </h2>
-
-          <div className="space-y-4">
-            {/* 数据类型 */}
-            <DataRow label="数据类型">
-              {isStructuredTree ? "结构化家族树" : "老谱影像"}
-            </DataRow>
-
-            {/* 家族ID（完整） */}
-            <DataRow label="家族 ID" mono>
-              {familyId}
-            </DataRow>
-
-            {/* 数据标识 */}
-            {result?.dataHash && (
-              <DataRow label="数据标识" mono>
-                {result.dataHash}
-              </DataRow>
-            )}
-
-            {/* 数据查看链接 */}
-            {result?.dataHash && (
-              <DataRow label="数据网关">
-                <a
-                  href={`https://w3s.link/ipfs/${result.dataHash}/metadata.json`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[#8b0000] underline hover:text-[#a52a2a]"
-                >
-                  查看原始数据
-                </a>
-              </DataRow>
-            )}
-
-            {/* 成员数（结构化树） */}
-            {isStructuredTree && result.ipfsData?.data && (
-              <DataRow label="族人数量">
-                {result.ipfsData.data.members.length} 人
-              </DataRow>
-            )}
-
-            {/* 图片数量（老谱模式） */}
-            {!isStructuredTree && ipfsData?.imageCount !== undefined && (
-              <DataRow label="上传图片数">
-                {ipfsData.imageCount} 张
-              </DataRow>
+              <>
+                <p className="text-xs text-[#5c3a2e]/60 mb-3 leading-relaxed">
+                  输入邮箱地址，我们将把这份族谱数据发送到您的邮箱，方便您永久保存。
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="请输入您的邮箱"
+                    className="flex-1 px-4 py-2.5 border border-[#d4a76a]/40 rounded-xl text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]"
+                  />
+                  <button
+                    onClick={handleEmailBackup}
+                    disabled={emailSending || !email.trim()}
+                    className="px-6 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 whitespace-nowrap"
+                  >
+                    {emailSending ? "发送中..." : "发送"}
+                  </button>
+                </div>
+                {emailError && (
+                  <p className="text-xs text-red-500 mt-2">{emailError}</p>
+                )}
+              </>
             )}
           </div>
         </section>
 
-        {/* ---------- 关于数据安全 ---------- */}
-        <section className="bg-[#fdfbf7] rounded-2xl border border-[#d4a76a]/20 p-6">
-          <h3 className="text-sm font-bold text-[#5c3a2e] mb-2 tracking-wider">
-            💡 关于数据保存
-          </h3>
-          <p className="text-xs text-[#c4a67a] leading-relaxed">
-            每次修改都会生成新的数据记录，历史版本永久保存在分布式网络中，可追溯、可恢复。当前展示的是最新版本。
-          </p>
-          {result?.warning && (
-            <p className="text-xs text-amber-600 mt-2">{result.warning}</p>
-          )}
+        {/* ====== 邀请编辑者（创作者和管理员可见） ====== */}
+        {isCreator && (
+          <section className="mb-8">
+            <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
+              <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
+                👥 管理编辑者
+              </h3>
+              <p className="text-xs text-[#5c3a2e]/60 mb-3 leading-relaxed">
+                您可以邀请族人共同编辑这份族谱。输入对方的注册邮箱即可授权。
+              </p>
+
+              {/* 邀请输入 */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  placeholder="输入对方注册邮箱"
+                  className="flex-1 px-4 py-2.5 border border-[#d4a76a]/40 rounded-xl text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]"
+                />
+                <button
+                  onClick={handleInviteEditor}
+                  disabled={inviteSending || !inviteEmail.trim()}
+                  className="px-6 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 whitespace-nowrap"
+                >
+                  {inviteSending ? "邀请中..." : "邀请"}
+                </button>
+              </div>
+
+              {inviteError && (
+                <p className="text-xs text-red-500 mb-2">{inviteError}</p>
+              )}
+              {inviteSuccess && (
+                <p className="text-xs text-green-600 mb-2">{inviteSuccess}</p>
+              )}
+
+              {/* 当前编辑者列表 */}
+              {editors.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-[#5c3a2e] mb-2">
+                    当前编辑者（{editors.length} 人）
+                  </p>
+                  <div className="space-y-2">
+                    {editors.map((editor) => (
+                      <div
+                        key={editor}
+                        className="flex items-center justify-between px-3 py-2 bg-[#fdfbf7] rounded-xl border border-[#d4a76a]/10"
+                      >
+                        <span className="text-sm text-[#5c3a2e]">{editor}</span>
+                        <button
+                          onClick={() => handleRemoveEditor(editor)}
+                          disabled={removeSending && removeEditorHash === editor}
+                          className="text-xs text-red-400 hover:text-red-600 transition-colors disabled:opacity-40"
+                        >
+                          {removeSending && removeEditorHash === editor ? "移除中..." : "移除"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ====== 修订记录 ====== */}
+        {result?.dataHash && (
+          <section className="mb-8">
+            <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 overflow-hidden">
+              <RevisionHistory familyId={familyId} contractAddress="" />
+            </div>
+          </section>
+        )}
+
+        {/* ====== 数据详情（IPFS 哈希） ====== */}
+        <section className="mb-8">
+          <div className="bg-[#fdfbf7]/80 rounded-2xl border border-[#d4a76a]/10 p-4">
+            <div className="text-center space-y-1">
+              <p className="text-xs text-[#c4a67a]">
+                🛡️ 数据基于区块链技术永久存证
+              </p>
+              {result?.dataHash && (
+                <p className="text-[10px] text-[#c4a67a]/50 break-all font-mono select-all cursor-pointer">
+                  IPFS: {result.dataHash}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ====== 关于数据安全 ====== */}
+        <section className="mb-8">
+          <div className="text-center text-xs text-[#c4a67a]/60 leading-relaxed">
+            <p>• 所有数据存储在 IPFS 分布式网络，无法篡改</p>
+            <p>• 每次编辑均创建不可逆修订记录</p>
+            <p>• 建议定期邮箱备份，多重保障数据安全</p>
+          </div>
         </section>
       </div>
 
-      {/* ---------- 海报模态框 ---------- */}
-      {showPoster && (
+      {/* ====== 海报弹窗 ====== */}
+      {showPoster && treeData && (
         <FamilyPoster
           familyName={familyName}
           totalGenerations={totalGenerations}
           totalMembers={totalMembers}
           founderName={founderName}
-          description={treeData?.members?.find((m) => !m.parentId)?.story || treeData?.familyEvents?.[0]?.description}
           familyUrl={typeof window !== "undefined" ? window.location.href : ""}
           onClose={() => setShowPoster(false)}
         />
       )}
-    </div>
-  );
-}
-
-// ---------- 数据行组件 ----------
-function DataRow({
-  label,
-  mono,
-  children,
-}: {
-  label: string;
-  mono?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4">
-      <span className="flex-shrink-0 text-sm font-bold text-[#5c3a2e] w-24">
-        {label}
-      </span>
-      <span
-        className={`text-sm text-[#5c3a2e] break-all ${
-          mono ? "font-mono text-xs" : ""
-        }`}
-      >
-        {children}
-      </span>
     </div>
   );
 }
