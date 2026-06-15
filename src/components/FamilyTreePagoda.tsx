@@ -77,10 +77,24 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
   }
 
   const assigned = new Set<string>();
+
+  // 找根节点（无父辈的人，排除外嫁/外娶入的配偶）
   const gen0Ids: string[] = [];
   for (const m of members) {
     if ((!m.fatherId || m.fatherId === "") && (!m.motherId || m.motherId === "")) {
-      gen0Ids.push(m.id);
+      // 检查这个人的配偶是否已有父辈信息（说明配偶是家族中的后代）
+      // 如果是，则跳过（此人应从配偶的BFS遍历中获得代际）
+      const spouseId = m.spouseOf || m.spouseId;
+      let spouseHasParent = false;
+      if (spouseId) {
+        const spouse = members.find(x => x.id === spouseId);
+        if (spouse) {
+          spouseHasParent = !!(spouse.fatherId && spouse.fatherId !== "") || !!(spouse.motherId && spouse.motherId !== "");
+        }
+      }
+      if (!spouseHasParent) {
+        gen0Ids.push(m.id);
+      }
     }
   }
   if (gen0Ids.length === 0) {
@@ -89,35 +103,48 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
     for (const m of members) if (!isChild.has(m.id)) gen0Ids.push(m.id);
   }
 
+  // BFS 分配代际
   const queue: { nodeId: string; gen: number }[] = [];
-  for (const id of gen0Ids) if (!assigned.has(id)) queue.push({ nodeId: id, gen: 0 });
+  for (const id of gen0Ids) {
+    if (!assigned.has(id)) queue.push({ nodeId: id, gen: 0 });
+  }
 
   while (queue.length > 0) {
     const { nodeId, gen } = queue.shift()!;
+    // 关键修复：如果已经分配过，跳过（避免重复出现）
     if (assigned.has(nodeId) || gen > MAX_GENERATION) continue;
     assigned.add(nodeId);
     const node = nodeMap.get(nodeId);
     if (!node) continue;
     node.generation = gen;
+
+    // 配偶同代
     if (node.spouse && !assigned.has(node.spouse.member.id)) {
       node.spouse.generation = gen;
       assigned.add(node.spouse.member.id);
     }
-    for (const cid of getChildIds(node.member, members)) {
-      const cn = nodeMap.get(cid);
-      if (cn && !assigned.has(cid)) { node.children.push(cn); queue.push({ nodeId: cid, gen: gen + 1 }); }
-    }
+
+    // 处理子女
+    const allChildIds = new Set<string>();
+    for (const cid of getChildIds(node.member, members)) allChildIds.add(cid);
     if (node.spouse) {
-      for (const cid of getChildIds(node.spouse.member, members)) {
-        const cn = nodeMap.get(cid);
-        if (cn && !assigned.has(cid) && !node.children.some(c => c.member.id === cid)) {
-          node.children.push(cn); queue.push({ nodeId: cid, gen: gen + 1 });
+      for (const cid of getChildIds(node.spouse.member, members)) allChildIds.add(cid);
+    }
+
+    for (const cid of allChildIds) {
+      const cn = nodeMap.get(cid);
+      // 只加入尚未分配的子女
+      if (cn && !assigned.has(cid)) {
+        // 避免重复添加到 children 列表
+        if (!node.children.some(c => c.member.id === cid)) {
+          node.children.push(cn);
         }
+        queue.push({ nodeId: cid, gen: gen + 1 });
       }
     }
   }
 
-  // 处理孤立节点
+  // 处理孤立节点（没有被任何 BFS 覆盖到的人）
   for (const m of members) {
     if (!assigned.has(m.id)) {
       const node = nodeMap.get(m.id);
@@ -131,9 +158,11 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
   }
 
   // 排序子女
-  for (const [, node] of nodeMap) node.children.sort((a, b) => sortByBirth(a.member, b.member));
+  for (const [, node] of nodeMap) {
+    node.children.sort((a, b) => sortByBirth(a.member, b.member));
+  }
 
-  // 分组
+  // 按代分组
   const genMap = new Map<number, TreeNode[]>();
   for (const [, node] of nodeMap) {
     if (!assigned.has(node.member.id)) continue;
@@ -179,25 +208,13 @@ const DOT_SIZE = 8;
 
 // ==================== SVG连线元件 ====================
 
-function SpouseBar({ width = 40 }: { width?: number }) {
+/** 夫妻分隔符：淡色竖线 */
+function SpouseSeparator({ height = 40 }: { height?: number }) {
   return (
-    <svg width={width} height={24} className="flex-shrink-0" style={{ display: 'block' }}>
-      <line x1="0" y1="12" x2={width} y2="12" stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
-      <text x={width / 2} y={16} textAnchor="middle" fill={LINE_COLOR} fontSize="11" fontWeight="bold">配</text>
+    <svg width="2" height={height} className="flex-shrink-0 mx-1" style={{ display: 'block' }}>
+      <line x1="1" y1="2" x2="1" y2={height - 2} stroke={LINE_COLOR} strokeWidth={1} strokeOpacity={0.3} />
     </svg>
   );
-}
-
-function VLine({ height = 24 }: { height?: number }) {
-  return <svg width="2" height={height} style={{ display: 'block', flexShrink: 0 }}><line x1="1" y1="0" x2="1" y2={height} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} /></svg>;
-}
-
-function Dot({ size = DOT_SIZE }: { size?: number }) {
-  return <svg width={size} height={size} style={{ display: 'block', flexShrink: 0 }}><circle cx={size / 2} cy={size / 2} r={size / 2 - 1} fill={LINE_COLOR} /></svg>;
-}
-
-function HLine({ width = 16, thin = false }: { width?: number; thin?: boolean }) {
-  return <svg width={width} height="2" style={{ display: 'block', flexShrink: 0 }}><line x1="0" y1="1" x2={width} y2="1" stroke={LINE_COLOR} strokeWidth={thin ? 1 : LINE_WIDTH} strokeOpacity={thin ? 0.4 : 1} /></svg>;
 }
 
 function StoryBlock({ story }: { story: string }) {
@@ -383,44 +400,43 @@ function MemberEditForm({
   );
 }
 
-// ==================== 宝塔式一代的渲染 ====================
+// ==================== 夫妻单元渲染 ====================
 
-function PagodaGeneration({
-  generation, editable, onEditMember, onEditStory, onAddParent, onAddChild, onAddSpouse, onRequestEdit, onUpdateMember,
-}: {
-  generation: GenerationRow; editable: boolean;
-  onEditMember: (m: Member) => void; onEditStory: (m: Member) => void;
-  onAddParent: (m: Member) => void; onAddChild: (m: Member) => void; onAddSpouse: (m: Member) => void;
-  onRequestEdit?: () => void; onUpdateMember?: (m: Member) => void;
-}) {
-  const couples = generation.couples;
+/** 用 SVG 绘制从夫妻到子女的连接线（竖线→分叉点→水平分支→每个子女的垂直线） */
+function ChildrenConnection({ childrenCount, containerWidth }: { childrenCount: number; containerWidth: number }) {
+  if (childrenCount === 0) return null;
+  const vLineH = 20;      // 从夫妻到分叉点的竖线高度
+  const dropH = 14;       // 从水平线到每个子女的垂直线高度
+  const dotR = DOT_SIZE / 2;         // 分叉点圆点半径
+  const svgH = vLineH + dotR + dropH; // SVG 总高度
+  const cx = containerWidth / 2;     // 中心 x
+
+  // 计算每个子女位置：均匀分布
+  const childSpacing = childrenCount > 1 ? containerWidth / (childrenCount - 1) : 0;
+
   return (
-    <div className="flex flex-col items-center">
-      {/* 代际标签（只在第一行显示） */}
-      <div className="text-xs text-[#8b0000]/50 font-bold mb-2 tracking-wider">{getGenerationLabel(generation.generation)}</div>
-
-      {/* 夫妻组水平排列 */}
-      <div className="flex items-start gap-8">
-        {couples.map((cpl, idx) => (
-          <CoupleUnit
-            key={idx}
-            couple={cpl}
-            editable={editable}
-            onEditMember={onEditMember}
-            onEditStory={onEditStory}
-            onAddParent={onAddParent}
-            onAddChild={onAddChild}
-            onAddSpouse={onAddSpouse}
-            onRequestEdit={onRequestEdit}
-            onUpdateMember={onUpdateMember}
-          />
-        ))}
-      </div>
-    </div>
+    <svg width={containerWidth} height={svgH} style={{ display: 'block', flexShrink: 0, overflow: 'visible' }}>
+      {/* 从夫妻中心向下的竖线 */}
+      <line x1={cx} y1="0" x2={cx} y2={vLineH} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
+      {/* 分叉点 */}
+      <circle cx={cx} cy={vLineH} r={dotR} fill={LINE_COLOR} />
+      {childrenCount === 1 ? (
+        /* 单个子女：直接向下 */
+        <line x1={cx} y1={vLineH + dotR} x2={cx} y2={svgH} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
+      ) : (
+        <>
+          {/* 水平分叉线 */}
+          <line x1="0" y1={vLineH + dotR} x2={containerWidth} y2={vLineH + dotR} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
+          {/* 每个子女的垂直线 */}
+          {Array.from({ length: childrenCount }).map((_, i) => {
+            const x = i === 0 ? 0 : i === childrenCount - 1 ? containerWidth : i * childSpacing;
+            return <line key={i} x1={x} y1={vLineH + dotR} x2={x} y2={vLineH + dotR + dropH} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />;
+          })}
+        </>
+      )}
+    </svg>
   );
 }
-
-// ==================== 夫妻单元渲染 ====================
 
 function CoupleUnit({
   couple, editable, onEditMember, onEditStory, onAddParent, onAddChild, onAddSpouse, onRequestEdit, onUpdateMember,
@@ -431,15 +447,32 @@ function CoupleUnit({
   onRequestEdit?: () => void; onUpdateMember?: (m: Member) => void;
 }) {
   const { husband, wife, children } = couple;
-
-  // 计算中间引线位置：有配偶时从两人中间，无配偶时从单人正下方
-  const hasSpouse = husband && wife;
-  // 子女数量
   const childCount = children.length;
+  const childrenRef = useRef<HTMLDivElement>(null);
+  const [forkWidth, setForkWidth] = useState(0);
+
+  // 测量子女容器宽度，动态计算分叉 SVG 宽度
+  useEffect(() => {
+    const el = childrenRef.current;
+    if (!el || childCount === 0) { setForkWidth(0); return; }
+    const measure = () => {
+      let totalW = 0;
+      for (const child of el.children) {
+        totalW += (child as HTMLElement).offsetWidth;
+      }
+      // 加上子元素之间的间隔 (gap)
+      const gap = parseFloat(getComputedStyle(el).gap || '0') * (childCount - 1);
+      setForkWidth(Math.max(totalW + gap, 60));
+    };
+    measure();
+    const obs = new ResizeObserver(measure);
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [childCount]);
 
   return (
     <div className="flex flex-col items-center">
-      {/* 夫妻行 */}
+      {/* 夫妻行：紧密并排，中间仅用淡色竖线分隔（修复问题4） */}
       <div className="flex items-center">
         {husband && (
           <MemberCard
@@ -455,7 +488,8 @@ function CoupleUnit({
             onUpdateMember={onUpdateMember}
           />
         )}
-        {hasSpouse && <SpouseBar width={36} />}
+        {/* 夫妻分隔符：淡色竖线代替原来的"配"字+横线 */}
+        {husband && wife && <SpouseSeparator height={40} />}
         {wife && (
           <MemberCard
             member={wife.member}
@@ -472,23 +506,17 @@ function CoupleUnit({
         )}
       </div>
 
-      {/* 向下的连线 */}
+      {/* 向下的连线：竖线分叉连到每个子女（修复问题3） */}
       {childCount > 0 && (
         <div className="flex flex-col items-center">
-          {/* 从夫妻/单人中间引出的竖线 */}
-          <VLine height={20} />
-          {/* 圆点分叉 */}
-          <div className="flex items-center">
-            <Dot />
-            {childCount > 1 && (
-              <HLine width={Math.max(16, (childCount - 1) * 14)} />
-            )}
-          </div>
-          {/* 子女行 */}
-          <div className="flex items-center mt-0">
-            {children.map((child, cidx) => (
-              <div key={child.member.id} className="flex items-center">
-                {cidx > 0 && <HLine width={14} />}
+          {/* 从夫妻中间引出的竖线 → 分叉点 → 水平分支 → 每个子女垂直线 */}
+          {/* 用 SVG 统一绘制所有连接线，基于子女容器宽度动态计算 */}
+          <ChildrenConnection childrenCount={childCount} containerWidth={Math.max(forkWidth, 60)} />
+
+          {/* 子女排列（平铺，彼此之间不画横线，修复问题1） */}
+          <div ref={childrenRef} className="flex items-start gap-0" style={{ marginTop: -1 }}>
+            {children.map((child) => (
+              <div key={child.member.id} className="flex flex-col items-center">
                 <MemberCard
                   member={child.member}
                   editable={editable}
@@ -505,6 +533,43 @@ function CoupleUnit({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ==================== 宝塔式一代的渲染 ====================
+
+function PagodaGeneration({
+  generation, editable, onEditMember, onEditStory, onAddParent, onAddChild, onAddSpouse, onRequestEdit, onUpdateMember,
+}: {
+  generation: GenerationRow; editable: boolean;
+  onEditMember: (m: Member) => void; onEditStory: (m: Member) => void;
+  onAddParent: (m: Member) => void; onAddChild: (m: Member) => void; onAddSpouse: (m: Member) => void;
+  onRequestEdit?: () => void; onUpdateMember?: (m: Member) => void;
+}) {
+  const couples = generation.couples;
+  return (
+    <div className="flex flex-col items-center">
+      {/* 代际标签 */}
+      <div className="text-xs text-[#8b0000]/50 font-bold mb-2 tracking-wider">{getGenerationLabel(generation.generation)}</div>
+
+      {/* 夫妻组水平排列 */}
+      <div className="flex items-start gap-8">
+        {couples.map((cpl, idx) => (
+          <CoupleUnit
+            key={cpl.husband?.member.id ?? cpl.wife?.member.id ?? idx}
+            couple={cpl}
+            editable={editable}
+            onEditMember={onEditMember}
+            onEditStory={onEditStory}
+            onAddParent={onAddParent}
+            onAddChild={onAddChild}
+            onAddSpouse={onAddSpouse}
+            onRequestEdit={onRequestEdit}
+            onUpdateMember={onUpdateMember}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -577,56 +642,63 @@ export function PagodaTreeView({
     return lines.join("\n");
   }, [generations]);
 
-  if (members.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <div className="text-6xl mb-4">🌳</div>
-        <p className="text-xl font-bold text-[#8b0000] mb-2">家族树已建立</p>
-        <p className="text-sm text-[#c4a67a]">暂无成员数据</p>
-      </div>
-    );
-  }
+  // ==================== 调试面板 ====================
 
   return (
-    <div className="relative">
-      <div className="text-center mb-6">
-        <h2 className="text-xl font-bold text-[#8b0000] tracking-wider">🌳 家族世系图</h2>
-        <p className="text-xs text-[#c4a67a] mt-1">共 {generations.length} 代 · {members.length} 位族人</p>
-      </div>
+    <div className="relative py-8 px-4 overflow-x-auto">
+      {/* 调试按钮 */}
+      {process.env.NODE_ENV === "development" && (
+        <div className="fixed top-4 left-4 z-30">
+          <button
+            onClick={() => setDebugOpen(!debugOpen)}
+            className="px-2 py-1 text-xs bg-[#f5f0e8] border border-[#d4a76a]/30 rounded"
+          >
+            🐛 {debugOpen ? "关闭调试" : "调试"}
+          </button>
+        </div>
+      )}
 
-      {/* 宝塔式世系图 */}
-      <div className="py-6 overflow-x-auto">
-        <div className="flex flex-col items-center gap-0 min-w-max">
-          {generations.map((gen, i) => (
-            <div key={i} className="flex flex-col items-center">
-              {/* 代际连接线（非第一代时，从上一代到本代）*/}
-              <PagodaGeneration
-                generation={gen}
-                editable={editable}
-                onEditMember={handleEditMember}
-                onEditStory={handleEditStory}
-                onAddParent={handleAddParent}
-                onAddChild={handleAddChild}
-                onAddSpouse={handleAddSpouse}
-                onRequestEdit={onRequestEdit}
-                onUpdateMember={handleUpdateMember}
-              />
-              {/* 代间连线（非最后一代） */}
-              {i < generations.length - 1 && (
-                <div className="flex flex-col items-center py-2">
-                  <VLine height={20} />
-                </div>
-              )}
-            </div>
+      {/* 调试面板 */}
+      {debugOpen && (
+        <div className="fixed top-12 left-4 z-30 bg-white/95 border border-[#d4a76a]/20 rounded-xl shadow-xl p-4 max-w-xs max-h-80 overflow-auto text-xs text-[#5c3a2e] font-mono">
+          <p className="font-bold text-[#8b0000] mb-1">📊 树结构</p>
+          <pre>{debugInfo}</pre>
+        </div>
+      )}
+
+      {/* 代际列表 */}
+      {generations.length > 0 ? (
+        <div className="flex flex-col items-center gap-16">
+          {generations.map((gen) => (
+            <PagodaGeneration
+              key={gen.generation}
+              generation={gen}
+              editable={editable}
+              onEditMember={handleEditMember}
+              onEditStory={handleEditStory}
+              onAddParent={handleAddParent}
+              onAddChild={handleAddChild}
+              onAddSpouse={handleAddSpouse}
+              onRequestEdit={onRequestEdit}
+              onUpdateMember={handleUpdateMember}
+            />
           ))}
         </div>
-      </div>
+      ) : (
+        <div className="text-center py-12 text-[#c4a67a] text-sm">
+          {editable ? "点击下面按钮开始创建家族树" : "暂无数据"}
+        </div>
+      )}
+
+      {/* 底部占位 */}
+      <div className="h-16" />
 
       {/* 编辑弹窗 */}
       {editingMember && (
         <MemberEditForm
+          title={`编辑 ${editingMember.name || ""}`}
           initial={{
-            name: editingMember.name,
+            name: editingMember.name || "",
             birth: editingMember.birth || "",
             death: editingMember.death || "",
             info: editingMember.info || "",
@@ -636,32 +708,27 @@ export function PagodaTreeView({
           }}
           onSave={handleSaveEdit}
           onCancel={() => setEditingMember(null)}
-          title={`编辑 - ${editingMember.name}`}
         />
       )}
 
+      {/* 故事编辑弹窗 */}
       {editingStoryMember && (
         <MemberEditForm
-          initial={{ name: editingStoryMember.name, birth: "", death: "", info: "", story: editingStoryMember.story || "", burialPlace: "", burialCoords: "" }}
+          title={`📖 编辑 ${editingStoryMember.name || ""} 的故事`}
+          initial={{
+            name: editingStoryMember.name || "",
+            birth: editingStoryMember.birth || "",
+            death: editingStoryMember.death || "",
+            info: editingStoryMember.info || "",
+            story: editingStoryMember.story || "",
+            burialPlace: editingStoryMember.burialPlace || "",
+            burialCoords: editingStoryMember.burialCoords || "",
+          }}
           onSave={handleSaveStory}
           onCancel={() => setEditingStoryMember(null)}
-          title={`📖 写下${editingStoryMember.name}的故事`}
-          storyFocus={true}
+          storyFocus
         />
       )}
-
-      {/* 调试 */}
-      <div className="fixed bottom-4 right-4 z-50">
-        <button onClick={() => setDebugOpen(!debugOpen)}
-          className="px-3 py-1.5 bg-[#8b0000] text-white rounded-lg text-xs font-bold hover:bg-[#a52a2a]">
-          {debugOpen ? "关闭调试" : "🔧 调试"}
-        </button>
-        {debugOpen && (
-          <div className="mt-2 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 max-w-md max-h-80 overflow-auto">
-            <pre className="text-xs text-[#5c3a2e] whitespace-pre-wrap">{debugInfo}</pre>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
