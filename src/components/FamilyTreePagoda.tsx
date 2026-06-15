@@ -646,6 +646,7 @@ export function PagodaTreeView({
 
   return (
     <div className="relative py-8 px-4 overflow-x-auto">
+      {/* version: 20260615-fix-bfs-root-node */}
       {/* 调试按钮 */}
       {process.env.NODE_ENV === "development" && (
         <div className="fixed top-4 left-4 z-30">
