@@ -440,8 +440,11 @@ function PagodaGeneration({
 }) {
   const couples = generation.couples;
   return (
-    <div className="flex flex-col items-center">
-      <div className="text-xs text-[#8b0000]/50 font-bold mb-2 tracking-wider">{getGenerationLabel(generation.generation)}</div>
+    <div className="relative flex flex-col items-center">
+      {/* 代际标签：绝对定位在左侧，垂直居中 */}
+      <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 whitespace-nowrap">
+        <span className="text-xs text-[#8b0000]/50 font-bold tracking-wider">{getGenerationLabel(generation.generation)}</span>
+      </div>
       <div className="flex items-start gap-8">
         {couples.map((cpl, idx) => (
           <CoupleUnit
