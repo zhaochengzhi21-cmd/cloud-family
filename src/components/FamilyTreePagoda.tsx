@@ -62,7 +62,6 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
     nodeMap.set(m.id, { member: m, generation: -1, children: [], spouse: null });
   }
 
-  // 配偶关联
   for (const m of members) {
     if (m.spouseOf && nodeMap.has(m.spouseOf)) {
       const node = nodeMap.get(m.id)!;
@@ -78,12 +77,9 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
 
   const assigned = new Set<string>();
 
-  // 找根节点（无父辈的人，排除外嫁/外娶入的配偶）
   const gen0Ids: string[] = [];
   for (const m of members) {
     if ((!m.fatherId || m.fatherId === "") && (!m.motherId || m.motherId === "")) {
-      // 检查这个人的配偶是否已有父辈信息（说明配偶是家族中的后代）
-      // 如果是，则跳过（此人应从配偶的BFS遍历中获得代际）
       const spouseId = m.spouseOf || m.spouseId;
       let spouseHasParent = false;
       if (spouseId) {
@@ -92,9 +88,7 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
           spouseHasParent = !!(spouse.fatherId && spouse.fatherId !== "") || !!(spouse.motherId && spouse.motherId !== "");
         }
       }
-      if (!spouseHasParent) {
-        gen0Ids.push(m.id);
-      }
+      if (!spouseHasParent) gen0Ids.push(m.id);
     }
   }
   if (gen0Ids.length === 0) {
@@ -103,7 +97,6 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
     for (const m of members) if (!isChild.has(m.id)) gen0Ids.push(m.id);
   }
 
-  // BFS 分配代际
   const queue: { nodeId: string; gen: number }[] = [];
   for (const id of gen0Ids) {
     if (!assigned.has(id)) queue.push({ nodeId: id, gen: 0 });
@@ -111,20 +104,17 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
 
   while (queue.length > 0) {
     const { nodeId, gen } = queue.shift()!;
-    // 关键修复：如果已经分配过，跳过（避免重复出现）
     if (assigned.has(nodeId) || gen > MAX_GENERATION) continue;
     assigned.add(nodeId);
     const node = nodeMap.get(nodeId);
     if (!node) continue;
     node.generation = gen;
 
-    // 配偶同代
     if (node.spouse && !assigned.has(node.spouse.member.id)) {
       node.spouse.generation = gen;
       assigned.add(node.spouse.member.id);
     }
 
-    // 处理子女
     const allChildIds = new Set<string>();
     for (const cid of getChildIds(node.member, members)) allChildIds.add(cid);
     if (node.spouse) {
@@ -133,9 +123,7 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
 
     for (const cid of allChildIds) {
       const cn = nodeMap.get(cid);
-      // 只加入尚未分配的子女
       if (cn && !assigned.has(cid)) {
-        // 避免重复添加到 children 列表
         if (!node.children.some(c => c.member.id === cid)) {
           node.children.push(cn);
         }
@@ -144,7 +132,6 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
     }
   }
 
-  // 处理孤立节点（没有被任何 BFS 覆盖到的人）
   for (const m of members) {
     if (!assigned.has(m.id)) {
       const node = nodeMap.get(m.id);
@@ -157,12 +144,10 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
     }
   }
 
-  // 排序子女
   for (const [, node] of nodeMap) {
     node.children.sort((a, b) => sortByBirth(a.member, b.member));
   }
 
-  // 按代分组
   const genMap = new Map<number, TreeNode[]>();
   for (const [, node] of nodeMap) {
     if (!assigned.has(node.member.id)) continue;
@@ -204,16 +189,14 @@ function getGenerationLabel(gen: number): string {
 
 const LINE_COLOR = "#4a2c17";
 const LINE_WIDTH = 2;
-const DOT_SIZE = 8;
 
-// ==================== SVG连线元件 ====================
+// ==================== 夫妻分隔竖线（淡色细竖线，不加"配"字）====================
 
-/** 夫妻分隔符：淡色竖线 */
-function SpouseSeparator({ height = 40 }: { height?: number }) {
+function SpouseSeparator() {
   return (
-    <svg width="2" height={height} className="flex-shrink-0 mx-1" style={{ display: 'block' }}>
-      <line x1="1" y1="2" x2="1" y2={height - 2} stroke={LINE_COLOR} strokeWidth={1} strokeOpacity={0.3} />
-    </svg>
+    <div className="flex-shrink-0 mx-1 flex items-center justify-center" style={{ width: 12, height: 50 }}>
+      <div style={{ width: 1.5, height: "70%", backgroundColor: "#d4a76a", opacity: 0.4 }} />
+    </div>
   );
 }
 
@@ -248,7 +231,7 @@ function MemberCard({
     : member.birth ? `生于 ${member.birth}` : member.death ? `卒于 ${member.death}` : null;
 
   return (
-    <div className="relative flex flex-col items-center">
+    <div className="relative flex flex-col items-center" data-member-id={member.id}>
       {editable && (
         <div className="relative mb-0.5">
           <button onClick={(e) => { e.stopPropagation(); setMenu(!menu); }}
@@ -278,7 +261,6 @@ function MemberCard({
           <p className="font-bold text-[#8b0000] mb-1 text-base">{member.name}</p>
           {birthText && <p className="text-xs text-[#5c3a2e]/60 mb-2">{birthText}</p>}
 
-          {/* 照片展示 / 上传引导 */}
           <div className="mb-3">
             {member.photoOriginal || member.photoRestored ? (
               <>
@@ -329,7 +311,6 @@ function MemberCard({
             )}
           </div>
 
-          {/* 安葬地 */}
           {member.burialPlace && (
             <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
               <p className="text-xs font-bold text-[#8b0000]/70 mb-1">🪦 安葬地</p>
@@ -402,42 +383,6 @@ function MemberEditForm({
 
 // ==================== 夫妻单元渲染 ====================
 
-/** 用 SVG 绘制从夫妻到子女的连接线（竖线→分叉点→水平分支→每个子女的垂直线） */
-function ChildrenConnection({ childrenCount, containerWidth }: { childrenCount: number; containerWidth: number }) {
-  if (childrenCount === 0) return null;
-  const vLineH = 20;      // 从夫妻到分叉点的竖线高度
-  const dropH = 14;       // 从水平线到每个子女的垂直线高度
-  const dotR = DOT_SIZE / 2;         // 分叉点圆点半径
-  const svgH = vLineH + dotR + dropH; // SVG 总高度
-  const cx = containerWidth / 2;     // 中心 x
-
-  // 计算每个子女位置：均匀分布
-  const childSpacing = childrenCount > 1 ? containerWidth / (childrenCount - 1) : 0;
-
-  return (
-    <svg width={containerWidth} height={svgH} style={{ display: 'block', flexShrink: 0, overflow: 'visible' }}>
-      {/* 从夫妻中心向下的竖线 */}
-      <line x1={cx} y1="0" x2={cx} y2={vLineH} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
-      {/* 分叉点 */}
-      <circle cx={cx} cy={vLineH} r={dotR} fill={LINE_COLOR} />
-      {childrenCount === 1 ? (
-        /* 单个子女：直接向下 */
-        <line x1={cx} y1={vLineH + dotR} x2={cx} y2={svgH} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
-      ) : (
-        <>
-          {/* 水平分叉线 */}
-          <line x1="0" y1={vLineH + dotR} x2={containerWidth} y2={vLineH + dotR} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />
-          {/* 每个子女的垂直线 */}
-          {Array.from({ length: childrenCount }).map((_, i) => {
-            const x = i === 0 ? 0 : i === childrenCount - 1 ? containerWidth : i * childSpacing;
-            return <line key={i} x1={x} y1={vLineH + dotR} x2={x} y2={vLineH + dotR + dropH} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} />;
-          })}
-        </>
-      )}
-    </svg>
-  );
-}
-
 function CoupleUnit({
   couple, editable, onEditMember, onEditStory, onAddParent, onAddChild, onAddSpouse, onRequestEdit, onUpdateMember,
 }: {
@@ -446,92 +391,38 @@ function CoupleUnit({
   onAddParent: (m: Member) => void; onAddChild: (m: Member) => void; onAddSpouse: (m: Member) => void;
   onRequestEdit?: () => void; onUpdateMember?: (m: Member) => void;
 }) {
-  const { husband, wife, children } = couple;
-  const childCount = children.length;
-  const childrenRef = useRef<HTMLDivElement>(null);
-  const [forkWidth, setForkWidth] = useState(0);
-
-  // 测量子女容器宽度，动态计算分叉 SVG 宽度
-  useEffect(() => {
-    const el = childrenRef.current;
-    if (!el || childCount === 0) { setForkWidth(0); return; }
-    const measure = () => {
-      let totalW = 0;
-      for (const child of el.children) {
-        totalW += (child as HTMLElement).offsetWidth;
-      }
-      // 加上子元素之间的间隔 (gap)
-      const gap = parseFloat(getComputedStyle(el).gap || '0') * (childCount - 1);
-      setForkWidth(Math.max(totalW + gap, 60));
-    };
-    measure();
-    const obs = new ResizeObserver(measure);
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [childCount]);
+  const { husband, wife } = couple;
 
   return (
-    <div className="flex flex-col items-center">
-      {/* 夫妻行：紧密并排，中间仅用淡色竖线分隔（修复问题4） */}
-      <div className="flex items-center">
-        {husband && (
-          <MemberCard
-            member={husband.member}
-            isSpouse={false}
-            editable={editable}
-            onEdit={() => onEditMember(husband.member)}
-            onEditStory={() => onEditStory(husband.member)}
-            onAddParent={() => onAddParent(husband.member)}
-            onAddChild={() => onAddChild(husband.member)}
-            onAddSpouse={() => onAddSpouse(husband.member)}
-            onRequestEdit={onRequestEdit}
-            onUpdateMember={onUpdateMember}
-          />
-        )}
-        {/* 夫妻分隔符：淡色竖线代替原来的"配"字+横线 */}
-        {husband && wife && <SpouseSeparator height={40} />}
-        {wife && (
-          <MemberCard
-            member={wife.member}
-            isSpouse={true}
-            editable={editable}
-            onEdit={() => onEditMember(wife.member)}
-            onEditStory={() => onEditStory(wife.member)}
-            onAddParent={() => onAddParent(wife.member)}
-            onAddChild={() => onAddChild(wife.member)}
-            onAddSpouse={() => onAddSpouse(wife.member)}
-            onRequestEdit={onRequestEdit}
-            onUpdateMember={onUpdateMember}
-          />
-        )}
-      </div>
-
-      {/* 向下的连线：竖线分叉连到每个子女（修复问题3） */}
-      {childCount > 0 && (
-        <div className="flex flex-col items-center">
-          {/* 从夫妻中间引出的竖线 → 分叉点 → 水平分支 → 每个子女垂直线 */}
-          {/* 用 SVG 统一绘制所有连接线，基于子女容器宽度动态计算 */}
-          <ChildrenConnection childrenCount={childCount} containerWidth={Math.max(forkWidth, 60)} />
-
-          {/* 子女排列（平铺，彼此之间不画横线，修复问题1） */}
-          <div ref={childrenRef} className="flex items-start gap-0" style={{ marginTop: -1 }}>
-            {children.map((child) => (
-              <div key={child.member.id} className="flex flex-col items-center">
-                <MemberCard
-                  member={child.member}
-                  editable={editable}
-                  onEdit={() => onEditMember(child.member)}
-                  onEditStory={() => onEditStory(child.member)}
-                  onAddParent={() => onAddParent(child.member)}
-                  onAddChild={() => onAddChild(child.member)}
-                  onAddSpouse={() => onAddSpouse(child.member)}
-                  onRequestEdit={onRequestEdit}
-                  onUpdateMember={onUpdateMember}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+    <div className="flex items-center" data-couple-root="true">
+      {husband && (
+        <MemberCard
+          member={husband.member}
+          isSpouse={false}
+          editable={editable}
+          onEdit={() => onEditMember(husband.member)}
+          onEditStory={() => onEditStory(husband.member)}
+          onAddParent={() => onAddParent(husband.member)}
+          onAddChild={() => onAddChild(husband.member)}
+          onAddSpouse={() => onAddSpouse(husband.member)}
+          onRequestEdit={onRequestEdit}
+          onUpdateMember={onUpdateMember}
+        />
+      )}
+      {husband && wife && <SpouseSeparator />}
+      {wife && (
+        <MemberCard
+          member={wife.member}
+          isSpouse={true}
+          editable={editable}
+          onEdit={() => onEditMember(wife.member)}
+          onEditStory={() => onEditStory(wife.member)}
+          onAddParent={() => onAddParent(wife.member)}
+          onAddChild={() => onAddChild(wife.member)}
+          onAddSpouse={() => onAddSpouse(wife.member)}
+          onRequestEdit={onRequestEdit}
+          onUpdateMember={onUpdateMember}
+        />
       )}
     </div>
   );
@@ -550,10 +441,7 @@ function PagodaGeneration({
   const couples = generation.couples;
   return (
     <div className="flex flex-col items-center">
-      {/* 代际标签 */}
       <div className="text-xs text-[#8b0000]/50 font-bold mb-2 tracking-wider">{getGenerationLabel(generation.generation)}</div>
-
-      {/* 夫妻组水平排列 */}
       <div className="flex items-start gap-8">
         {couples.map((cpl, idx) => (
           <CoupleUnit
@@ -574,6 +462,161 @@ function PagodaGeneration({
   );
 }
 
+// ==================== 连线绘制组件 ====================
+
+/**
+ * 在相邻两代之间绘制垂直连线。
+ * 连线规则：
+ * - 从每个夫妻组正下方中间引出竖直向下的线
+ * - 在到达子女层前分叉（分叉处有实心圆点），再分别连接到每个子女的头顶正中间
+ * - 无配偶的，从单人卡片正下方引出
+ * - 所有线条 2px 深棕色 #4a2c17 实线
+ */
+function GenerationLines({ generations, containerRef }: {
+  generations: GenerationRow[];
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [paths, setPaths] = useState<{ d: string; dots: { cx: number; cy: number }[] }[]>([]);
+  const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
+  const [key, setKey] = useState(0);
+
+  // 监听布局变化重新计算
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || generations.length === 0) return;
+
+    let rafId: number;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const calc = () => {
+      const cr = container.getBoundingClientRect();
+      if (cr.width === 0 || cr.height === 0) return;
+      setSvgSize({ w: cr.width, h: cr.height });
+
+      const result: { d: string; dots: { cx: number; cy: number }[] }[] = [];
+
+      // 建立 memberId -> 其所属 couple 在 generations 中的索引的映射
+      // 用于查找子女所属的父代夫妻组
+      const coupleMap = new Map<string, { genIdx: number; coupleIdx: number; couple: CoupleGroup }>();
+      for (let gi = 0; gi < generations.length; gi++) {
+        const gen = generations[gi];
+        for (let ci = 0; ci < gen.couples.length; ci++) {
+          const cpl = gen.couples[ci];
+          if (cpl.husband) coupleMap.set(cpl.husband.member.id, { genIdx: gi, coupleIdx: ci, couple: cpl });
+          if (cpl.wife) coupleMap.set(cpl.wife.member.id, { genIdx: gi, coupleIdx: ci, couple: cpl });
+        }
+      }
+
+      // 对于每对相邻代际，遍历所有父代夫妻组
+      for (let gi = 0; gi < generations.length - 1; gi++) {
+        const parentGen = generations[gi];
+        const childGen = generations[gi + 1];
+
+        for (const parentCouple of parentGen.couples) {
+          const children = parentCouple.children;
+          if (children.length === 0) continue;
+
+          // 找父代 DOM 元素
+          const parentIds: string[] = [];
+          if (parentCouple.husband) parentIds.push(parentCouple.husband.member.id);
+          if (parentCouple.wife) parentIds.push(parentCouple.wife.member.id);
+
+          let parentEl: HTMLElement | null = null;
+          // 尝试通过 data-couple-ids 属性找到当前夫妻组的容器
+          for (const pid of parentIds) {
+            parentEl = container.querySelector<HTMLElement>(`[data-member-id="${pid}"]`);
+            if (parentEl) {
+              // 找到最近的有 data-couple-root 的祖先
+              const coupleRoot = parentEl.closest<HTMLElement>("[data-couple-root]");
+              if (coupleRoot) { parentEl = coupleRoot; break; }
+            }
+          }
+          if (!parentEl) continue;
+          const pRect = parentEl.getBoundingClientRect();
+          const px = pRect.left + pRect.width / 2 - cr.left;
+          const py = pRect.bottom - cr.top;
+
+          // 找每个子女的 DOM 元素
+          const childEls: HTMLElement[] = [];
+          for (const child of children) {
+            const el = container.querySelector<HTMLElement>(`[data-member-id="${child.member.id}"]`);
+            if (el) childEls.push(el);
+          }
+          if (childEls.length === 0) continue;
+
+          const childPoints = childEls.map(el => {
+            const r = el.getBoundingClientRect();
+            return { x: r.left + r.width / 2 - cr.left, y: r.top - cr.top };
+          }).sort((a, b) => a.x - b.x);
+
+          const startY = py;
+          const midX = px;
+          // 分叉处 y 坐标：子女头顶上方 20px
+          const forkY = Math.max(childPoints[0].y - 20, startY + 20);
+          const dots: { cx: number; cy: number }[] = [];
+          let d = "";
+
+          if (childPoints.length === 1) {
+            // 单子女：直接从父母中间向下连到子女头顶
+            d = `M ${midX} ${startY} L ${midX} ${childPoints[0].y}`;
+          } else {
+            // 多子女：竖线到分叉点，然后分叉到每个子女
+            const leftX = childPoints[0].x;
+            const rightX = childPoints[childPoints.length - 1].x;
+            d = `M ${midX} ${startY} L ${midX} ${forkY}`;
+            // 分叉水平线
+            const leftmost = Math.min(leftX, midX - 20);
+            const rightmost = Math.max(rightX, midX + 20);
+            d += ` L ${leftmost} ${forkY}`;
+            d += ` M ${rightmost} ${forkY} L ${midX} ${forkY}`;
+            // 从分叉线两端向下到每个子女的头顶
+            for (const cp of childPoints) {
+              d += ` M ${cp.x} ${forkY} L ${cp.x} ${cp.y}`;
+            }
+            // 实心圆点：分叉处（左端点和右端点之间的中点? 在 midX 处）
+            dots.push({ cx: midX, cy: forkY });
+          }
+
+          result.push({ d, dots });
+        }
+      }
+
+      setPaths(result);
+      setKey(k => k + 1);
+    };
+
+    // 初始计算 + resize 监听
+    const doCalc = () => { cancelAnimationFrame(rafId); rafId = requestAnimationFrame(calc); };
+    timer = setTimeout(doCalc, 100);
+    window.addEventListener("resize", doCalc);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timer);
+      window.removeEventListener("resize", doCalc);
+    };
+  }, [generations, containerRef]);
+
+  return (
+    <svg
+      key={key}
+      className="absolute top-0 left-0 pointer-events-none z-10"
+      width={svgSize.w}
+      height={svgSize.h}
+      style={{ overflow: "visible" }}
+    >
+      {paths.map((p, i) => (
+        <g key={i}>
+          <path d={p.d} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} fill="none" />
+          {p.dots.map((dot, j) => (
+            <circle key={j} cx={dot.cx} cy={dot.cy} r={4} fill={LINE_COLOR} />
+          ))}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 // ==================== 主导出组件 ====================
 
 export function PagodaTreeView({
@@ -583,93 +626,108 @@ export function PagodaTreeView({
 }) {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [editingStoryMember, setEditingStoryMember] = useState<Member | null>(null);
-  const [debugOpen, setDebugOpen] = useState(false);
+  const treeContainerRef = useRef<HTMLDivElement>(null);
 
   const members = tree.members || [];
   const generations = useMemo(() => buildPagodaTree(members), [members]);
 
-  const handleEditMember = useCallback((m: Member) => setEditingMember(m), []);
-  const handleEditStory = useCallback((m: Member) => setEditingStoryMember(m), []);
+  const handleEditMember = useCallback((m: Member) => {
+    if (!editable) return;
+    setEditingMember(m);
+  }, [editable]);
+
+  const handleEditStory = useCallback((m: Member) => {
+    if (!editable) return;
+    setEditingStoryMember(m);
+  }, [editable]);
 
   const handleAddParent = useCallback((m: Member) => {
-    if (!onTreeChange) return;
-    const newMember: Member = { id: generateId(), name: "新父辈", gender: "男", childrenIds: [m.id] };
-    onTreeChange({ ...tree, members: [...tree.members, newMember] });
-  }, [tree, onTreeChange]);
+    const newMember: Member = {
+      id: generateId(),
+      name: "新成员",
+      gender: "女",
+      childrenIds: [m.id],
+    };
+    const newTree: FamilyTree = { ...tree, members: [...members, newMember] };
+    onTreeChange?.(newTree);
+  }, [members, tree, onTreeChange]);
 
   const handleAddChild = useCallback((m: Member) => {
-    if (!onTreeChange) return;
-    const spouse = members.find(x => x.spouseId === m.id || x.spouseOf === m.id);
-    const newMember: Member = { id: generateId(), name: "新子嗣", gender: "男", parentId: m.id, fatherId: spouse ? undefined : m.id, motherId: spouse ? m.id : undefined };
-    onTreeChange({ ...tree, members: [...tree.members, newMember] });
-  }, [tree, members, onTreeChange]);
+    const newMember: Member = {
+      id: generateId(),
+      name: "新成员",
+      gender: "男",
+      parentId: m.id,
+      fatherId: m.gender === "男" ? m.id : undefined,
+      motherId: m.gender === "女" ? m.id : undefined,
+    };
+    const newTree: FamilyTree = { ...tree, members: [...members, newMember] };
+    onTreeChange?.(newTree);
+  }, [members, tree, onTreeChange]);
 
   const handleAddSpouse = useCallback((m: Member) => {
-    if (!onTreeChange) return;
-    const newMember: Member = { id: generateId(), name: "配偶", gender: "女", spouseId: m.id, spouseOf: m.id };
-    onTreeChange({ ...tree, members: [...tree.members, newMember] });
-  }, [tree, onTreeChange]);
-
-  const handleUpdateMember = useCallback((updated: Member) => {
-    if (!onTreeChange) return;
-    onTreeChange({ ...tree, members: tree.members.map(m => m.id === updated.id ? updated : m) });
-  }, [tree, onTreeChange]);
+    const spouseGender = m.gender === "男" ? "女" : "男";
+    const newMember: Member = {
+      id: generateId(),
+      name: "新配偶",
+      gender: spouseGender,
+      spouseOf: m.id,
+      spouseId: m.id,
+    };
+    const newTree: FamilyTree = { ...tree, members: [...members, newMember] };
+    onTreeChange?.(newTree);
+  }, [members, tree, onTreeChange]);
 
   const handleSaveEdit = useCallback((data: EditFormData) => {
-    if (editingMember && onTreeChange) {
-      handleUpdateMember({ ...editingMember, name: data.name, birth: data.birth, death: data.death, info: data.info, story: data.story || editingMember.story || "", burialPlace: data.burialPlace, burialCoords: data.burialCoords });
-      setEditingMember(null);
-    }
-  }, [editingMember, onTreeChange, handleUpdateMember]);
+    if (!editingMember) return;
+    const updated = members.map(m => {
+      if (m.id === editingMember.id) {
+        return {
+          ...m,
+          name: data.name,
+          birth: data.birth || undefined,
+          death: data.death || undefined,
+          info: data.info || undefined,
+          story: data.story || undefined,
+          burialPlace: data.burialPlace || undefined,
+          burialCoords: data.burialCoords || undefined,
+        } as Member;
+      }
+      return m;
+    });
+    const newTree: FamilyTree = { ...tree, members: updated };
+    onTreeChange?.(newTree);
+    setEditingMember(null);
+  }, [editingMember, members, tree, onTreeChange]);
 
   const handleSaveStory = useCallback((data: EditFormData) => {
-    if (editingStoryMember && onTreeChange) {
-      handleUpdateMember({ ...editingStoryMember, story: data.story });
-      setEditingStoryMember(null);
-    }
-  }, [editingStoryMember, onTreeChange, handleUpdateMember]);
-
-  const debugInfo = useMemo(() => {
-    const lines: string[] = [];
-    for (const gen of generations) {
-      lines.push(`\n${getGenerationLabel(gen.generation)}:`);
-      for (const c of gen.couples) {
-        const h = c.husband?.member.name || "?"; const w = c.wife?.member.name || "";
-        const kids = c.children.map(x => x.member.name).join(", ");
-        lines.push(`  ${h}${w ? " 配 " + w : ""}${kids ? " → " + kids : ""}`);
+    if (!editingStoryMember) return;
+    const updated = members.map(m => {
+      if (m.id === editingStoryMember.id) {
+        return { ...m, story: data.story || undefined } as Member;
       }
-    }
-    return lines.join("\n");
-  }, [generations]);
+      return m;
+    });
+    const newTree: FamilyTree = { ...tree, members: updated };
+    onTreeChange?.(newTree);
+    setEditingStoryMember(null);
+  }, [editingStoryMember, members, tree, onTreeChange]);
 
-  // ==================== 调试面板 ====================
+  const handleUpdateMember = useCallback((updatedMember: Member) => {
+    const updated = members.map(m => m.id === updatedMember.id ? updatedMember : m);
+    const newTree: FamilyTree = { ...tree, members: updated };
+    onTreeChange?.(newTree);
+  }, [members, tree, onTreeChange]);
 
   return (
-    <div className="relative py-8 px-4 overflow-x-auto">
-      {/* version: 20260615-fix-bfs-root-node */}
-      {/* 调试按钮 */}
-      {process.env.NODE_ENV === "development" && (
-        <div className="fixed top-4 left-4 z-30">
-          <button
-            onClick={() => setDebugOpen(!debugOpen)}
-            className="px-2 py-1 text-xs bg-[#f5f0e8] border border-[#d4a76a]/30 rounded"
-          >
-            🐛 {debugOpen ? "关闭调试" : "调试"}
-          </button>
-        </div>
-      )}
+    <div className="relative bg-white rounded-xl p-4 sm:p-8 shadow-lg border border-[#d4a76a]/20">
+      {/* 树容器：使用 overflow-visible 让连线可以超出 */}
+      <div ref={treeContainerRef} className="relative overflow-visible">
+        {/* SVG 连线层：绝对定位覆盖整个容器 */}
+        <GenerationLines generations={generations} containerRef={treeContainerRef} />
 
-      {/* 调试面板 */}
-      {debugOpen && (
-        <div className="fixed top-12 left-4 z-30 bg-white/95 border border-[#d4a76a]/20 rounded-xl shadow-xl p-4 max-w-xs max-h-80 overflow-auto text-xs text-[#5c3a2e] font-mono">
-          <p className="font-bold text-[#8b0000] mb-1">📊 树结构</p>
-          <pre>{debugInfo}</pre>
-        </div>
-      )}
-
-      {/* 代际列表 */}
-      {generations.length > 0 ? (
-        <div className="flex flex-col items-center gap-16">
+        {/* 代际节点 */}
+        <div className="flex flex-col items-center gap-6 sm:gap-8 py-2">
           {generations.map((gen) => (
             <PagodaGeneration
               key={gen.generation}
@@ -685,19 +743,12 @@ export function PagodaTreeView({
             />
           ))}
         </div>
-      ) : (
-        <div className="text-center py-12 text-[#c4a67a] text-sm">
-          {editable ? "点击下面按钮开始创建家族树" : "暂无数据"}
-        </div>
-      )}
+      </div>
 
-      {/* 底部占位 */}
-      <div className="h-16" />
-
-      {/* 编辑弹窗 */}
-      {editingMember && (
+      {/* 编辑表单 */}
+      {editable && editingMember && (
         <MemberEditForm
-          title={`编辑 ${editingMember.name || ""}`}
+          title="✏️ 编辑成员信息"
           initial={{
             name: editingMember.name || "",
             birth: editingMember.birth || "",
@@ -712,10 +763,10 @@ export function PagodaTreeView({
         />
       )}
 
-      {/* 故事编辑弹窗 */}
-      {editingStoryMember && (
+      {editable && editingStoryMember && (
         <MemberEditForm
-          title={`📖 编辑 ${editingStoryMember.name || ""} 的故事`}
+          title="📖 撰写故事"
+          storyFocus
           initial={{
             name: editingStoryMember.name || "",
             birth: editingStoryMember.birth || "",
@@ -727,9 +778,9 @@ export function PagodaTreeView({
           }}
           onSave={handleSaveStory}
           onCancel={() => setEditingStoryMember(null)}
-          storyFocus
         />
       )}
     </div>
   );
 }
+
