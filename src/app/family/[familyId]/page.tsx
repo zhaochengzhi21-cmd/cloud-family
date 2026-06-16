@@ -10,6 +10,8 @@ import RevisionHistory from "@/components/RevisionHistory";
 import FamilyPoster from "@/components/FamilyPoster";
 import { FamilyAlbum } from "@/components/FamilyAlbum";
 import { getImageUrls } from "@/lib/ipfsGateway";
+import { useAuth } from "@/lib/AuthContext";
+import LoginModal from "@/components/LoginModal";
 import type { FamilyTree } from "@/types/family";
 
 // ---------- 类型定义 ----------
@@ -219,8 +221,10 @@ export default function FamilyPage() {
   const params = useParams();
   const familyId = params.familyId as string;
   const router = useRouter();
+  const { isLoggedIn } = useAuth();
 
   const [loading, setLoading] = useState(true);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [result, setResult] = useState<FetchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -358,17 +362,66 @@ export default function FamilyPage() {
   const totalGenerations = (() => {
     const members = treeData?.members;
     if (!members || members.length === 0) return 1;
-    const roots = members.filter((m) => !m.parentId);
+
+    // 以 fatherId / motherId / parentId 作为亲子关系依据
+    const findRoots = () =>
+      members.filter(
+        (m) =>
+          !m.fatherId && !m.motherId && !m.parentId
+      );
+
+    // 查找某成员的所有子女（通过 fatherId / motherId / parentId）
+    const getChildren = (id: string) =>
+      members.filter(
+        (m) =>
+          m.parentId === id ||
+          m.fatherId === id ||
+          m.motherId === id
+      );
+
+    const roots = findRoots();
+    if (roots.length === 0) {
+      // 如果找不到始祖节点，使用 childrenIds 反向推断最顶层节点
+      const allWithParents = new Set<string>();
+      for (const m of members) {
+        if (m.fatherId) allWithParents.add(m.fatherId);
+        if (m.motherId) allWithParents.add(m.motherId);
+        if (m.parentId) allWithParents.add(m.parentId);
+      }
+      const rootCandidates = members
+        .filter((m) => !allWithParents.has(m.id))
+        .sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      if (rootCandidates.length === 0) return 1;
+      // 按 BFS 计算代数
+      const genMap: Record<string, number> = {};
+      const queue: { id: string; gen: number }[] = rootCandidates.map((r) => ({ id: r.id, gen: 1 }));
+      let maxGen = 1;
+      while (queue.length > 0) {
+        const { id, gen } = queue.shift()!;
+        if (genMap[id] !== undefined && genMap[id] >= gen) continue;
+        genMap[id] = gen;
+        maxGen = Math.max(maxGen, gen);
+        for (const child of getChildren(id)) {
+          if (genMap[child.id] === undefined || genMap[child.id] < gen + 1) {
+            queue.push({ id: child.id, gen: gen + 1 });
+          }
+        }
+      }
+      return maxGen;
+    }
+
     const genMap: Record<string, number> = {};
     const queue: { id: string; gen: number }[] = roots.map((r) => ({ id: r.id, gen: 1 }));
     let maxGen = 1;
     while (queue.length > 0) {
       const { id, gen } = queue.shift()!;
+      if (genMap[id] !== undefined && genMap[id] >= gen) continue;
       genMap[id] = gen;
       maxGen = Math.max(maxGen, gen);
-      const children = members.filter((m) => m.parentId === id);
-      for (const child of children) {
-        queue.push({ id: child.id, gen: gen + 1 });
+      for (const child of getChildren(id)) {
+        if (genMap[child.id] === undefined || genMap[child.id] < gen + 1) {
+          queue.push({ id: child.id, gen: gen + 1 });
+        }
       }
     }
     return maxGen;
@@ -592,6 +645,74 @@ export default function FamilyPage() {
         <div className="max-w-5xl mx-auto px-4 py-12">
           <ErrorView message={result?.warning || "无法获取数据"} />
         </div>
+      </div>
+    );
+  }
+
+  // ---------- 未登录：受限访问 ----------
+  if (!isLoggedIn) {
+    const description = (ipfsData as any)?.description || "";
+
+    return (
+      <div className="min-h-screen bg-[#f5f0e8]">
+        {/* 顶部导航 */}
+        <div className="bg-white/80 backdrop-blur-sm border-b border-[#d4a76a]/20 sticky top-0 z-40">
+          <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+            <Link
+              href="/"
+              className="text-[#8b0000] font-black text-xl tracking-widest hover:opacity-80 transition-opacity"
+            >
+              云族谱
+            </Link>
+            <Link
+              href="/"
+              className="text-sm text-[#5c3a2e] hover:text-[#8b0000] transition-colors ml-2"
+            >
+              ← 返回
+            </Link>
+          </div>
+        </div>
+
+        {/* 受限视图 */}
+        <div className="max-w-3xl mx-auto px-4 py-16 md:py-24">
+          <div className="text-center">
+            {/* 家族名称 */}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-[#8b0000] tracking-widest mb-4">
+              {familyName}
+            </h1>
+            <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-[#8b0000] to-transparent mx-auto mb-6" />
+
+            {/* 家族简介 */}
+            {description && (
+              <p className="text-base md:text-lg text-[#5c3a2e] leading-relaxed mb-8 max-w-xl mx-auto">
+                {description}
+              </p>
+            )}
+
+            {/* 锁图标 + 引导提示 */}
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-[#d4a76a]/30 p-10 max-w-md mx-auto">
+              <div className="text-6xl mb-6">🔒</div>
+              <p className="text-[#5c3a2e] text-lg font-bold mb-2">
+                登录后可查看家族树和成员信息
+              </p>
+              <p className="text-sm text-[#c4a67a] mb-8">
+                族谱数据仅对登录用户开放，请先登录以查看完整内容
+              </p>
+              <button
+                onClick={() => setShowLoginModal(true)}
+                className="px-10 py-3 rounded-xl bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white font-bold text-lg tracking-wider hover:shadow-xl transition-all active:scale-[0.98]"
+              >
+                立即登录
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* 登录弹窗 */}
+        <LoginModal
+          open={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+        />
       </div>
     );
   }
@@ -958,10 +1079,23 @@ export default function FamilyPage() {
           </section>
         )}
 
-        {/* ====== 数据详情（IPFS 哈希） ====== */}
-        <section className="mb-8">
+        {/* ====== 数据详情 ====== */}
+        <details className="mb-8 group">
+          <summary className="cursor-pointer select-none text-xs text-[#c4a67a] hover:text-[#8b0000] transition-colors text-center mb-2">
+            <span className="inline-flex items-center gap-1">
+              📋 数据详情
+              <svg className="w-3 h-3 group-open:rotate-180 transition-transform" viewBox="0 0 10 6" fill="none">
+                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          </summary>
           <div className="bg-[#fdfbf7]/80 rounded-2xl border border-[#d4a76a]/10 p-4">
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-1.5">
+              {displayTimestamp && (
+                <p className="text-xs text-[#c4a67a]">
+                  🕒 首次存证时间：{displayTimestamp}
+                </p>
+              )}
               <p className="text-xs text-[#c4a67a]">
                 🛡️ 数据基于区块链技术永久存证
               </p>
@@ -972,7 +1106,7 @@ export default function FamilyPage() {
               )}
             </div>
           </div>
-        </section>
+        </details>
 
         {/* ====== 关于数据安全 ====== */}
         <section className="mb-8">

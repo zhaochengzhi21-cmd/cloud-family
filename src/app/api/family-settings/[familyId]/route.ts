@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
-import fs from "fs";
-import path from "path";
 import crypto from "crypto";
+import { getFamilyMeta } from "@/lib/familyStore";
+import { getKv } from "@/lib/kvClient";
 
 /** JWT 密钥 */
 const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
-/** 家族元数据文件路径 */
-const DATA_DIR = path.join(process.cwd(), "data");
-const FAMILIES_META_FILE = path.join(DATA_DIR, "families-meta.json");
-
-/** 家族元数据接口 */
+/** 家族元数据接口（从 KV 读取的结构） */
 interface FamilyMeta {
   familyId: string;
   familyName: string;
@@ -20,43 +16,6 @@ interface FamilyMeta {
   /** 受邀编辑者邮箱哈希列表 */
   editors: string[];
   createdAt: string;
-}
-
-/**
- * 读取所有家族元数据
- */
-function readAllMeta(): FamilyMeta[] {
-  try {
-    if (!fs.existsSync(FAMILIES_META_FILE)) {
-      return [];
-    }
-    const raw = fs.readFileSync(FAMILIES_META_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-/**
- * 写入所有家族元数据
- */
-function writeAllMeta(metaList: FamilyMeta[]): void {
-  try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
-    }
-    fs.writeFileSync(FAMILIES_META_FILE, JSON.stringify(metaList, null, 2), "utf-8");
-  } catch (err) {
-    console.error("writeAllMeta error:", err);
-  }
-}
-
-/**
- * 获取单个家族的元数据
- */
-function getFamilyMeta(familyId: string): FamilyMeta | undefined {
-  const allMeta = readAllMeta();
-  return allMeta.find((m) => m.familyId === familyId);
 }
 
 /**
@@ -102,7 +61,8 @@ export async function GET(
       );
     }
 
-    const meta = getFamilyMeta(familyId);
+    // 从 KV/Redis 读取家族元数据（与 save-family/route.ts 写入的数据源一致）
+    const meta = await getFamilyMeta(familyId);
 
     if (!meta) {
       return NextResponse.json(
@@ -157,17 +117,17 @@ export async function PATCH(
     // 解析请求体
     const body: { email?: string; removeEditorEmailHash?: string } = await request.json();
 
-    const allMeta = readAllMeta();
-    const metaIndex = allMeta.findIndex((m) => m.familyId === familyId);
+    // 从 KV/Redis 读取家族元数据
+    const kv = getKv();
+    const metaKey = `family:meta:${familyId}`;
+    const meta = await kv.get<FamilyMeta>(metaKey);
 
-    if (metaIndex === -1) {
+    if (!meta) {
       return NextResponse.json(
         { success: false, error: "未找到该家族的设置信息" },
         { status: 404 }
       );
     }
-
-    const meta = allMeta[metaIndex];
 
     // 仅创建者可修改设置
     if (meta.creatorEmailHash !== emailHash) {
@@ -196,8 +156,7 @@ export async function PATCH(
       }
 
       meta.editors.push(inviteEmailHash);
-      allMeta[metaIndex] = meta;
-      writeAllMeta(allMeta);
+      await kv.set(metaKey, meta);
 
       return NextResponse.json({
         success: true,
@@ -216,8 +175,7 @@ export async function PATCH(
         );
       }
       meta.editors.splice(idx, 1);
-      allMeta[metaIndex] = meta;
-      writeAllMeta(allMeta);
+      await kv.set(metaKey, meta);
 
       return NextResponse.json({
         success: true,
@@ -241,8 +199,8 @@ export async function PATCH(
 
 /**
  * 工具函数：计算邮箱哈希（与 auth/route.ts 一致）
+ * auth/route.ts 的 hashEmail 使用: crypto.createHash("sha256").update(email.toLowerCase().trim()).digest("hex")
  */
 function calculateEmailHash(email: string): string {
-  // 使用简单的 SHA-256 哈希
-  return crypto.createHash("sha256").update(email).digest("hex");
+  return crypto.createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
 }

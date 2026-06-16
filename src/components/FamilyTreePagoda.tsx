@@ -189,12 +189,15 @@ function getGenerationLabel(gen: number): string {
 
 const LINE_COLOR = "#4a2c17";
 const LINE_WIDTH = 2;
+const CARD_H_GAP = 32; // 同代成员水平间距 (px)
+const GENERATION_V_GAP = 72; // 不同代垂直间距 (px)
+const FORK_OFFSET = 32; // 分叉点距子女头顶距离 (px)
 
 // ==================== 夫妻分隔竖线（淡色细竖线，不加"配"字）====================
 
 function SpouseSeparator() {
   return (
-    <div className="flex-shrink-0 mx-1 flex items-center justify-center" style={{ width: 12, height: 50 }}>
+    <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 16, height: 60 }}>
       <div style={{ width: 1.5, height: "70%", backgroundColor: "#d4a76a", opacity: 0.4 }} />
     </div>
   );
@@ -251,9 +254,56 @@ function MemberCard({
         {member.story ? "📖" : "✏️ 写故事"}
       </button>
       <div onClick={() => setShow(!show)}
-        className={`px-4 py-2.5 rounded-lg cursor-pointer transition-all duration-200 border-2 select-none min-w-[80px] text-center ${isSpouse ? "bg-rose-50/80 border-rose-300/50" : "bg-white border-[#d4a76a] hover:border-[#8b0000]"} hover:shadow-md`}>
+        className={`px-3 py-3 rounded-lg cursor-pointer transition-all duration-200 border-2 select-none min-w-[90px] text-center shadow-sm ${isSpouse ? "bg-rose-50/80 border-rose-300/50" : "bg-white border-[#d4a76a] hover:border-[#8b0000]"} hover:shadow-md`}
+        style={{ borderRadius: 8, boxShadow: isSpouse ? undefined : "0 2px 8px rgba(0,0,0,0.08)" }}>
+        {/* 头像/照片引导区域 */}
+        <div className="flex justify-center mb-1.5">
+          {member.photoOriginal || member.photoRestored ? (
+            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[#d4a76a]/30 bg-[#f5f0e8] flex-shrink-0">
+              <img
+                src={getImageUrls(member.photoRestored || member.photoOriginal || "")[0]}
+                onError={createImgFallback(getImageUrls(member.photoRestored || member.photoOriginal || ""))}
+                alt={member.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : editable ? (
+            <div
+              className="w-10 h-10 rounded-full border-2 border-dashed border-[#d4a76a]/40 bg-[#fdfbf7] flex items-center justify-center cursor-pointer hover:border-[#8b0000]/50 hover:bg-[#f5f0e8] transition-all flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = async (ev) => {
+                  const file = (ev.target as HTMLInputElement).files?.[0];
+                  if (!file) return;
+                  const fd = new FormData();
+                  fd.append('photo', file);
+                  fd.append('memberId', member.id);
+                  try {
+                    const r = await fetch('/api/upload-photo', { method: 'POST', body: fd });
+                    const d = await r.json();
+                    if (d.cid) alert('照片上传成功！请保存修订以永久保存。');
+                    else alert(d.error || '上传失败');
+                  } catch {
+                    alert('网络异常');
+                  }
+                };
+                input.click();
+              }}
+              title="点击上传照片"
+            >
+              <span className="text-sm">📷</span>
+            </div>
+          ) : (
+            <div className="w-10 h-10 rounded-full border-2 border-[#d4a76a]/10 bg-[#fdfbf7] flex items-center justify-center flex-shrink-0">
+              <span className="text-xs text-[#c4a67a]/60">👤</span>
+            </div>
+          )}
+        </div>
         <div className={`font-bold tracking-wider ${isSpouse ? "text-rose-700 text-sm" : "text-[#8b0000] text-base"}`}>{member.name}</div>
-        {birthText && <div className="text-[10px] text-[#5c3a2e]/50 mt-0.5 leading-tight">{birthText}</div>}
+        {birthText && <div className="text-[11px] text-[#8b7355]/60 mt-0.5 leading-tight">{birthText}</div>}
       </div>
       {show && (
         <div className="absolute z-20 top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 text-sm text-[#5c3a2e]" onClick={(e) => e.stopPropagation()}>
@@ -445,7 +495,7 @@ function PagodaGeneration({
       <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 whitespace-nowrap">
         <span className="text-xs text-[#8b0000]/50 font-bold tracking-wider">{getGenerationLabel(generation.generation)}</span>
       </div>
-      <div className="flex items-start gap-8">
+      <div className="flex items-start" style={{ gap: CARD_H_GAP }}>
         {couples.map((cpl, idx) => (
           <CoupleUnit
             key={cpl.husband?.member.id ?? cpl.wife?.member.id ?? idx}
@@ -554,8 +604,8 @@ function GenerationLines({ generations, containerRef }: {
 
           const startY = py;
           const midX = px;
-          // 分叉处 y 坐标：子女头顶上方 20px
-          const forkY = Math.max(childPoints[0].y - 20, startY + 20);
+          // 分叉处 y 坐标：子女头顶上方 FORK_OFFSET px
+          const forkY = Math.max(childPoints[0].y - FORK_OFFSET, startY + 24);
           const dots: { cx: number; cy: number }[] = [];
           let d = "";
 
@@ -723,32 +773,29 @@ export function PagodaTreeView({
   }, [members, tree, onTreeChange]);
 
   return (
-    <div className="relative bg-white rounded-xl p-4 sm:p-8 shadow-lg border border-[#d4a76a]/20">
-      {/* 树容器：使用 overflow-visible 让连线可以超出 */}
-      <div ref={treeContainerRef} className="relative overflow-visible">
-        {/* SVG 连线层：绝对定位覆盖整个容器 */}
-        <GenerationLines generations={generations} containerRef={treeContainerRef} />
-
-        {/* 代际节点 */}
-        <div className="flex flex-col items-center gap-6 sm:gap-8 py-2">
-          {generations.map((gen) => (
-            <PagodaGeneration
-              key={gen.generation}
-              generation={gen}
-              editable={editable}
-              onEditMember={handleEditMember}
-              onEditStory={handleEditStory}
-              onAddParent={handleAddParent}
-              onAddChild={handleAddChild}
-              onAddSpouse={handleAddSpouse}
-              onRequestEdit={onRequestEdit}
-              onUpdateMember={handleUpdateMember}
-            />
-          ))}
+    <div className="relative">
+      <div className="flex justify-center">
+        <div ref={treeContainerRef} className="relative overflow-visible inline-block">
+          <GenerationLines generations={generations} containerRef={treeContainerRef} />
+          <div className="flex flex-col items-center" style={{ gap: GENERATION_V_GAP, paddingTop: 8, paddingBottom: 8 }}>
+            {generations.map((gen) => (
+              <PagodaGeneration
+                key={gen.generation}
+                generation={gen}
+                editable={editable}
+                onEditMember={handleEditMember}
+                onEditStory={handleEditStory}
+                onAddParent={handleAddParent}
+                onAddChild={handleAddChild}
+                onAddSpouse={handleAddSpouse}
+                onRequestEdit={onRequestEdit}
+                onUpdateMember={handleUpdateMember}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 编辑表单 */}
       {editable && editingMember && (
         <MemberEditForm
           title="✏️ 编辑成员信息"
@@ -786,4 +833,3 @@ export function PagodaTreeView({
     </div>
   );
 }
-
