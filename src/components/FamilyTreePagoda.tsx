@@ -25,6 +25,17 @@ interface GenerationRow {
   couples: CoupleGroup[];
 }
 
+interface EditFormData {
+  name: string;
+  gender: string;
+  birth: string;
+  death: string;
+  generationWord: string;
+  info: string;
+  story: string;
+  burialPlace: string;
+}
+
 // ==================== 工具函数 ====================
 
 function generateId(): string {
@@ -189,11 +200,10 @@ function getGenerationLabel(gen: number): string {
 
 const LINE_COLOR = "#4a2c17";
 const LINE_WIDTH = 2;
-const CARD_H_GAP = 32; // 同代成员水平间距 (px)
-const GENERATION_V_GAP = 72; // 不同代垂直间距 (px)
-const FORK_OFFSET = 32; // 分叉点距子女头顶距离 (px)
+const CARD_H_GAP = 32;
+const GENERATION_V_GAP = 72;
 
-// ==================== 夫妻分隔竖线（淡色细竖线，不加"配"字）====================
+// ==================== 夫妻分隔竖线 ====================
 
 function SpouseSeparator() {
   return (
@@ -233,6 +243,10 @@ function MemberCard({
   const birthText = member.birth && member.death ? `${member.birth}—${member.death}`
     : member.birth ? `生于 ${member.birth}` : member.death ? `卒于 ${member.death}` : null;
 
+  // 根据 gender 决定卡片背景色：女性粉色，男性白色
+  const cardBg = member.gender === "女" ? "bg-rose-50/90" : "bg-white";
+  const cardBorder = member.gender === "女" ? "border-rose-300/50" : "border-[#d4a76a]";
+
   return (
     <div className="relative flex flex-col items-center" data-member-id={member.id}>
       {editable && (
@@ -254,8 +268,8 @@ function MemberCard({
         {member.story ? "📖" : "✏️ 写故事"}
       </button>
       <div onClick={() => setShow(!show)}
-        className={`px-3 py-3 rounded-lg cursor-pointer transition-all duration-200 border-2 select-none min-w-[90px] text-center shadow-sm ${isSpouse ? "bg-rose-50/80 border-rose-300/50" : "bg-white border-[#d4a76a] hover:border-[#8b0000]"} hover:shadow-md`}
-        style={{ borderRadius: 8, boxShadow: isSpouse ? undefined : "0 2px 8px rgba(0,0,0,0.08)" }}>
+        className={`px-3 py-3 rounded-lg cursor-pointer transition-all duration-200 border-2 select-none min-w-[90px] text-center shadow-sm ${cardBg} ${cardBorder} hover:shadow-md`}
+        style={{ borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
         {/* 头像/照片引导区域 */}
         <div className="flex justify-center mb-1.5">
           {member.photoOriginal || member.photoRestored ? (
@@ -305,6 +319,7 @@ function MemberCard({
         <div className={`font-bold tracking-wider ${isSpouse ? "text-rose-700 text-sm" : "text-[#8b0000] text-base"}`}>{member.name}</div>
         {birthText && <div className="text-[11px] text-[#8b7355]/60 mt-0.5 leading-tight">{birthText}</div>}
       </div>
+      {/* ====== 详情弹窗 ====== */}
       {show && (
         <div className="absolute z-20 top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-white rounded-xl shadow-xl border border-[#d4a76a]/20 p-4 text-sm text-[#5c3a2e]" onClick={(e) => e.stopPropagation()}>
           <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-t border-l border-[#d4a76a]/20 rotate-45" />
@@ -361,25 +376,29 @@ function MemberCard({
             )}
           </div>
 
-          {member.burialPlace && (
+          {/* 安葬地：只在有逝世年份时显示 */}
+          {member.burialPlace && member.death && (
             <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
               <p className="text-xs font-bold text-[#8b0000]/70 mb-1">🪦 安葬地</p>
-              {member.burialCoords ? (
-                <a
-                  href={`https://www.google.com/maps?q=${member.burialCoords}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-[#8b0000] underline hover:text-[#a52a2a]"
-                >
-                  {member.burialPlace} 📍
-                </a>
-              ) : (
-                <p className="text-xs text-[#5c3a2e]/80">{member.burialPlace}</p>
-              )}
+              <p className="text-xs text-[#5c3a2e]/80">{member.burialPlace}</p>
+              <a
+                href={`https://uri.amap.com/search?keyword=${encodeURIComponent(member.burialPlace)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-[#8b0000]/70 hover:text-[#8b0000] underline mt-0.5 inline-block"
+              >
+                📍 在地图上查看
+              </a>
             </div>
           )}
 
-          {member.info && <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2"><p className="text-xs font-bold text-[#8b0000]/70 mb-1">📜 生平</p><p className="text-xs text-[#5c3a2e]/80 whitespace-pre-wrap leading-relaxed">{member.info}</p></div>}
+          {member.generationWord && (
+            <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2">
+              <p className="text-xs font-bold text-[#8b0000]/70 mb-1">📜 字辈</p>
+              <p className="text-xs text-[#5c3a2e]/80">{member.generationWord}</p>
+            </div>
+          )}
+          {member.info && <div className="bg-[#fdfbf7] rounded-lg p-3 border border-[#d4a76a]/10 mb-2"><p className="text-xs font-bold text-[#8b0000]/70 mb-1">📖 人生故事</p><p className="text-xs text-[#5c3a2e]/80 whitespace-pre-wrap leading-relaxed">{member.info}</p></div>}
           {member.story && <StoryBlock story={member.story} />}
           <MemberMemories member={member} editable={editable} onUpdateMember={onUpdateMember} />
           <button className="w-full mt-1 text-xs text-[#c4a67a] hover:text-[#8b0000] py-1" onClick={() => setShow(false)}>关闭</button>
@@ -391,38 +410,71 @@ function MemberCard({
 
 // ==================== 编辑表单 ====================
 
-interface EditFormData { name: string; birth: string; death: string; info: string; story: string; burialPlace: string; burialCoords: string; }
-
 function MemberEditForm({
   initial, onSave, onCancel, title, storyFocus,
 }: {
   initial: EditFormData; onSave: (d: EditFormData) => void; onCancel: () => void; title: string; storyFocus?: boolean;
 }) {
   const [name, setName] = useState(initial.name);
+  const [gender, setGender] = useState(initial.gender);
   const [birth, setBirth] = useState(initial.birth);
   const [death, setDeath] = useState(initial.death);
+  const [generationWord, setGenerationWord] = useState(initial.generationWord);
   const [info, setInfo] = useState(initial.info);
   const [story, setStory] = useState(initial.story);
   const [burialPlace, setBurialPlace] = useState(initial.burialPlace);
-  const [burialCoords, setBurialCoords] = useState(initial.burialCoords);
   const storyRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (storyFocus && storyRef.current) setTimeout(() => { storyRef.current?.focus(); }, 200); }, [storyFocus]);
+
+  const hasDeath = death.trim() !== "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onCancel}>
       <div className="bg-white rounded-2xl shadow-2xl border border-[#d4a76a]/30 p-6 w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-lg font-bold text-[#8b0000] mb-4 tracking-wider">{title}</h3>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">姓名 *</label><input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="姓名" /></div>
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">出生年份</label><input type="text" value={birth} onChange={e => setBirth(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" /></div>
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">逝世年份</label><input type="text" value={death} onChange={e => setDeath(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" /></div>
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">生平简介</label><textarea value={info} onChange={e => setInfo(e.target.value)} rows={3} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7] resize-none" /></div>
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">📖 故事</label><textarea ref={storyRef} value={story} onChange={e => setStory(e.target.value)} rows={4} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7] resize-none" /></div>
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">🪦 安葬地</label><input type="text" value={burialPlace} onChange={e => setBurialPlace(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：河北保定某陵园" /></div>
-          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">安葬地坐标（可选）</label><input type="text" value={burialCoords} onChange={e => setBurialCoords(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="纬度,经度" /></div>
+          <div>
+            <label className="block text-xs font-bold text-[#5c3a2e] mb-1">姓名 *</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="姓名" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-[#5c3a2e] mb-1">性别</label>
+            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]">
+              <option value="">请选择</option>
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">出生年份</label><input type="text" value={birth} onChange={e => setBirth(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：1962" /></div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">逝世年份</label><input type="text" value={death} onChange={e => setDeath(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：2023" /></div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">字辈</label><input type="text" value={generationWord} onChange={e => setGenerationWord(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：文、武、成、康" /></div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">📖 人生故事</label><textarea value={info} onChange={e => setInfo(e.target.value)} rows={3} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7] resize-none" placeholder="简述这位成员的人生经历……" /></div>
+          <div><label className="block text-xs font-bold text-[#5c3a2e] mb-1">📖 故事</label><textarea ref={storyRef} value={story} onChange={e => setStory(e.target.value)} rows={4} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7] resize-none" placeholder="详细记录一段家族故事……" /></div>
+          {/* 安葬地：只在有逝世年份时显示 */}
+          {hasDeath && (
+            <div>
+              <label className="block text-xs font-bold text-[#5c3a2e] mb-1">🪦 安葬地</label>
+              <input type="text" value={burialPlace} onChange={e => setBurialPlace(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：山西省太原市清徐县XX村" />
+              {burialPlace && (
+                <p className="text-[10px] text-[#c4a67a] mt-1">填写后，详情中可点击「📍 在地图上查看」跳转高德地图</p>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={() => { if (!name.trim()) return; onSave({ name: name.trim(), birth, death, info, story: story.trim() || "", burialPlace: burialPlace.trim() || "", burialCoords: burialCoords.trim() || "" }); }}
+          <button onClick={() => {
+            if (!name.trim()) return;
+            onSave({
+              name: name.trim(),
+              gender,
+              birth,
+              death,
+              generationWord: generationWord.trim() || "",
+              info: info.trim() || "",
+              story: story.trim() || "",
+              burialPlace: hasDeath ? burialPlace.trim() || "" : "",
+            });
+          }}
             disabled={!name.trim()} className="flex-1 px-4 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] disabled:opacity-40">保存</button>
           <button onClick={onCancel} className="px-4 py-2.5 bg-[#f5f0e8] text-[#5c3a2e] rounded-xl font-bold text-sm hover:bg-[#e8dcc8]">取消</button>
         </div>
@@ -491,7 +543,6 @@ function PagodaGeneration({
   const couples = generation.couples;
   return (
     <div className="relative flex flex-col items-center">
-      {/* 代际标签：绝对定位在左侧，垂直居中 */}
       <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 whitespace-nowrap">
         <span className="text-xs text-[#8b0000]/50 font-bold tracking-wider">{getGenerationLabel(generation.generation)}</span>
       </div>
@@ -531,7 +582,6 @@ function GenerationLines({ generations, containerRef }: {
 }) {
   const [paths, setPaths] = useState<{ d: string; dots: { cx: number; cy: number }[] }[]>([]);
   const [svgSize, setSvgSize] = useState({ w: 0, h: 0 });
-  const [key, setKey] = useState(0);
 
   // 监听布局变化重新计算
   useEffect(() => {
@@ -549,7 +599,6 @@ function GenerationLines({ generations, containerRef }: {
       const result: { d: string; dots: { cx: number; cy: number }[] }[] = [];
 
       // 建立 memberId -> 其所属 couple 在 generations 中的索引的映射
-      // 用于查找子女所属的父代夫妻组
       const coupleMap = new Map<string, { genIdx: number; coupleIdx: number; couple: CoupleGroup }>();
       for (let gi = 0; gi < generations.length; gi++) {
         const gen = generations[gi];
@@ -560,109 +609,127 @@ function GenerationLines({ generations, containerRef }: {
         }
       }
 
-      // 对于每对相邻代际，遍历所有父代夫妻组
+      // 对每一代之间，计算连线
       for (let gi = 0; gi < generations.length - 1; gi++) {
-        const parentGen = generations[gi];
-        const childGen = generations[gi + 1];
+        const curGen = generations[gi];
+        const nextGen = generations[gi + 1];
 
-        for (const parentCouple of parentGen.couples) {
-          const children = parentCouple.children;
-          if (children.length === 0) continue;
+        // 获取当前代所有 couples 的底部中心位置
+        for (let ci = 0; ci < curGen.couples.length; ci++) {
+          const cpl = curGen.couples[ci];
+          const coupleEl = container.querySelector(
+            `[data-couple-root]:nth-child(${ci + 1})`
+          );
+          if (!coupleEl) continue;
 
-          // 找父代 DOM 元素
-          const parentIds: string[] = [];
-          if (parentCouple.husband) parentIds.push(parentCouple.husband.member.id);
-          if (parentCouple.wife) parentIds.push(parentCouple.wife.member.id);
+          // 获取当前 couple 的底部中心
+          const coupleRect = coupleEl.getBoundingClientRect();
+          const startX = coupleRect.left + coupleRect.width / 2 - cr.left;
+          const startY = coupleRect.bottom - cr.top;
 
-          let parentEl: HTMLElement | null = null;
-          // 尝试通过 data-couple-ids 属性找到当前夫妻组的容器
-          for (const pid of parentIds) {
-            parentEl = container.querySelector<HTMLElement>(`[data-member-id="${pid}"]`);
-            if (parentEl) {
-              // 找到最近的有 data-couple-root 的祖先
-              const coupleRoot = parentEl.closest<HTMLElement>("[data-couple-root]");
-              if (coupleRoot) { parentEl = coupleRoot; break; }
-            }
+          // 找到此 couple 的子女
+          if (cpl.children.length === 0) continue;
+
+          // 获取每个子女卡片元素的顶部中心
+          const childPositions: { x: number; y: number }[] = [];
+          for (const child of cpl.children) {
+            const childEl = container.querySelector(
+              `[data-member-id="${child.member.id}"]`
+            );
+            if (!childEl) continue;
+            const childCard = childEl.querySelector('[data-couple-root]') || childEl;
+            const childRect = childCard.getBoundingClientRect();
+            childPositions.push({
+              x: childRect.left + childRect.width / 2 - cr.left,
+              y: childRect.top - cr.top,
+            });
           }
-          if (!parentEl) continue;
-          const pRect = parentEl.getBoundingClientRect();
-          const px = pRect.left + pRect.width / 2 - cr.left;
-          const py = pRect.bottom - cr.top;
 
-          // 找每个子女的 DOM 元素
-          const childEls: HTMLElement[] = [];
-          for (const child of children) {
-            const el = container.querySelector<HTMLElement>(`[data-member-id="${child.member.id}"]`);
-            if (el) childEls.push(el);
-          }
-          if (childEls.length === 0) continue;
+          if (childPositions.length === 0) continue;
 
-          const childPoints = childEls.map(el => {
-            const r = el.getBoundingClientRect();
-            return { x: r.left + r.width / 2 - cr.left, y: r.top - cr.top };
-          }).sort((a, b) => a.x - b.x);
+          // 计算分叉点 Y: 子女和当前代之间垂直距离的中间偏下1/3处
+          const minChildY = Math.min(...childPositions.map(p => p.y));
+          const forkY = startY + (minChildY - startY) * 0.6;
 
-          const startY = py;
-          const midX = px;
-          // 分叉处 y 坐标：子女头顶上方 FORK_OFFSET px
-          const forkY = Math.max(childPoints[0].y - FORK_OFFSET, startY + 24);
-          const dots: { cx: number; cy: number }[] = [];
-          let d = "";
+          // 构建连线路径
+          let pathD = "";
+          pathD += `M ${startX} ${startY} `;
+          pathD += `L ${startX} ${forkY} `;
 
-          if (childPoints.length === 1) {
-            // 单子女：直接从父母中间向下连到子女头顶
-            d = `M ${midX} ${startY} L ${midX} ${childPoints[0].y}`;
+          if (childPositions.length === 1) {
+            pathD += `L ${childPositions[0].x} ${forkY} `;
+            pathD += `L ${childPositions[0].x} ${childPositions[0].y}`;
           } else {
-            // 多子女：竖线到分叉点，然后分叉到每个子女
-            const leftX = childPoints[0].x;
-            const rightX = childPoints[childPoints.length - 1].x;
-            d = `M ${midX} ${startY} L ${midX} ${forkY}`;
-            // 分叉水平线
-            const leftmost = Math.min(leftX, midX - 20);
-            const rightmost = Math.max(rightX, midX + 20);
-            d += ` L ${leftmost} ${forkY}`;
-            d += ` M ${rightmost} ${forkY} L ${midX} ${forkY}`;
-            // 从分叉线两端向下到每个子女的头顶
-            for (const cp of childPoints) {
-              d += ` M ${cp.x} ${forkY} L ${cp.x} ${cp.y}`;
+            // 分叉：水平线
+            const minChildX = Math.min(...childPositions.map(p => p.x));
+            const maxChildX = Math.max(...childPositions.map(p => p.x));
+            pathD += `L ${minChildX} ${forkY} `;
+            pathD += `L ${maxChildX} ${forkY} `;
+
+            // 向下的竖线到每个子女
+            for (const pos of childPositions) {
+              pathD += `M ${pos.x} ${forkY} L ${pos.x} ${pos.y} `;
             }
-            // 实心圆点：分叉处（左端点和右端点之间的中点? 在 midX 处）
-            dots.push({ cx: midX, cy: forkY });
           }
 
-          result.push({ d, dots });
+          // 收集分叉点上的实心圆点
+          const dots = childPositions.map(pos => ({ cx: pos.x, cy: forkY }));
+
+          result.push({ d: pathD, dots });
         }
       }
 
       setPaths(result);
-      setKey(k => k + 1);
     };
 
-    // 初始计算 + resize 监听
-    const doCalc = () => { cancelAnimationFrame(rafId); rafId = requestAnimationFrame(calc); };
-    timer = setTimeout(doCalc, 100);
-    window.addEventListener("resize", doCalc);
+    // 初始计算
+    rafId = requestAnimationFrame(() => {
+      calc();
+    });
+
+    // 监听 resize
+    const resizeObserver = new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        rafId = requestAnimationFrame(calc);
+      }, 150);
+    });
+    resizeObserver.observe(container);
 
     return () => {
       cancelAnimationFrame(rafId);
       clearTimeout(timer);
-      window.removeEventListener("resize", doCalc);
+      resizeObserver.disconnect();
     };
   }, [generations, containerRef]);
 
+  if (svgSize.w === 0 || svgSize.h === 0) return null;
+
   return (
     <svg
-      key={key}
-      className="absolute top-0 left-0 pointer-events-none z-10"
       width={svgSize.w}
       height={svgSize.h}
-      style={{ overflow: "visible" }}
+      className="absolute inset-0 pointer-events-none"
+      style={{ zIndex: 0 }}
     >
       {paths.map((p, i) => (
         <g key={i}>
-          <path d={p.d} stroke={LINE_COLOR} strokeWidth={LINE_WIDTH} fill="none" />
+          <path
+            d={p.d}
+            fill="none"
+            stroke={LINE_COLOR}
+            strokeWidth={LINE_WIDTH}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
           {p.dots.map((dot, j) => (
-            <circle key={j} cx={dot.cx} cy={dot.cy} r={4} fill={LINE_COLOR} />
+            <circle
+              key={j}
+              cx={dot.cx}
+              cy={dot.cy}
+              r={3}
+              fill={LINE_COLOR}
+            />
           ))}
         </g>
       ))}
@@ -670,114 +737,164 @@ function GenerationLines({ generations, containerRef }: {
   );
 }
 
-// ==================== 主导出组件 ====================
+// ==================== PagodaTreeView 主组件 ====================
 
 export function PagodaTreeView({
-  tree, editable = false, onTreeChange, onRequestEdit,
+  tree, editable = false,
+  onTreeChange,
+  onRequestEdit,
 }: {
-  tree: FamilyTree; editable?: boolean; onTreeChange?: (t: FamilyTree) => void; onRequestEdit?: () => void;
+  tree: FamilyTree;
+  editable?: boolean;
+  onTreeChange?: (tree: FamilyTree) => void;
+  onRequestEdit?: () => void;
 }) {
-  const [editingMember, setEditingMember] = useState<Member | null>(null);
-  const [editingStoryMember, setEditingStoryMember] = useState<Member | null>(null);
-  const treeContainerRef = useRef<HTMLDivElement>(null);
+  const [membersCache, setMembersCache] = useState<Member[]>(() => tree.members || []);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<Member | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [storyFocus, setStoryFocus] = useState(false);
 
-  const members = tree.members || [];
-  const generations = useMemo(() => buildPagodaTree(members), [members]);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const handleEditMember = useCallback((m: Member) => {
-    if (!editable) return;
-    setEditingMember(m);
-  }, [editable]);
+  // 当 tree 变化时同步 members
+  useEffect(() => {
+    setMembersCache(tree.members || []);
+  }, [tree.members]);
 
-  const handleEditStory = useCallback((m: Member) => {
-    if (!editable) return;
-    setEditingStoryMember(m);
-  }, [editable]);
+  const generations = useMemo(() => buildPagodaTree(membersCache), [membersCache]);
 
-  const handleAddParent = useCallback((m: Member) => {
+  const handleEditMember = useCallback((member: Member) => {
+    setEditTarget(member);
+    setEditTitle(`编辑 ${member.name}`);
+    setStoryFocus(false);
+    setShowEditForm(true);
+  }, []);
+
+  const handleEditStory = useCallback((member: Member) => {
+    setEditTarget(member);
+    setEditTitle(`编辑 ${member.name} 的故事`);
+    setStoryFocus(true);
+    setShowEditForm(true);
+  }, []);
+
+  const handleAddParent = useCallback((member: Member) => {
     const newMember: Member = {
       id: generateId(),
-      name: "新成员",
-      gender: "女",
-      childrenIds: [m.id],
+      name: "",
+      gender: "" as "男" | "女" | undefined,
+      birth: "",
+      death: "",
+      generationWord: "",
+      info: "",
+      story: "",
+      burialPlace: "",
+      childrenIds: [member.id],
     };
-    const newTree: FamilyTree = { ...tree, members: [...members, newMember] };
-    onTreeChange?.(newTree);
-  }, [members, tree, onTreeChange]);
+    setEditTarget(newMember);
+    setEditTitle("添加父辈");
+    setStoryFocus(false);
+    setShowEditForm(true);
+  }, []);
 
-  const handleAddChild = useCallback((m: Member) => {
+  const handleAddChild = useCallback((member: Member) => {
     const newMember: Member = {
       id: generateId(),
-      name: "新成员",
-      gender: "男",
-      parentId: m.id,
-      fatherId: m.gender === "男" ? m.id : undefined,
-      motherId: m.gender === "女" ? m.id : undefined,
+      name: "",
+      gender: "" as "男" | "女" | undefined,
+      birth: "",
+      death: "",
+      generationWord: "",
+      info: "",
+      story: "",
+      burialPlace: "",
+      fatherId: member.gender === "男" ? member.id : "",
+      motherId: member.gender === "女" ? member.id : "",
+      parentId: member.id,
     };
-    const newTree: FamilyTree = { ...tree, members: [...members, newMember] };
-    onTreeChange?.(newTree);
-  }, [members, tree, onTreeChange]);
+    setEditTarget(newMember);
+    setEditTitle("添加子嗣");
+    setStoryFocus(false);
+    setShowEditForm(true);
+  }, []);
 
-  const handleAddSpouse = useCallback((m: Member) => {
-    const spouseGender = m.gender === "男" ? "女" : "男";
+  const handleAddSpouse = useCallback((member: Member) => {
+    const isMale = member.gender === "男";
     const newMember: Member = {
       id: generateId(),
-      name: "新配偶",
-      gender: spouseGender,
-      spouseOf: m.id,
-      spouseId: m.id,
+      name: "",
+      gender: "" as "男" | "女" | undefined,
+      birth: "",
+      death: "",
+      generationWord: "",
+      info: "",
+      story: "",
+      burialPlace: "",
+      spouseOf: member.id,
+      spouseId: member.id,
     };
-    const newTree: FamilyTree = { ...tree, members: [...members, newMember] };
-    onTreeChange?.(newTree);
-  }, [members, tree, onTreeChange]);
-
-  const handleSaveEdit = useCallback((data: EditFormData) => {
-    if (!editingMember) return;
-    const updated = members.map(m => {
-      if (m.id === editingMember.id) {
-        return {
-          ...m,
-          name: data.name,
-          birth: data.birth || undefined,
-          death: data.death || undefined,
-          info: data.info || undefined,
-          story: data.story || undefined,
-          burialPlace: data.burialPlace || undefined,
-          burialCoords: data.burialCoords || undefined,
-        } as Member;
-      }
-      return m;
-    });
-    const newTree: FamilyTree = { ...tree, members: updated };
-    onTreeChange?.(newTree);
-    setEditingMember(null);
-  }, [editingMember, members, tree, onTreeChange]);
-
-  const handleSaveStory = useCallback((data: EditFormData) => {
-    if (!editingStoryMember) return;
-    const updated = members.map(m => {
-      if (m.id === editingStoryMember.id) {
-        return { ...m, story: data.story || undefined } as Member;
-      }
-      return m;
-    });
-    const newTree: FamilyTree = { ...tree, members: updated };
-    onTreeChange?.(newTree);
-    setEditingStoryMember(null);
-  }, [editingStoryMember, members, tree, onTreeChange]);
+    setEditTarget(newMember);
+    setEditTitle(isMale ? "添加配偶（妻子）" : "添加配偶（丈夫）");
+    setStoryFocus(false);
+    setShowEditForm(true);
+  }, []);
 
   const handleUpdateMember = useCallback((updatedMember: Member) => {
-    const updated = members.map(m => m.id === updatedMember.id ? updatedMember : m);
-    const newTree: FamilyTree = { ...tree, members: updated };
-    onTreeChange?.(newTree);
-  }, [members, tree, onTreeChange]);
+    setMembersCache(prev => {
+      const idx = prev.findIndex(m => m.id === updatedMember.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = updatedMember;
+        if (onTreeChange) onTreeChange({ ...tree, members: next });
+        return next;
+      }
+      return prev;
+    });
+  }, [onTreeChange, tree]);
+
+  const handleFormSave = useCallback((data: EditFormData) => {
+    if (!editTarget) return;
+    const updated: Member = {
+      ...editTarget,
+      name: data.name,
+      gender: data.gender as "男" | "女" | undefined,
+      birth: data.birth,
+      death: data.death,
+      generationWord: data.generationWord,
+      info: data.info,
+      story: data.story,
+      burialPlace: data.burialPlace,
+    };
+
+    const idx = membersCache.findIndex(m => m.id === updated.id);
+    if (idx >= 0) {
+      handleUpdateMember(updated);
+    } else {
+      const next = [...membersCache, updated];
+      setMembersCache(next);
+      if (onTreeChange) onTreeChange({ ...tree, members: next });
+    }
+    setShowEditForm(false);
+    setEditTarget(null);
+  }, [editTarget, membersCache, handleUpdateMember, onTreeChange, tree]);
+
+  if (generations.length === 0) {
+    return (
+      <div className="text-center py-12 text-[#8b7355]/60">
+        <p className="text-3xl mb-2">🌳</p>
+        <p className="text-sm">暂无家族成员数据</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative">
-      <div className="flex justify-center">
-        <div ref={treeContainerRef} className="relative overflow-visible inline-block">
-          <GenerationLines generations={generations} containerRef={treeContainerRef} />
-          <div className="flex flex-col items-center" style={{ gap: GENERATION_V_GAP, paddingTop: 8, paddingBottom: 8 }}>
+    <div className="relative overflow-x-auto pb-8">
+      <div className="min-w-min">
+        <div ref={containerRef} className="relative inline-block py-8 px-12">
+          {/* 连线层 */}
+          <GenerationLines generations={generations} containerRef={containerRef} />
+          {/* 各代排列 */}
+          <div className="flex flex-col items-center" style={{ gap: GENERATION_V_GAP }}>
             {generations.map((gen) => (
               <PagodaGeneration
                 key={gen.generation}
@@ -796,38 +913,23 @@ export function PagodaTreeView({
         </div>
       </div>
 
-      {editable && editingMember && (
+      {/* 编辑弹窗 */}
+      {showEditForm && editTarget && (
         <MemberEditForm
-          title="✏️ 编辑成员信息"
           initial={{
-            name: editingMember.name || "",
-            birth: editingMember.birth || "",
-            death: editingMember.death || "",
-            info: editingMember.info || "",
-            story: editingMember.story || "",
-            burialPlace: editingMember.burialPlace || "",
-            burialCoords: editingMember.burialCoords || "",
+            name: editTarget.name || "",
+            gender: editTarget.gender || "",
+            birth: editTarget.birth || "",
+            death: editTarget.death || "",
+            generationWord: editTarget.generationWord || "",
+            info: editTarget.info || "",
+            story: editTarget.story || "",
+            burialPlace: editTarget.burialPlace || "",
           }}
-          onSave={handleSaveEdit}
-          onCancel={() => setEditingMember(null)}
-        />
-      )}
-
-      {editable && editingStoryMember && (
-        <MemberEditForm
-          title="📖 撰写故事"
-          storyFocus
-          initial={{
-            name: editingStoryMember.name || "",
-            birth: editingStoryMember.birth || "",
-            death: editingStoryMember.death || "",
-            info: editingStoryMember.info || "",
-            story: editingStoryMember.story || "",
-            burialPlace: editingStoryMember.burialPlace || "",
-            burialCoords: editingStoryMember.burialCoords || "",
-          }}
-          onSave={handleSaveStory}
-          onCancel={() => setEditingStoryMember(null)}
+          onSave={handleFormSave}
+          onCancel={() => { setShowEditForm(false); setEditTarget(null); }}
+          title={editTitle}
+          storyFocus={storyFocus}
         />
       )}
     </div>

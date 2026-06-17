@@ -878,7 +878,7 @@ export default function FamilyPage() {
                 <PagodaTreeView
                   tree={editing && editedTree ? editedTree : result.ipfsData.data}
                   editable={editing}
-                  onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                  onTreeChange={editing ? (newTree: FamilyTree) => setEditedTree(newTree) : undefined}
                   onRequestEdit={enterEditMode}
                 />
               </div>
@@ -926,7 +926,7 @@ export default function FamilyPage() {
                   <FamilyTimeline
                     tree={editing && editedTree ? editedTree : result.ipfsData.data}
                     editable={editing}
-                    onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                    onTreeChange={editing ? (newTree: FamilyTree) => setEditedTree(newTree) : undefined}
                   />
                 </div>
               ) : activeTab === "album" ? (
@@ -934,7 +934,7 @@ export default function FamilyPage() {
                   <FamilyAlbum
                     tree={editing && editedTree ? editedTree : result.ipfsData.data}
                     editable={editing}
-                    onTreeChange={editing ? (newTree) => setEditedTree(newTree) : undefined}
+                    onTreeChange={editing ? (newTree: FamilyTree) => setEditedTree(newTree) : undefined}
                   />
                 </div>
               ) : (

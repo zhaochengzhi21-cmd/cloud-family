@@ -31,6 +31,8 @@ export interface Member {
   photoOriginal?: string;
   /** AI 修复版照片 IPFS CID */
   photoRestored?: string;
+  /** 字辈 */
+  generationWord?: string;
   /** 安葬地 */
   burialPlace?: string;
   updatedAt?: string;
