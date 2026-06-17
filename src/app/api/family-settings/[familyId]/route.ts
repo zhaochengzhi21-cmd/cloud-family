@@ -41,6 +41,28 @@ function getEmailHashFromRequest(request: NextRequest): string | null {
 }
 
 /**
+ * 从请求中解析 JWT token 并获取原始 email（用于日志/通知等，可选）
+ */
+function getEmailFromRequest(request: NextRequest): string | null {
+  try {
+    const token = request.cookies.get("token")?.value;
+    if (!token) {
+      const authHeader = request.headers.get("authorization");
+      const tokenFromHeader = authHeader?.startsWith("Bearer ")
+        ? authHeader.slice(7)
+        : null;
+      if (!tokenFromHeader) return null;
+      const decoded = jwt.verify(tokenFromHeader, JWT_SECRET) as { emailHash: string; email?: string };
+      return decoded.email || null;
+    }
+    const decoded = jwt.verify(token, JWT_SECRET) as { emailHash: string; email?: string };
+    return decoded.email || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 获取家族设置信息
  *
  * GET /api/family-settings/[familyId]
@@ -93,11 +115,14 @@ export async function GET(
 }
 
 /**
- * 更新家族设置（邀请编辑者）
+ * 更新家族设置（邀请编辑者 / 移除编辑者 / 转让创建者）
  *
  * PATCH /api/family-settings/[familyId]
  * 需要 JWT 认证（仅创建者可操作）
- * Body: { email: string }
+ * Body:
+ *   - { email: string } 邀请编辑者
+ *   - { removeEditorEmailHash: string } 移除编辑者
+ *   - { transferCreatorEmail: string } 转让创建者
  */
 export async function PATCH(
   request: NextRequest,
@@ -115,7 +140,7 @@ export async function PATCH(
     }
 
     // 解析请求体
-    const body: { email?: string; removeEditorEmailHash?: string } = await request.json();
+    const body: { email?: string; removeEditorEmailHash?: string; transferCreatorEmail?: string } = await request.json();
 
     // 从 KV/Redis 读取家族元数据
     const kv = getKv();
@@ -137,7 +162,46 @@ export async function PATCH(
       );
     }
 
-    // 添加编辑者
+    // ========== 转让创建者 ==========
+    if (body.transferCreatorEmail) {
+      const newCreatorEmail = body.transferCreatorEmail.trim().toLowerCase();
+      const newCreatorHash = calculateEmailHash(newCreatorEmail);
+
+      // 验证新创建者不能是自己
+      if (newCreatorHash === meta.creatorEmailHash) {
+        return NextResponse.json(
+          { success: false, error: "不能将创建者转让给自己" },
+          { status: 400 }
+        );
+      }
+
+      // 如果新创建者已在编辑者列表中，先移除
+      const editorIdx = meta.editors.indexOf(newCreatorHash);
+      if (editorIdx !== -1) {
+        meta.editors.splice(editorIdx, 1);
+      }
+
+      // 将原创建者加入编辑者列表（如果不在的话）
+      if (!meta.editors.includes(meta.creatorEmailHash)) {
+        meta.editors.push(meta.creatorEmailHash);
+      }
+
+      // 更新创建者
+      const oldCreatorHash = meta.creatorEmailHash;
+      meta.creatorEmailHash = newCreatorHash;
+
+      await kv.set(metaKey, meta);
+
+      return NextResponse.json({
+        success: true,
+        message: "创建者转让成功",
+        oldCreatorHash,
+        newCreatorHash,
+        editors: meta.editors,
+      });
+    }
+
+    // ========== 添加编辑者 ==========
     if (body.email) {
       const inviteEmailHash = calculateEmailHash(body.email.trim().toLowerCase());
 
@@ -165,7 +229,7 @@ export async function PATCH(
       });
     }
 
-    // 移除编辑者
+    // ========== 移除编辑者 ==========
     if (body.removeEditorEmailHash) {
       const idx = meta.editors.indexOf(body.removeEditorEmailHash);
       if (idx === -1) {
@@ -185,7 +249,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { success: false, error: "请提供 email 或 removeEditorEmailHash" },
+      { success: false, error: "请提供 email、removeEditorEmailHash 或 transferCreatorEmail" },
       { status: 400 }
     );
   } catch (err) {

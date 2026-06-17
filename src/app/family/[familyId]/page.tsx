@@ -253,6 +253,15 @@ export default function FamilyPage() {
   const [removeEditorHash, setRemoveEditorHash] = useState<string>("");
   const [removeSending, setRemoveSending] = useState(false);
 
+  // 转让创建者
+  const [showTransferInput, setShowTransferInput] = useState(false);
+  const [transferEmail, setTransferEmail] = useState("");
+  const [showTransferConfirm, setShowTransferConfirm] = useState(false);
+  const [transferConfirmEmail, setTransferConfirmEmail] = useState("");
+  const [transferSending, setTransferSending] = useState(false);
+  const [transferError, setTransferError] = useState<string | null>(null);
+  const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
+
   // 获取编辑权限
   useEffect(() => {
     if (!familyId) return;
@@ -331,6 +340,40 @@ export default function FamilyPage() {
       setRemoveSending(false);
     }
   }, [familyId]);
+
+  // 转让创建者
+  const handleTransferCreator = useCallback(async () => {
+    const trimmed = transferEmail.trim().toLowerCase();
+    if (!trimmed || !/\S+@\S+\.\S+/.test(trimmed)) {
+      setTransferError("请输入有效的邮箱地址");
+      return;
+    }
+    setTransferSending(true);
+    setTransferError(null);
+    try {
+      const res = await fetch(`/api/family-settings/${familyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transferCreatorEmail: trimmed }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTransferSuccess(`创建者已转让给 ${trimmed}，您已成为编辑者`);
+        setTransferEmail("");
+        setIsCreator(false);
+        setCanEdit(true);
+        setEditors(data.editors || []);
+        setShowTransferInput(false);
+        setShowTransferConfirm(false);
+      } else {
+        setTransferError(data.error || "转让失败");
+      }
+    } catch {
+      setTransferError("网络异常，请稍后重试");
+    } finally {
+      setTransferSending(false);
+    }
+  }, [transferEmail, familyId]);
 
   // 防搜索引擎收录
   useEffect(() => {
@@ -1064,6 +1107,124 @@ export default function FamilyPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ====== 转让创建者（创作者可见） ====== */}
+        {isCreator && (
+          <section className="mb-8">
+            <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
+              <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
+                🔄 转让创建者
+              </h3>
+
+              {transferSuccess ? (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                  <p className="text-green-700 font-bold">{transferSuccess}</p>
+                </div>
+              ) : showTransferConfirm ? (
+                /* 二次确认 */
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-sm font-bold text-red-700 mb-3">
+                    ⚠️ 确定要将创建者身份转让给 <span className="text-[#8b0000]">{transferConfirmEmail}</span> 吗？
+                  </p>
+                  <p className="text-xs text-red-600 mb-4">
+                    转让后你将自动成为编辑者。<span className="font-bold">此操作不可撤销。</span>
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        setShowTransferConfirm(false);
+                        setTransferError(null);
+                      }}
+                      disabled={transferSending}
+                      className="flex-1 px-4 py-2.5 bg-[#f5f0e8] text-[#5c3a2e] rounded-xl font-bold text-sm hover:bg-[#e8dcc8] transition-colors disabled:opacity-40"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleTransferCreator}
+                      disabled={transferSending}
+                      className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors disabled:opacity-40"
+                    >
+                      {transferSending ? (
+                        <span className="inline-flex items-center gap-1">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          转让中...
+                        </span>
+                      ) : (
+                        "确认转让"
+                      )}
+                    </button>
+                  </div>
+                  {transferError && (
+                    <p className="text-xs text-red-500 mt-2">{transferError}</p>
+                  )}
+                </div>
+              ) : showTransferInput ? (
+                /* 输入新创建者邮箱 */
+                <div>
+                  <p className="text-xs text-[#5c3a2e]/60 mb-3 leading-relaxed">
+                    请输入新创建者的注册邮箱。转让后你将成为编辑者，此操作不可撤销。
+                  </p>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="email"
+                      value={transferEmail}
+                      onChange={(e) => setTransferEmail(e.target.value)}
+                      placeholder="请输入新创建者的注册邮箱"
+                      className="flex-1 px-4 py-2.5 border border-[#d4a76a]/40 rounded-xl text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]"
+                    />
+                    <button
+                      onClick={() => {
+                        const trimmed = transferEmail.trim().toLowerCase();
+                        if (!trimmed || !/\S+@\S+\.\S+/.test(trimmed)) {
+                          setTransferError("请输入有效的邮箱地址");
+                          return;
+                        }
+                        setTransferConfirmEmail(trimmed);
+                        setShowTransferConfirm(true);
+                        setTransferError(null);
+                      }}
+                      disabled={!transferEmail.trim()}
+                      className="px-6 py-2.5 bg-[#8b0000] text-white rounded-xl font-bold text-sm hover:bg-[#a52a2a] transition-colors disabled:opacity-40 whitespace-nowrap"
+                    >
+                      下一步
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowTransferInput(false);
+                        setTransferEmail("");
+                        setTransferError(null);
+                      }}
+                      className="px-4 py-2.5 bg-[#f5f0e8] text-[#5c3a2e] rounded-xl font-bold text-sm hover:bg-[#e8dcc8] transition-colors"
+                    >
+                      取消
+                    </button>
+                  </div>
+                  {transferError && (
+                    <p className="text-xs text-red-500">{transferError}</p>
+                  )}
+                </div>
+              ) : (
+                /* 默认：显示转让按钮 */
+                <div>
+                  <p className="text-xs text-[#5c3a2e]/60 mb-3 leading-relaxed">
+                    你可以将创建者身份转让给其他注册用户。转让后你将自动成为编辑者，新创建者将获得全部管理权限。
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowTransferInput(true);
+                      setTransferSuccess(null);
+                      setTransferError(null);
+                    }}
+                    className="px-6 py-2.5 bg-red-50 text-red-700 rounded-xl font-bold text-sm border border-red-200 hover:bg-red-100 transition-colors"
+                  >
+                    🔄 转让创建者
+                  </button>
                 </div>
               )}
             </div>
