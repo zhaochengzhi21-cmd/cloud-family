@@ -888,9 +888,9 @@ export function PagodaTreeView({
   }
 
   return (
-    <div className="relative overflow-x-auto pb-8">
-      <div className="min-w-min">
-        <div ref={containerRef} className="relative inline-block py-8 px-12">
+    <div className="relative w-full max-w-full overflow-hidden pb-8">
+      <div className="flex justify-center w-full">
+        <div ref={containerRef} className="relative inline-block py-8 px-8 md:px-12">
           {/* 连线层 */}
           <GenerationLines generations={generations} containerRef={containerRef} />
           {/* 各代排列 */}

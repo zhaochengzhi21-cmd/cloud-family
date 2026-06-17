@@ -928,7 +928,7 @@ export default function CreateTreePage() {
       setSaveState((prev) => ({ ...prev, progress: 30, message: "正在保存数据到区块链…" }));
 
       const body: Record<string, any> = {
-        familyName: `家族树 (${new Date().toLocaleDateString()})`,
+        familyName: `家族树`,
         members,
         searchable: isPublic,
       };
