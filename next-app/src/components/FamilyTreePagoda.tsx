@@ -902,6 +902,12 @@ export function PagodaTreeView({
 
   const handleFormSave = useCallback((data: EditFormData) => {
     if (!editTarget) return;
+
+    // 记录旧关系值，用于后续比较
+    const oldFatherId = editTarget.fatherId;
+    const oldMotherId = editTarget.motherId;
+    const oldSpouseId = editTarget.spouseId;
+
     const updated: Member = {
       ...editTarget,
       name: data.name,
@@ -914,17 +920,110 @@ export function PagodaTreeView({
       burialPlace: data.burialPlace,
     };
 
-    const idx = membersCache.findIndex(m => m.id === updated.id);
-    if (idx >= 0) {
-      handleUpdateMember(updated);
-    } else {
-      const next = [...membersCache, updated];
-      setMembersCache(next);
+    setMembersCache(prev => {
+      let next = [...prev];
+      const idx = next.findIndex(m => m.id === updated.id);
+
+      if (idx >= 0) {
+        next[idx] = updated;
+      } else {
+        next = [...next, updated];
+      }
+
+      // 新的关系值
+      const newFatherId = updated.fatherId;
+      const newMotherId = updated.motherId;
+      const newSpouseId = updated.spouseId;
+
+      const memberId = updated.id;
+
+      // === 处理 fatherId 变化 ===
+      if (oldFatherId && oldFatherId !== newFatherId) {
+        // 从旧父亲的 childrenIds 中移除该成员
+        const oldFatherIdx = next.findIndex(m => m.id === oldFatherId);
+        if (oldFatherIdx >= 0) {
+          const oldFather = next[oldFatherIdx];
+          const oldChildren = oldFather.childrenIds || [];
+          next[oldFatherIdx] = {
+            ...oldFather,
+            childrenIds: oldChildren.filter(cid => cid !== memberId),
+          };
+        }
+      }
+      if (newFatherId && newFatherId !== oldFatherId) {
+        // 在新父亲的 childrenIds 中加入该成员
+        const newFatherIdx = next.findIndex(m => m.id === newFatherId);
+        if (newFatherIdx >= 0) {
+          const newFather = next[newFatherIdx];
+          const currIds = newFather.childrenIds || [];
+          if (!currIds.includes(memberId)) {
+            next[newFatherIdx] = {
+              ...newFather,
+              childrenIds: [...currIds, memberId],
+            };
+          }
+        }
+      }
+
+      // === 处理 motherId 变化 ===
+      if (oldMotherId && oldMotherId !== newMotherId) {
+        // 从旧母亲的 childrenIds 中移除该成员
+        const oldMotherIdx = next.findIndex(m => m.id === oldMotherId);
+        if (oldMotherIdx >= 0) {
+          const oldMother = next[oldMotherIdx];
+          const oldChildren = oldMother.childrenIds || [];
+          next[oldMotherIdx] = {
+            ...oldMother,
+            childrenIds: oldChildren.filter(cid => cid !== memberId),
+          };
+        }
+      }
+      if (newMotherId && newMotherId !== oldMotherId) {
+        // 在新母亲的 childrenIds 中加入该成员
+        const newMotherIdx = next.findIndex(m => m.id === newMotherId);
+        if (newMotherIdx >= 0) {
+          const newMother = next[newMotherIdx];
+          const currIds = newMother.childrenIds || [];
+          if (!currIds.includes(memberId)) {
+            next[newMotherIdx] = {
+              ...newMother,
+              childrenIds: [...currIds, memberId],
+            };
+          }
+        }
+      }
+
+      // === 处理 spouseId 变化 ===
+      if (oldSpouseId && oldSpouseId !== newSpouseId) {
+        // 清除旧配偶的 spouseId
+        const oldSpouseIdx = next.findIndex(m => m.id === oldSpouseId);
+        if (oldSpouseIdx >= 0) {
+          next[oldSpouseIdx] = {
+            ...next[oldSpouseIdx],
+            spouseOf: undefined as string | undefined,
+            spouseId: undefined as string | undefined,
+          };
+        }
+      }
+      if (newSpouseId && newSpouseId !== oldSpouseId) {
+        // 设置新配偶的 spouseId 指向该成员
+        const newSpouseIdx = next.findIndex(m => m.id === newSpouseId);
+        if (newSpouseIdx >= 0) {
+          next[newSpouseIdx] = {
+            ...next[newSpouseIdx],
+            spouseOf: memberId,
+            spouseId: memberId,
+          };
+        }
+      }
+
       if (onTreeChange) onTreeChange({ ...tree, members: next });
-    }
+      return next;
+    });
+
     setShowEditForm(false);
     setEditTarget(null);
-  }, [editTarget, membersCache, handleUpdateMember, onTreeChange, tree]);
+  }, [editTarget, handleUpdateMember, onTreeChange, tree, setMembersCache]);
 
   if (generations.length === 0) {
     return (
