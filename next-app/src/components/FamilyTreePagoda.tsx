@@ -201,7 +201,11 @@ function getGenerationLabel(gen: number): string {
 const LINE_COLOR = "#4a2c17";
 const LINE_WIDTH = 2;
 const CARD_H_GAP = 32;
-const GENERATION_V_GAP = 72;
+function getGenerationVGap(totalGenerations: number): number {
+  if (totalGenerations <= 5) return 72;
+  if (totalGenerations <= 10) return 56;
+  return 40;
+}
 
 const GENDER_COLORS: Record<string, { bg: string; border: string }> = {
   女: { bg: "bg-rose-50/90", border: "border-rose-300/40" },
@@ -1053,7 +1057,7 @@ export function PagodaTreeView({
           {/* 连线层 */}
           <GenerationLines generations={generations} containerRef={containerRef} />
           {/* 各代排列 */}
-          <div className="flex flex-col items-center" style={{ gap: GENERATION_V_GAP }}>
+          <div className="flex flex-col items-center" style={{ gap: getGenerationVGap(generations.length) }}>
             {generations.map((gen) => (
               <PagodaGeneration
                 key={gen.generation}
