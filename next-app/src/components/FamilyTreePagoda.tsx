@@ -208,7 +208,7 @@ const GENERATION_V_GAP = 72;
 function SpouseSeparator() {
   return (
     <div className="flex-shrink-0 flex items-center justify-center" style={{ width: 16, height: 60 }}>
-      <div style={{ width: 1.5, height: "70%", backgroundColor: "#d4a76a", opacity: 0.4 }} />
+      <div className="w-px h-[70%] bg-[#d4a76a]/40" />
     </div>
   );
 }
