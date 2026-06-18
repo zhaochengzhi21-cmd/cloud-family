@@ -682,24 +682,30 @@ function GenerationLines({ generations, containerRef }: {
       setPaths(result);
     };
 
+    const recalc = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        rafId = requestAnimationFrame(calc);
+      }, 150);
+    };
+
     // 初始计算
     rafId = requestAnimationFrame(() => {
       calc();
     });
 
-    // 监听 resize
-    const resizeObserver = new ResizeObserver(() => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        rafId = requestAnimationFrame(calc);
-      }, 150);
-    });
+    // 监听容器尺寸变化
+    const resizeObserver = new ResizeObserver(recalc);
     resizeObserver.observe(container);
+
+    // 监听窗口 resize（容器可能因滚动条出现/消失而布局变化）
+    window.addEventListener("resize", recalc);
 
     return () => {
       cancelAnimationFrame(rafId);
       clearTimeout(timer);
       resizeObserver.disconnect();
+      window.removeEventListener("resize", recalc);
     };
   }, [generations, containerRef]);
 
