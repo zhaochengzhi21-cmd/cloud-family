@@ -362,6 +362,9 @@ function VoiceRecordButton({ onMembersReady }: { onMembersReady: (members: Membe
             e.preventDefault();
             handlePointerUp();
           }}
+          onTouchCancel={() => {
+            handlePointerUp();
+          }}
           disabled={status === "reviewing" || status === "processing"}
           className={`
             w-full max-w-xs py-4 rounded-2xl flex items-center justify-center gap-2
