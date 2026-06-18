@@ -203,6 +203,11 @@ const LINE_WIDTH = 2;
 const CARD_H_GAP = 32;
 const GENERATION_V_GAP = 72;
 
+const GENDER_COLORS: Record<string, { bg: string; border: string }> = {
+  女: { bg: "bg-rose-50/90", border: "border-rose-300/40" },
+  男: { bg: "bg-white", border: "border-[#d4a76a]/30" },
+};
+
 // ==================== 夫妻分隔竖线 ====================
 
 function SpouseSeparator() {
@@ -243,9 +248,9 @@ function MemberCard({
   const birthText = member.birth && member.death ? `${member.birth}—${member.death}`
     : member.birth ? `生于 ${member.birth}` : member.death ? `卒于 ${member.death}` : null;
 
-  // 根据 gender 决定卡片背景色：女性粉色，男性白色
-  const cardBg = member.gender === "女" ? "bg-rose-50/90" : "bg-white";
-  const cardBorder = member.gender === "女" ? "border-rose-300/40" : "border-[#d4a76a]/30";
+  const genderColors = GENDER_COLORS[member.gender ?? ""] || GENDER_COLORS["男"];
+  const cardBg = genderColors.bg;
+  const cardBorder = genderColors.border;
 
   return (
     <div className="relative flex flex-col items-center" data-member-id={member.id}>
