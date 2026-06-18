@@ -816,8 +816,9 @@ export function PagodaTreeView({
   }, [setMembersCache]);
 
   const handleAddChild = useCallback((member: Member) => {
+    const childId = generateId();
     const newMember: Member = {
-      id: generateId(),
+      id: childId,
       name: "",
       gender: "" as "男" | "女" | undefined,
       birth: "",
@@ -830,11 +831,40 @@ export function PagodaTreeView({
       motherId: member.gender === "女" ? member.id : "",
       parentId: member.id,
     };
+
+    // 将子女ID添加到当前成员的 childrenIds（避免重复）
+    setMembersCache(prev => {
+      const next = [...prev];
+      const memberIdx = next.findIndex(m => m.id === member.id);
+      if (memberIdx >= 0) {
+        const m = next[memberIdx];
+        const currIds = m.childrenIds || [];
+        if (!currIds.includes(childId)) {
+          next[memberIdx] = { ...m, childrenIds: [...currIds, childId] };
+        }
+      }
+      // 如果有配偶，也同步添加子女ID到配偶的 childrenIds
+      if (member.spouseOf || member.spouseId) {
+        const spouseId = member.spouseOf || member.spouseId;
+        if (spouseId) {
+          const spouseIdx = next.findIndex(m => m.id === spouseId);
+          if (spouseIdx >= 0) {
+            const s = next[spouseIdx];
+            const currIds = s.childrenIds || [];
+            if (!currIds.includes(childId)) {
+              next[spouseIdx] = { ...s, childrenIds: [...currIds, childId] };
+            }
+          }
+        }
+      }
+      return next;
+    });
+
     setEditTarget(newMember);
     setEditTitle("添加子嗣");
     setStoryFocus(false);
     setShowEditForm(true);
-  }, []);
+  }, [setMembersCache]);
 
   const handleAddSpouse = useCallback((member: Member) => {
     const isMale = member.gender === "男";
