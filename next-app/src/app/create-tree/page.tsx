@@ -69,10 +69,48 @@ const DAY_OPTIONS: DateOption[] = [
 ];
 
 // ====================================================================
+// 全角标点 → 半角标点（语音识别结果预处理）
+// ====================================================================
+function normalizePunctuation(text: string): string {
+  // 常见全角标点映射表
+  const fullToHalf: Record<string, string> = {
+    "（": "(",
+    "）": ")",
+    "，": ",",
+    "、": ",",
+    "；": ";",
+    "：": ":",
+    "？": "?",
+    "！": "!",
+    "【": "[",
+    "】": "]",
+    "｛": "{",
+    "｝": "}",
+    "《": "<",
+    "》": ">",
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+    "～": "~",
+    "　": " ",  // 全角空格 → 半角空格
+    "—": "-",   // 中文破折号 → 连字符
+    "……": "...", // 中文省略号 → 英文省略号
+  };
+  let result = text;
+  for (const [full, half] of Object.entries(fullToHalf)) {
+    result = result.split(full).join(half);
+  }
+  return result;
+}
+
+// ====================================================================
 // AI 解析语音文本 → 提取家族成员
 // ====================================================================
 async function parseTextToMembers(text: string): Promise<ParsedMember[]> {
   try {
+    // 预处理：全角标点转半角，避免解析格式不兼容
+    text = normalizePunctuation(text);
     const res = await fetch("/api/generate-biography", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
