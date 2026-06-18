@@ -245,7 +245,7 @@ function MemberCard({
 
   // 根据 gender 决定卡片背景色：女性粉色，男性白色
   const cardBg = member.gender === "女" ? "bg-rose-50/90" : "bg-white";
-  const cardBorder = member.gender === "女" ? "border-rose-300/50" : "border-[#d4a76a]";
+  const cardBorder = member.gender === "女" ? "border-rose-300/40" : "border-[#d4a76a]/30";
 
   return (
     <div className="relative flex flex-col items-center" data-member-id={member.id}>
@@ -269,7 +269,7 @@ function MemberCard({
       </button>
       <div onClick={() => setShow(!show)}
         className={`px-3 py-3 rounded-lg cursor-pointer transition-all duration-200 border-2 select-none min-w-[90px] text-center shadow-sm ${cardBg} ${cardBorder} hover:shadow-md`}
-        style={{ borderRadius: 8, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+        style={{ borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
         {/* 头像/照片引导区域 */}
         <div className="flex justify-center mb-1.5">
           {member.photoOriginal || member.photoRestored ? (
