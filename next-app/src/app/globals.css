@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 古典风格全局样式 */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Ma+Shan+Zheng&display=swap");
+
+body {
+  font-family: "Noto Serif SC", "SimSun", "STSong", serif;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f0e8;
+}
+::-webkit-scrollbar-thumb {
+  background: #8b0000;
+  border-radius: 3px;
+}
+
+/* 拖拽高亮动画 */
+@keyframes border-pulse {
+  0%,
+  100% {
+    border-color: #8b0000;
+  }
+  50% {
+    border-color: #ffd700;
+  }
+}
+
+.drag-overlay {
+  animation: border-pulse 1.5s ease-in-out infinite;
+}
+
+/* 上传进度条 */
+@keyframes progress-stripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 40px 0;
+  }
+}
+
+.progress-animated {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 40px 40px;
+  animation: progress-stripes 1s linear infinite;
+}
