@@ -779,10 +779,11 @@ export function PagodaTreeView({
   }, []);
 
   const handleAddParent = useCallback((member: Member) => {
+    const fatherId = generateId();
     const newMember: Member = {
-      id: generateId(),
+      id: fatherId,
       name: "",
-      gender: "" as "男" | "女" | undefined,
+      gender: "男" as "男" | "女" | undefined,
       birth: "",
       death: "",
       generationWord: "",
@@ -791,11 +792,28 @@ export function PagodaTreeView({
       burialPlace: "",
       childrenIds: [member.id],
     };
+
+    // 如果已有母亲，自动建立配偶关联
+    if (member.motherId && member.motherId !== "") {
+      newMember.spouseOf = member.motherId;
+      newMember.spouseId = member.motherId;
+      // 同步更新母亲的 spouseId
+      setMembersCache(prev => {
+        const motherIdx = prev.findIndex(m => m.id === member.motherId);
+        if (motherIdx >= 0) {
+          const next = [...prev];
+          next[motherIdx] = { ...next[motherIdx], spouseOf: fatherId, spouseId: fatherId };
+          return next;
+        }
+        return prev;
+      });
+    }
+
     setEditTarget(newMember);
     setEditTitle("添加父辈");
     setStoryFocus(false);
     setShowEditForm(true);
-  }, []);
+  }, [setMembersCache]);
 
   const handleAddChild = useCallback((member: Member) => {
     const newMember: Member = {
