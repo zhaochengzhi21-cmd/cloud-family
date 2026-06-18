@@ -90,13 +90,13 @@ function buildPagodaTree(members: Member[]): GenerationRow[] {
 
   const gen0Ids: string[] = [];
   for (const m of members) {
-    if ((!m.fatherId || m.fatherId === "") && (!m.motherId || m.motherId === "")) {
+    if (!m.fatherId && !m.motherId) {
       const spouseId = m.spouseOf || m.spouseId;
       let spouseHasParent = false;
       if (spouseId) {
         const spouse = members.find(x => x.id === spouseId);
         if (spouse) {
-          spouseHasParent = !!(spouse.fatherId && spouse.fatherId !== "") || !!(spouse.motherId && spouse.motherId !== "");
+          spouseHasParent = !!(spouse.fatherId) || !!(spouse.motherId);
         }
       }
       if (!spouseHasParent) gen0Ids.push(m.id);
