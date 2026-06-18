@@ -221,7 +221,7 @@ export default function FamilyPage() {
   const params = useParams();
   const familyId = params.familyId as string;
   const router = useRouter();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, emailHash } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -261,6 +261,32 @@ export default function FamilyPage() {
   const [transferSending, setTransferSending] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
   const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
+
+  // 申请编辑权限相关状态
+  const [applyStatus, setApplyStatus] = useState<"none" | "pending" | "approved" | "rejected">("none");
+  const [applySending, setApplySending] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  // 审核面板相关状态
+  const [applications, setApplications] = useState<{ applicantHash: string; maskedEmail: string; appliedAt: string; status: string }[]>([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [reviewSending, setReviewSending] = useState<string | null>(null);
+
+  // 检查当前用户的申请状态
+  const checkApplyStatus = useCallback(async () => {
+    if (!familyId || !isLoggedIn) return;
+    try {
+      const res = await fetch(`/api/family-settings/${familyId}`);
+      const data = await res.json();
+      if (data.success) {
+        setCanEdit(data.canEdit || false);
+        setIsCreator(data.isCreator || false);
+        setEditors(data.editors || []);
+      }
+    } catch {
+      // ignore
+    }
+  }, [familyId, isLoggedIn]);
 
   // 获取编辑权限
   useEffect(() => {
@@ -341,6 +367,98 @@ export default function FamilyPage() {
     }
   }, [familyId]);
 
+  // 申请编辑权限
+  const handleApplyEditor = useCallback(async () => {
+    if (!familyId) return;
+    setApplySending(true);
+    setApplyError(null);
+    try {
+      const res = await fetch(`/api/family-settings/${familyId}/apply`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setApplyStatus("pending");
+      } else {
+        if (data.alreadyApplied) {
+          setApplyStatus("pending");
+        } else {
+          setApplyError(data.error || "申请失败");
+        }
+      }
+    } catch {
+      setApplyError("网络异常，请稍后重试");
+    } finally {
+      setApplySending(false);
+    }
+  }, [familyId]);
+
+  // 加载时检查申请状态
+  useEffect(() => {
+    if (!familyId || !isLoggedIn || !settingsLoaded) return;
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`/api/family-settings/${familyId}/apply`);
+        const data = await res.json();
+        if (data.success && data.applications?.length > 0) {
+          // 查找当前用户的申请
+          const userApply = data.applications.find(
+            (a: any) => a.applicantHash === emailHash
+          );
+          if (userApply) {
+            setApplyStatus(userApply.status);
+          }
+        }
+      } catch {
+        // 忽略错误
+      }
+    };
+    checkStatus();
+  }, [familyId, isLoggedIn, settingsLoaded, emailHash]);
+
+  // 加载待审核的申请列表
+  const loadApplications = useCallback(async () => {
+    if (!familyId) return;
+    setApplicationsLoading(true);
+    try {
+      const res = await fetch(`/api/family-settings/${familyId}/apply`);
+      const data = await res.json();
+      if (data.success) {
+        setApplications(data.applications || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }, [familyId]);
+
+  // 审核申请
+  const handleReviewApplication = useCallback(async (applicantHash: string, action: "approve" | "reject") => {
+    setReviewSending(applicantHash);
+    try {
+      const res = await fetch(`/api/family-settings/${familyId}/review`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicantHash, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // 重新加载申请列表和编辑者列表
+        await loadApplications();
+        if (data.editors) {
+          setEditors(data.editors);
+        }
+      } else {
+        alert(data.error || "操作失败");
+      }
+    } catch {
+      alert("网络异常，请稍后重试");
+    } finally {
+      setReviewSending(null);
+    }
+  }, [familyId, loadApplications]);
+
   // 转让创建者
   const handleTransferCreator = useCallback(async () => {
     const trimmed = transferEmail.trim().toLowerCase();
@@ -374,6 +492,13 @@ export default function FamilyPage() {
       setTransferSending(false);
     }
   }, [transferEmail, familyId]);
+
+  // 加载待审核的申请列表（仅创建者）
+  useEffect(() => {
+    if (familyId && settingsLoaded && isCreator) {
+      loadApplications();
+    }
+  }, [familyId, settingsLoaded, isCreator, loadApplications]);
 
   // 防搜索引擎收录
   useEffect(() => {
@@ -903,7 +1028,35 @@ export default function FamilyPage() {
                   <span>📧</span>
                   <span>邮箱备份</span>
                 </button>
+
+                {/* 申请编辑权限按钮（仅阅读者可见） */}
+                {settingsLoaded && !canEdit && !isCreator && (
+                  applyStatus === "pending" ? (
+                    <button
+                      disabled
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-50 text-amber-700 rounded-xl font-bold text-sm border border-amber-200 cursor-not-allowed"
+                    >
+                      <span>⏳</span>
+                      <span>已申请，等待审核</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleApplyEditor}
+                      disabled={applySending}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white text-[#8b0000] rounded-xl font-bold text-sm border border-[#8b0000]/30 hover:bg-[#8b0000]/5 hover:border-[#8b0000]/60 transition-all duration-200 disabled:opacity-40"
+                    >
+                      <span>🙏</span>
+                      <span>{applySending ? "申请中..." : "申请编辑权限"}</span>
+                    </button>
+                  )
+                )}
               </div>
+
+              {applyError && (
+                <div className="mt-2 text-center">
+                  <p className="text-xs text-red-500">{applyError}</p>
+                </div>
+              )}
 
               {/* 编辑模式提示 */}
               {editing && (
@@ -1048,7 +1201,68 @@ export default function FamilyPage() {
           </div>
         </section>
 
-        {/* ====== 邀请编辑者（创作者和管理员可见） ====== */}
+        {/* ====== 待审核申请（创作者可见） ====== */}
+        {isCreator && (
+          <section className="mb-8">
+            <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
+              <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
+                📋 待审核申请
+              </h3>
+              {applicationsLoading ? (
+                <div className="text-center py-4">
+                  <div className="w-6 h-6 mx-auto border-2 border-[#8b0000]/20 border-t-[#8b0000] rounded-full animate-spin" />
+                  <p className="text-xs text-[#5c3a2e] mt-2">加载中...</p>
+                </div>
+              ) : applications.filter(a => a.status === "pending").length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-xs text-[#c4a67a]">暂无待审核的申请</p>
+                </div>
+              ) : (
+                <div className="space-y-3 mb-4">
+                  {applications
+                    .filter(a => a.status === "pending")
+                    .map((app) => (
+                      <div
+                        key={app.applicantHash}
+                        className="flex items-center justify-between px-4 py-3 bg-amber-50 rounded-xl border border-amber-200"
+                      >
+                        <div className="flex-1">
+                          <p className="text-sm font-bold text-[#5c3a2e]">{app.maskedEmail}</p>
+                          <p className="text-xs text-[#c4a67a]">
+                            申请时间：{new Date(app.appliedAt).toLocaleString("zh-CN", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleReviewApplication(app.applicantHash, "approve")}
+                            disabled={reviewSending === app.applicantHash}
+                            className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-bold hover:bg-green-200 transition-colors disabled:opacity-40"
+                          >
+                            {reviewSending === app.applicantHash ? "..." : "通过"}
+                          </button>
+                          <button
+                            onClick={() => handleReviewApplication(app.applicantHash, "reject")}
+                            disabled={reviewSending === app.applicantHash}
+                            className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-xs font-bold hover:bg-red-100 transition-colors disabled:opacity-40"
+                          >
+                            拒绝
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ====== 邀请编辑者（创作者可见） ====== */}
         {isCreator && (
           <section className="mb-8">
             <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
