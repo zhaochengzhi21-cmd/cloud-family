@@ -543,8 +543,9 @@ function PagodaGeneration({
   const couples = generation.couples;
   return (
     <div className="relative flex flex-col items-center">
-      <div className="absolute right-full top-1/2 -translate-y-1/2 mr-4 whitespace-nowrap">
-        <span className="text-xs text-[#8b0000]/50 font-bold tracking-wider">{getGenerationLabel(generation.generation)}</span>
+      <div className="flex flex-col items-center mb-3">
+        <span className="text-xs text-[#8b0000]/40 font-bold tracking-wider mb-1">{getGenerationLabel(generation.generation)}</span>
+        <div className="w-full h-px bg-[#d4a76a]/20" />
       </div>
       <div className="flex items-start" style={{ gap: CARD_H_GAP }}>
         {couples.map((cpl, idx) => (
