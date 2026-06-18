@@ -455,7 +455,7 @@ function MemberEditForm({
             <div>
               <label className="block text-xs font-bold text-[#5c3a2e] mb-1">🪦 安葬地</label>
               <input type="text" value={burialPlace} onChange={e => setBurialPlace(e.target.value)} className="w-full px-3 py-2 border border-[#d4a76a]/40 rounded-lg text-sm text-[#5c3a2e] focus:outline-none focus:border-[#8b0000] bg-[#fdfbf7]" placeholder="如：山西省太原市清徐县XX村" />
-              {burialPlace && (
+              {hasDeath && (
                 <p className="text-[10px] text-[#c4a67a] mt-1">填写后，详情中可点击「📍 在地图上查看」跳转高德地图</p>
               )}
             </div>
