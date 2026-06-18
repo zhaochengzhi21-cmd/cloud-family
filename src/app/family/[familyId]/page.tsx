@@ -262,6 +262,14 @@ export default function FamilyPage() {
   const [transferError, setTransferError] = useState<string | null>(null);
   const [transferSuccess, setTransferSuccess] = useState<string | null>(null);
 
+  // 家族关联匹配
+  const [enableMatching, setEnableMatching] = useState(false);
+  const [matchingToggleSending, setMatchingToggleSending] = useState(false);
+  const [matchingResults, setMatchingResults] = useState<any[] | null>(null);
+  const [matchingLoading, setMatchingLoading] = useState(false);
+  const [matchingError, setMatchingError] = useState<string | null>(null);
+  const [matchingMessage, setMatchingMessage] = useState<string | null>(null);
+
   // 申请编辑权限相关状态
   const [applyStatus, setApplyStatus] = useState<"none" | "pending" | "approved" | "rejected">("none");
   const [applySending, setApplySending] = useState(false);
@@ -299,6 +307,9 @@ export default function FamilyPage() {
           setCanEdit(data.canEdit || false);
           setIsCreator(data.isCreator || false);
           setEditors(data.editors || []);
+          if (data.enableMatching !== undefined) {
+            setEnableMatching(data.enableMatching);
+          }
         }
       } catch {
         // 权限获取失败，默认不可编辑
@@ -1321,6 +1332,150 @@ export default function FamilyPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ====== 家族关联匹配（创建者可见） ====== */}
+        {isCreator && (
+          <section className="mb-8">
+            <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
+              <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
+                🔗 家族关联匹配
+              </h3>
+              <p className="text-xs text-[#5c3a2e]/60 mb-3 leading-relaxed">
+                允许系统基于族谱结构，提示可能同源的家族
+              </p>
+
+              {/* 开关 */}
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={enableMatching}
+                  disabled={matchingToggleSending}
+                  onChange={async () => {
+                    setMatchingToggleSending(true);
+                    setMatchingError(null);
+                    setMatchingResults(null);
+                    setMatchingMessage(null);
+                    try {
+                      const newValue = !enableMatching;
+                      const res = await fetch(`/api/family-settings/${familyId}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ enableMatching: newValue }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setEnableMatching(newValue);
+                      } else {
+                        setMatchingError(data.error || "操作失败");
+                      }
+                    } catch {
+                      setMatchingError("网络异常，请稍后重试");
+                    } finally {
+                      setMatchingToggleSending(false);
+                    }
+                  }}
+                />
+                <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-[#8b0000] peer-disabled:opacity-50 after:content-[''] after:absolute after:top-0.5 after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full" />
+                <span className="ml-3 text-sm text-[#5c3a2e]">
+                  {enableMatching ? "已开启" : "已关闭"}
+                </span>
+              </label>
+
+              {matchingError && (
+                <p className="text-xs text-red-500 mt-2">{matchingError}</p>
+              )}
+
+              {/* 手动触发匹配按钮 */}
+              {enableMatching && (
+                <div className="mt-4">
+                  <button
+                    onClick={async () => {
+                      setMatchingLoading(true);
+                      setMatchingResults(null);
+                      setMatchingMessage(null);
+                      setMatchingError(null);
+                      try {
+                        const res = await fetch(`/api/family-matching/${familyId}`, {
+                          method: "POST",
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                          setMatchingResults(data.matches || []);
+                          setMatchingMessage(data.message || "");
+                        } else {
+                          setMatchingError(data.error || "匹配失败");
+                        }
+                      } catch {
+                        setMatchingError("网络异常，请稍后重试");
+                      } finally {
+                        setMatchingLoading(false);
+                      }
+                    }}
+                    disabled={matchingLoading}
+                    className="px-4 py-2 bg-[#8b0000] text-white rounded-xl font-bold text-xs hover:bg-[#a52a2a] transition-colors disabled:opacity-40"
+                  >
+                    {matchingLoading ? (
+                      <span className="inline-flex items-center gap-1">
+                        <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        匹配中...
+                      </span>
+                    ) : (
+                      "立即匹配"
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* 匹配结果 */}
+              {matchingMessage && (
+                <p className="text-xs text-[#5c3a2e]/60 mt-3">{matchingMessage}</p>
+              )}
+
+              {matchingResults && matchingResults.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {matchingResults.map((match: any, idx: number) => (
+                    <div
+                      key={match.familyId}
+                      className="bg-amber-50 rounded-xl border border-amber-200 p-4"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <span className="inline-block bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full mr-2">
+                            TOP {idx + 1}
+                          </span>
+                          <span className="font-bold text-[#5c3a2e]">
+                            {match.familyName}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-[#8b0000]">
+                          {match.score} 分
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs text-[#5c3a2e]/70">
+                        <p>📍 祖籍：{match.origin}</p>
+                        <p>📊 代数：{match.generationCount} 代</p>
+                        <p>🧑 最早先辈：{match.founderName}</p>
+                      </div>
+                      {match.matchReasons?.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {match.matchReasons.map((reason: string, i: number) => (
+                            <span
+                              key={i}
+                              className="inline-block bg-[#fdfbf7] text-[#8b0000] text-[10px] px-2 py-0.5 rounded-full border border-[#d4a76a]/20"
+                            >
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

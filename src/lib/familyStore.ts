@@ -31,6 +31,8 @@ export interface FamilyMeta {
   createdAt: string;
   searchable?: boolean;
   memberCount?: number;
+  /** 是否开启家族关联匹配 */
+  enableMatching?: boolean;
 }
 
 /* ========== 家族关联记录（binding）========== */
@@ -88,6 +90,7 @@ export async function writeCreatorMeta(
     editors: [],
     createdAt: new Date().toISOString(),
     searchable,
+    enableMatching: false,
   };
   await kv.set(`family:meta:${familyId}`, meta);
 }

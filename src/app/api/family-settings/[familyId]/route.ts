@@ -16,6 +16,8 @@ interface FamilyMeta {
   /** 受邀编辑者邮箱哈希列表 */
   editors: string[];
   createdAt: string;
+  /** 是否开启家族关联匹配 */
+  enableMatching?: boolean;
 }
 
 /**
@@ -104,6 +106,7 @@ export async function GET(
       isCreator,
       isEditor,
       canEdit: isCreator || isEditor,
+      enableMatching: meta.enableMatching || false,
     });
   } catch (err) {
     console.error("family-settings GET error:", err);
@@ -140,7 +143,7 @@ export async function PATCH(
     }
 
     // 解析请求体
-    const body: { email?: string; removeEditorEmailHash?: string; transferCreatorEmail?: string } = await request.json();
+    const body: { email?: string; removeEditorEmailHash?: string; transferCreatorEmail?: string; enableMatching?: boolean } = await request.json();
 
     // 从 KV/Redis 读取家族元数据
     const kv = getKv();
@@ -160,6 +163,17 @@ export async function PATCH(
         { success: false, error: "仅创建者可管理编辑者" },
         { status: 403 }
       );
+    }
+
+    // ========== 更新关联匹配开关 ==========
+    if (body.enableMatching !== undefined) {
+      meta.enableMatching = body.enableMatching;
+      await kv.set(metaKey, meta);
+      return NextResponse.json({
+        success: true,
+        message: body.enableMatching ? "已开启关联匹配" : "已关闭关联匹配",
+        enableMatching: meta.enableMatching,
+      });
     }
 
     // ========== 转让创建者 ==========
