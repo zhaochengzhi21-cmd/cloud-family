@@ -10,6 +10,9 @@ export const AUTH_ERROR_CODES = [
   "SESSION_REVOKED",
   "AUTH_CONFIGURATION_ERROR",
   "DELIVERY_FAILED",
+  "INVITE_INVALID",
+  "INVITE_CONSUMED",
+  "THROTTLED",
 ] as const;
 
 export type AuthErrorCode = (typeof AUTH_ERROR_CODES)[number];

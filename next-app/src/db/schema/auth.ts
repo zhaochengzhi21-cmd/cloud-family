@@ -9,6 +9,7 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { alphaInvites } from "./alphaInvites";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
@@ -19,6 +20,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 /**
  * Email OTP challenges — created before User exists.
  * Stores HMAC code digest only; no plaintext OTP or email.
+ * alphaInviteId set only for Closed Alpha new-user registration.
  */
 export const authChallenges = pgTable(
   "auth_challenges",
@@ -29,6 +31,9 @@ export const authChallenges = pgTable(
     emailKeyVersion: integer("email_key_version").notNull(),
     codeDigest: text("code_digest").notNull(),
     failedAttempts: integer("failed_attempts").notNull().default(0),
+    alphaInviteId: uuid("alpha_invite_id").references(() => alphaInvites.id, {
+      onDelete: "set null",
+    }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     consumedAt: timestamp("consumed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),

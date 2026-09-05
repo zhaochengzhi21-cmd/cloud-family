@@ -50,6 +50,13 @@
       "when": 1788590438293,
       "tag": "0006_claim_evidence_engine",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788591957334,
+      "tag": "0007_alpha_invites_auth_http",
+      "breakpoints": true
     }
   ]
 }

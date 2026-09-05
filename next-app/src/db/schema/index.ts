@@ -9,5 +9,6 @@ export { familyVersions } from "./versions";
 export { auditEvents } from "./audit";
 export { legacyFamilyMaps } from "./legacy";
 export { authChallenges } from "./auth";
+export { alphaInvites } from "./alphaInvites";
 export { sessions } from "./sessions";
 export { familyShareLinks } from "./shareLinks";

@@ -16,15 +16,20 @@ import {
   OTP_MAX_ATTEMPTS,
   OTP_TTL_MS,
   SESSION_TTL_MS,
+  OTP_MIN_INTERVAL_MS,
+  OTP_ROLLING_15M_LIMIT,
+  OTP_ROLLING_15M_MS,
+  OTP_ROLLING_24H_LIMIT,
+  OTP_ROLLING_24H_MS,
 } from "@/v1/domain/auth/types";
 import * as repo from "@/v1/repositories/authRepository";
+import * as inviteRepo from "@/v1/repositories/alphaInviteRepository";
 
 function dbOrDefault(db?: V1Db): V1Db {
   return db ?? getV1Db();
 }
 
 function generateOtpCode(): string {
-  // CSPRNG 0–999999 with leading zeros
   const n = randomInt(0, 1_000_000);
   return String(n).padStart(OTP_LENGTH, "0");
 }
@@ -44,13 +49,52 @@ export type CreateChallengeResult = {
 };
 
 /**
+ * DB-backed OTP throttle. Returns true when a new real send is allowed.
+ */
+export async function isOtpSendAllowed(
+  emailLookupHash: string,
+  options?: { db?: V1Db; now?: Date }
+): Promise<boolean> {
+  const database = dbOrDefault(options?.db);
+  const now = options?.now ?? new Date();
+
+  const latest = await repo.findLatestChallengeCreatedAt(
+    database,
+    emailLookupHash
+  );
+  if (latest && now.getTime() - latest.getTime() < OTP_MIN_INTERVAL_MS) {
+    return false;
+  }
+
+  const in15 = await repo.countChallengesSince(
+    database,
+    emailLookupHash,
+    new Date(now.getTime() - OTP_ROLLING_15M_MS)
+  );
+  if (in15 >= OTP_ROLLING_15M_LIMIT) return false;
+
+  const in24 = await repo.countChallengesSince(
+    database,
+    emailLookupHash,
+    new Date(now.getTime() - OTP_ROLLING_24H_MS)
+  );
+  if (in24 >= OTP_ROLLING_24H_LIMIT) return false;
+
+  return true;
+}
+
+/**
  * Create OTP challenge + deliver via adapter.
  * On delivery failure the challenge is invalidated and cannot be used.
  */
 export async function createAuthChallenge(
   email: string,
   deliveryAdapter: OtpDeliveryAdapter,
-  options?: { db?: V1Db }
+  options?: {
+    db?: V1Db;
+    alphaInviteId?: string | null;
+    now?: Date;
+  }
 ): Promise<CreateChallengeResult> {
   const canonical = normalizeEmail(email);
   const lookupHash = computeEmailLookupHash(canonical);
@@ -58,7 +102,7 @@ export async function createAuthChallenge(
   const challengeId = randomUUID();
   const code = generateOtpCode();
   const codeDigest = computeOtpDigest(challengeId, code);
-  const now = new Date();
+  const now = options?.now ?? new Date();
   const expiresAt = new Date(now.getTime() + OTP_TTL_MS);
   const database = dbOrDefault(options?.db);
 
@@ -70,10 +114,11 @@ export async function createAuthChallenge(
     codeDigest,
     expiresAt,
     createdAt: now,
+    alphaInviteId: options?.alphaInviteId ?? null,
   });
 
   try {
-    await deliveryAdapter.deliver(canonical, code);
+    await deliveryAdapter.deliver(canonical, code, { challengeId });
   } catch {
     await repo.invalidateChallenge(database, challengeId, new Date());
     throw new AuthDomainError("DELIVERY_FAILED");
@@ -90,21 +135,21 @@ export type VerifyChallengeResult = {
 
 /**
  * Verify OTP inside a transaction with row lock.
+ * New-user path consumes alpha invite atomically with user creation.
  * Returns raw session token once — never stored in DB.
  */
 export async function verifyAuthChallenge(
   challengeId: string,
   code: string,
-  options?: { db?: V1Db }
+  options?: { db?: V1Db; now?: Date }
 ): Promise<VerifyChallengeResult> {
   if (!/^\d{6}$/.test(code)) {
     throw new AuthDomainError("INVALID_CODE");
   }
 
   const database = dbOrDefault(options?.db);
-  const now = new Date();
+  const now = options?.now ?? new Date();
 
-  // Return outcomes instead of throwing on invalid OTP so attempt increments COMMIT.
   type Outcome =
     | { kind: "ok"; result: VerifyChallengeResult }
     | { kind: "invalid"; attempts: number }
@@ -147,9 +192,27 @@ export async function verifyAuthChallenge(
     }
 
     const { ciphertext, keyVersion } = encryptEmail(email);
+
+    // Closed Alpha registration challenges must consume invite exactly once.
+    // Concurrent verifies: loser fails even if the winner already inserted the User.
+    if (challenge.alphaInviteId) {
+      const consumed = await inviteRepo.tryConsumeInvite(
+        tx,
+        challenge.alphaInviteId,
+        now
+      );
+      if (!consumed) {
+        return { kind: "error", code: "INVITE_CONSUMED" };
+      }
+    }
+
     let user = await repo.findUserByLookupHash(tx, challenge.emailLookupHash);
 
     if (!user) {
+      if (!challenge.alphaInviteId) {
+        return { kind: "error", code: "INVITE_INVALID" };
+      }
+
       const userId = randomUUID();
       try {
         await repo.insertUser(tx, {
@@ -163,7 +226,6 @@ export async function verifyAuthChallenge(
         });
         user = await repo.findUserByLookupHash(tx, challenge.emailLookupHash);
       } catch {
-        // Concurrent signup — unique lookup hash won the race
         user = await repo.findUserByLookupHash(tx, challenge.emailLookupHash);
         if (!user) {
           return { kind: "error", code: "AUTH_CONFIGURATION_ERROR" };

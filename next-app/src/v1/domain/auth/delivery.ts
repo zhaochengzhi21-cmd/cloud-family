@@ -2,21 +2,42 @@
  * OTP delivery port — Production Resend adapter is CF-V1-AUTH-002.
  */
 
+export type OtpDeliveryMeta = {
+  /** Use as provider idempotency key — never the OTP itself. */
+  challengeId: string;
+};
+
 export interface OtpDeliveryAdapter {
-  deliver(email: string, code: string): Promise<void>;
+  deliver(
+    email: string,
+    code: string,
+    meta?: OtpDeliveryMeta
+  ): Promise<void>;
 }
 
 /** In-memory adapter for smoke tests only — never sends real mail. */
 export class InMemoryOtpDeliveryAdapter implements OtpDeliveryAdapter {
-  readonly deliveries: Array<{ email: string; code: string }> = [];
+  readonly deliveries: Array<{
+    email: string;
+    code: string;
+    challengeId?: string;
+  }> = [];
   failNext = false;
 
-  async deliver(email: string, code: string): Promise<void> {
+  async deliver(
+    email: string,
+    code: string,
+    meta?: OtpDeliveryMeta
+  ): Promise<void> {
     if (this.failNext) {
       this.failNext = false;
       throw new Error("DELIVERY_ADAPTER_FORCED_FAILURE");
     }
-    this.deliveries.push({ email, code });
+    this.deliveries.push({
+      email,
+      code,
+      challengeId: meta?.challengeId,
+    });
   }
 
   lastCodeFor(email: string): string | undefined {
