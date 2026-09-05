@@ -16,7 +16,8 @@
     "db:auth-smoke": "tsx scripts/v1-auth-smoke.ts",
     "db:permission-smoke": "tsx scripts/v1-permission-smoke.ts",
     "db:person-smoke": "tsx scripts/v1-person-graph-smoke.ts",
-    "db:media-smoke": "tsx scripts/v1-media-smoke.ts"
+    "db:media-smoke": "tsx scripts/v1-media-smoke.ts",
+    "db:media-blob-live-smoke": "tsx scripts/v1-media-blob-live-smoke.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
@@ -29,6 +30,7 @@
     "@ethersproject/transactions": "^5.8.0",
     "@ethersproject/wallet": "^5.8.0",
     "@upstash/redis": "^1.38.0",
+    "@vercel/blob": "^2.8.0",
     "@vercel/kv": "^3.0.0",
     "axios": "^1.16.1",
     "dotenv": "^17.4.2",

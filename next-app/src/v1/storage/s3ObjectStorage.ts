@@ -32,6 +32,12 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
       return;
     }
     const cfg = getV1ObjectStorageConfig();
+    if (cfg.provider !== "S3_COMPATIBLE") {
+      throw new StorageError(
+        "STORAGE_CONFIGURATION_ERROR",
+        "S3 adapter requires S3_COMPATIBLE provider"
+      );
+    }
     this.bucket = cfg.bucket;
     this.client = new S3Client({
       region: cfg.region,

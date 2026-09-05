@@ -31,7 +31,6 @@ import { buildOpaqueStorageKey } from "../src/v1/domain/media/types";
 import { MemoryObjectStorage } from "../src/v1/storage/memoryObjectStorage";
 import { setObjectStorageForTests } from "../src/v1/storage/objectStorage";
 import { isV1ObjectStorageConfigured } from "../src/v1/storage/config";
-import { S3CompatibleObjectStorage } from "../src/v1/storage/s3ObjectStorage";
 import { SIGNED_READ_URL_TTL_SECONDS } from "../src/v1/storage/types";
 
 config({ path: ".env.local" });
@@ -579,9 +578,22 @@ async function main() {
       pass("put_head", "exists");
     else fail("put_head", "missing");
 
-    // Live R2 optional
+    // Live provider optional
     if (isV1ObjectStorageConfigured()) {
-      const live = new S3CompatibleObjectStorage();
+      const { getV1ObjectStorageConfig } = await import(
+        "../src/v1/storage/config"
+      );
+      const { VercelBlobObjectStorage } = await import(
+        "../src/v1/storage/vercelBlobObjectStorage"
+      );
+      const { S3CompatibleObjectStorage } = await import(
+        "../src/v1/storage/s3ObjectStorage"
+      );
+      const cfg = getV1ObjectStorageConfig();
+      const live =
+        cfg.provider === "VERCEL_BLOB"
+          ? new VercelBlobObjectStorage()
+          : new S3CompatibleObjectStorage();
       const liveKey = `families/${randomUUID()}/media/${randomUUID()}/original`;
       await live.putObject({
         key: liveKey,
@@ -594,13 +606,8 @@ async function main() {
       if (head && head.contentLength === body.length) pass("live_put_head", "ok");
       else fail("live_put_head", "bad head");
 
-      // anonymous raw access — try unsigned URL from endpoint/bucket/key
-      const endpoint = process.env.V1_OBJECT_STORAGE_ENDPOINT!.replace(
-        /\/$/,
-        ""
-      );
-      const bucket = process.env.V1_OBJECT_STORAGE_BUCKET!;
-      const rawUrl = `${endpoint}/${bucket}/${liveKey}`;
+      const signed = await live.getSignedReadUrl(liveKey, 60);
+      const rawUrl = signed.url.split("?")[0];
       try {
         const res = await fetch(rawUrl);
         if (res.status === 200) fail("bucket_private", "anonymous 200");
@@ -609,7 +616,6 @@ async function main() {
         pass("bucket_private", "request failed/blocked");
       }
 
-      const signed = await live.getSignedReadUrl(liveKey, 60);
       if (signed.ttlSeconds <= 60) {
         const res = await fetch(signed.url);
         if (res.ok) pass("live_signed_read", "GENERATED_AND_FETCHED=PASS");
