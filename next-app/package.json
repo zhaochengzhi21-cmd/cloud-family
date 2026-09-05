@@ -15,9 +15,12 @@
     "db:identity-smoke": "tsx scripts/v1-family-identity-smoke.ts",
     "db:auth-smoke": "tsx scripts/v1-auth-smoke.ts",
     "db:permission-smoke": "tsx scripts/v1-permission-smoke.ts",
-    "db:person-smoke": "tsx scripts/v1-person-graph-smoke.ts"
+    "db:person-smoke": "tsx scripts/v1-person-graph-smoke.ts",
+    "db:media-smoke": "tsx scripts/v1-media-smoke.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1127.0",
+    "@aws-sdk/s3-request-presigner": "^3.1127.0",
     "@ethersproject/abi": "^5.8.0",
     "@ethersproject/bytes": "^5.8.0",
     "@ethersproject/keccak256": "^5.8.0",

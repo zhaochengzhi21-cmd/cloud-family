@@ -3,10 +3,15 @@
  * Family visibility is a ceiling; living/UNKNOWN INHERIT → FAMILY.
  */
 
-import type { LivingStatus, MembershipRole, PrivacyLevel } from "@/db/constants";
+import type {
+  LivingStatus,
+  MembershipRole,
+  PrivacyLevel,
+} from "@/db/constants";
 import type {
   Decision,
   FamilyPolicyInput,
+  MediaPolicyInput,
   PermissionAction,
   PersonPolicyInput,
 } from "./types";
@@ -32,10 +37,15 @@ function roleAllowsAction(
       return (
         action === "READ_FAMILY" ||
         action === "READ_PERSON" ||
+        action === "READ_MEDIA" ||
         CONTENT_EDIT_ACTIONS.includes(action)
       );
     case "VIEWER":
-      return action === "READ_FAMILY" || action === "READ_PERSON";
+      return (
+        action === "READ_FAMILY" ||
+        action === "READ_PERSON" ||
+        action === "READ_MEDIA"
+      );
     default:
       return false;
   }
@@ -76,7 +86,60 @@ export function decideFamilyAction(input: FamilyPolicyInput): Decision {
 
   // Mutations require ACTIVE membership role from DB
   if (!input.activeRole) return "DENY";
+
+  // DELETE_MEDIA: OWNER / ADMIN only (explicit — EDITOR DENY)
+  if (input.action === "DELETE_MEDIA") {
+    return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
+      ? "ALLOW"
+      : "DENY";
+  }
+
   return roleAllowsAction(input.activeRole, input.action) ? "ALLOW" : "DENY";
+}
+
+/**
+ * Media READ after Family ceiling + Media visibility.
+ * Non-ACTIVE media is never readable.
+ */
+export function decideMediaRead(input: MediaPolicyInput): Decision {
+  if (input.familyDeleted || !input.mediaActive) return "DENY";
+
+  const vis = input.mediaVisibility;
+
+  if (vis === "PRIVATE") {
+    return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
+      ? "ALLOW"
+      : "DENY";
+  }
+
+  if (vis === "FAMILY") {
+    return input.activeRole ? "ALLOW" : "DENY";
+  }
+
+  // MEDIA PUBLIC — still under Family visibility ceiling
+  if (input.familyVisibility === "PRIVATE") {
+    return input.activeRole ? "ALLOW" : "DENY";
+  }
+  if (input.familyVisibility === "LINK") {
+    if (input.activeRole) return "ALLOW";
+    return input.validShareLink ? "ALLOW" : "DENY";
+  }
+  // Family PUBLIC + Media PUBLIC
+  return "ALLOW";
+}
+
+export function decideMediaAction(input: MediaPolicyInput): Decision {
+  if (input.action === "READ_MEDIA") {
+    return decideMediaRead(input);
+  }
+  if (input.action === "DELETE_MEDIA") {
+    if (input.familyDeleted) return "DENY";
+    if (!input.activeRole) return "DENY";
+    return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
+      ? "ALLOW"
+      : "DENY";
+  }
+  return "DENY";
 }
 
 /**

@@ -5,10 +5,13 @@ import {
   familyMemberships,
   familyShareLinks,
   persons,
+  mediaObjects,
 } from "@/db/schema";
 import type {
   FamilyVisibility,
   LivingStatus,
+  MediaStatus,
+  MediaVisibility,
   MembershipRole,
   MembershipStatus,
   PrivacyLevel,
@@ -42,6 +45,15 @@ export type ShareLinkRow = {
   familyId: string;
   expiresAt: Date | null;
   revokedAt: Date | null;
+};
+
+export type MediaAccessRow = {
+  id: string;
+  familyId: string;
+  visibility: MediaVisibility;
+  status: MediaStatus;
+  storageKey: string;
+  deletedAt: Date | null;
 };
 
 /** Load family including soft-deleted (for DENY-all when deleted). */
@@ -118,6 +130,33 @@ export async function findPersonForAccess(
     familyId: row.familyId,
     privacyLevel: row.privacyLevel as PrivacyLevel,
     livingStatus: row.livingStatus as LivingStatus,
+    deletedAt: row.deletedAt,
+  };
+}
+
+export async function findMediaForAccess(
+  db: DbOrTx,
+  mediaId: string
+): Promise<MediaAccessRow | null> {
+  const [row] = await db
+    .select({
+      id: mediaObjects.id,
+      familyId: mediaObjects.familyId,
+      visibility: mediaObjects.visibility,
+      status: mediaObjects.status,
+      storageKey: mediaObjects.storageKey,
+      deletedAt: mediaObjects.deletedAt,
+    })
+    .from(mediaObjects)
+    .where(eq(mediaObjects.id, mediaId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    id: row.id,
+    familyId: row.familyId,
+    visibility: row.visibility as MediaVisibility,
+    status: row.status as MediaStatus,
+    storageKey: row.storageKey,
     deletedAt: row.deletedAt,
   };
 }

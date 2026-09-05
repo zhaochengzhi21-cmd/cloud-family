@@ -9,6 +9,7 @@ import type { MembershipRole } from "@/db/constants";
 import { PermissionDomainError } from "@/v1/domain/permission/errors";
 import {
   decideFamilyAction,
+  decideMediaAction,
   decidePersonAction,
   decidePersonRead,
 } from "@/v1/domain/permission/policy";
@@ -212,4 +213,62 @@ export async function authorizePersonRead(
   options?: { db?: DbOrTx; now?: Date; expectedFamilyId?: string }
 ) {
   return authorizePersonAction(personId, ctx, "READ_PERSON", options);
+}
+
+export type AuthorizeMediaResult = AuthorizeFamilyResult & {
+  mediaFamilyId: string;
+  mediaActive: boolean;
+};
+
+/**
+ * Authorize READ_MEDIA / DELETE_MEDIA using media visibility + family ceiling.
+ */
+export async function authorizeMediaAction(
+  mediaId: string,
+  ctx: AccessContext,
+  action: "READ_MEDIA" | "DELETE_MEDIA",
+  options?: { db?: DbOrTx; now?: Date }
+): Promise<AuthorizeMediaResult> {
+  const database = dbOrDefault(options?.db);
+  const now = options?.now ?? new Date();
+
+  const media = await repo.findMediaForAccess(database, mediaId);
+  if (!media) {
+    throw new PermissionDomainError("MEDIA_NOT_FOUND");
+  }
+
+  const family = await repo.findFamilyForAccess(database, media.familyId);
+  if (!family) {
+    throw new PermissionDomainError("FAMILY_NOT_FOUND");
+  }
+
+  const userId = extractUserId(ctx);
+  const rawToken = extractRawToken(ctx);
+  const activeRole = await resolveActiveRole(database, media.familyId, userId);
+  const validShareLink = await resolveValidShareLink(
+    database,
+    media.familyId,
+    rawToken,
+    now
+  );
+
+  const mediaActive = media.status === "ACTIVE";
+
+  const decision = decideMediaAction({
+    familyVisibility: family.visibility,
+    familyDeleted: family.deletedAt != null,
+    activeRole,
+    validShareLink,
+    action,
+    mediaVisibility: media.visibility,
+    mediaActive,
+  });
+
+  return {
+    decision,
+    activeRole,
+    validShareLink,
+    mediaFamilyId: media.familyId,
+    mediaActive,
+  };
 }

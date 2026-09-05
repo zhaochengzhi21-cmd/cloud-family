@@ -8,6 +8,7 @@ import type {
 export const PERMISSION_ACTIONS = [
   "READ_FAMILY",
   "READ_PERSON",
+  "READ_MEDIA",
   "EDIT_FAMILY_IDENTITY",
   "EDIT_PERSON",
   "EDIT_RELATIONSHIP",
@@ -18,6 +19,7 @@ export const PERMISSION_ACTIONS = [
   "MANAGE_PRIVACY",
   "MANAGE_SHARE_LINKS",
   "DELETE_PERSON",
+  "DELETE_MEDIA",
   "DELETE_FAMILY",
 ] as const;
 
@@ -48,6 +50,12 @@ export type PersonPolicyInput = FamilyPolicyInput & {
   privacyLevel: PrivacyLevel;
   livingStatus: LivingStatus;
   personDeleted: boolean;
+};
+
+export type MediaPolicyInput = FamilyPolicyInput & {
+  mediaVisibility: import("@/db/constants").MediaVisibility;
+  /** Only ACTIVE media is readable */
+  mediaActive: boolean;
 };
 
 export type EffectivePersonAccess =

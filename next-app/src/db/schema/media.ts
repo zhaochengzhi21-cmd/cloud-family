@@ -54,7 +54,7 @@ export const mediaObjects = pgTable(
     ),
     statusCk: check(
       "media_objects_status_ck",
-      sql`${t.status} IN ('ACTIVE', 'DELETED')`
+      sql`${t.status} IN ('PENDING_UPLOAD', 'ACTIVE', 'FAILED', 'DELETION_PENDING', 'DELETED')`
     ),
   })
 );

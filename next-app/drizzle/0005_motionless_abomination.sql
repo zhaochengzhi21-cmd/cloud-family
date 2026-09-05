@@ -1,0 +1,2 @@
+ALTER TABLE "media_objects" DROP CONSTRAINT "media_objects_status_ck";--> statement-breakpoint
+ALTER TABLE "media_objects" ADD CONSTRAINT "media_objects_status_ck" CHECK ("media_objects"."status" IN ('PENDING_UPLOAD', 'ACTIVE', 'FAILED', 'DELETION_PENDING', 'DELETED'));

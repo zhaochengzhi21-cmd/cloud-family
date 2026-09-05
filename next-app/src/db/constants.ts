@@ -48,7 +48,13 @@ export type MediaStorageProvider = (typeof MEDIA_STORAGE_PROVIDER)[number];
 export const MEDIA_VISIBILITY = ["PRIVATE", "FAMILY", "PUBLIC"] as const;
 export type MediaVisibility = (typeof MEDIA_VISIBILITY)[number];
 
-export const MEDIA_STATUS = ["ACTIVE", "DELETED"] as const;
+export const MEDIA_STATUS = [
+  "PENDING_UPLOAD",
+  "ACTIVE",
+  "FAILED",
+  "DELETION_PENDING",
+  "DELETED",
+] as const;
 export type MediaStatus = (typeof MEDIA_STATUS)[number];
 
 export const CLAIM_SUBJECT_TYPE = ["FAMILY", "PERSON", "RELATIONSHIP"] as const;
