@@ -38,6 +38,10 @@ export const families = pgTable(
       "families_visibility_ck",
       sql`${t.visibility} IN ('PRIVATE', 'LINK', 'PUBLIC')`
     ),
+    currentVersionCk: check(
+      "families_current_version_no_ck",
+      sql`${t.currentVersionNo} >= 0`
+    ),
   })
 );
 
@@ -71,5 +75,9 @@ export const familyMemberships = pgTable(
       "family_memberships_status_ck",
       sql`${t.status} IN ('ACTIVE', 'SUSPENDED')`
     ),
+    /** At most one ACTIVE OWNER per family (at-least-one enforced by create/transfer txs). */
+    oneActiveOwnerUq: uniqueIndex("family_memberships_one_active_owner_uq")
+      .on(t.familyId)
+      .where(sql`${t.role} = 'OWNER' AND ${t.status} = 'ACTIVE'`),
   })
 );

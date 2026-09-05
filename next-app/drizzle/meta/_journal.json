@@ -8,6 +8,13 @@
       "when": 1788577986391,
       "tag": "0000_wandering_zaran",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788579099798,
+      "tag": "0001_lonely_nextwave",
+      "breakpoints": true
     }
   ]
 }

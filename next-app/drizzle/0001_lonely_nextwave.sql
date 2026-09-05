@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "family_memberships_one_active_owner_uq" ON "family_memberships" USING btree ("family_id") WHERE "family_memberships"."role" = 'OWNER' AND "family_memberships"."status" = 'ACTIVE';--> statement-breakpoint
+ALTER TABLE "families" ADD CONSTRAINT "families_current_version_no_ck" CHECK ("families"."current_version_no" >= 0);
