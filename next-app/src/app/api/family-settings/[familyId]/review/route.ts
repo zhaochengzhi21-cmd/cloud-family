@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "@/lib/jwtSecret";
 import { getFamilyMeta } from "@/lib/familyStore";
 import { getKv } from "@/lib/kvClient";
-
-/** JWT 密钥 */
-const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
 /** 家族元数据接口（从 KV 读取的结构） */
 interface FamilyMeta {
@@ -37,12 +35,15 @@ function getEmailHashFromRequest(request: NextRequest): string | null {
         ? authHeader.slice(7)
         : null;
       if (!tokenFromHeader) return null;
-      const decoded = jwt.verify(tokenFromHeader, JWT_SECRET) as { emailHash: string };
+      const decoded = jwt.verify(tokenFromHeader, getJwtSecret()) as { emailHash: string };
       return decoded.emailHash;
     }
-    const decoded = jwt.verify(token, JWT_SECRET) as { emailHash: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { emailHash: string };
     return decoded.emailHash;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      throw err;
+    }
     return null;
   }
 }
@@ -153,6 +154,13 @@ export async function PATCH(
       });
     }
   } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      console.error("family-settings review PATCH error: JWT_SECRET 未配置");
+      return NextResponse.json(
+        { success: false, error: "服务器认证配置不完整" },
+        { status: 500 }
+      );
+    }
     console.error("family-settings review PATCH error:", err);
     return NextResponse.json(
       { success: false, error: "服务器内部错误" },

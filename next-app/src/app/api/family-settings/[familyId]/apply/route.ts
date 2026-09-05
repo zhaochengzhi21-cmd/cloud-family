@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import { getJwtSecret } from "@/lib/jwtSecret";
 import { getFamilyMeta } from "@/lib/familyStore";
 import { getKv } from "@/lib/kvClient";
-
-/** JWT 密钥 */
-const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
 /** 家族元数据接口（从 KV 读取的结构） */
 interface FamilyMeta {
@@ -38,12 +36,15 @@ function getEmailHashFromRequest(request: NextRequest): string | null {
         ? authHeader.slice(7)
         : null;
       if (!tokenFromHeader) return null;
-      const decoded = jwt.verify(tokenFromHeader, JWT_SECRET) as { emailHash: string };
+      const decoded = jwt.verify(tokenFromHeader, getJwtSecret()) as { emailHash: string };
       return decoded.emailHash;
     }
-    const decoded = jwt.verify(token, JWT_SECRET) as { emailHash: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { emailHash: string };
     return decoded.emailHash;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      throw err;
+    }
     return null;
   }
 }
@@ -60,12 +61,15 @@ function getEmailFromRequest(request: NextRequest): string | null {
         ? authHeader.slice(7)
         : null;
       if (!tokenFromHeader) return null;
-      const decoded = jwt.verify(tokenFromHeader, JWT_SECRET) as { emailHash: string; email?: string };
+      const decoded = jwt.verify(tokenFromHeader, getJwtSecret()) as { emailHash: string; email?: string };
       return decoded.email || null;
     }
-    const decoded = jwt.verify(token, JWT_SECRET) as { emailHash: string; email?: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { emailHash: string; email?: string };
     return decoded.email || null;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      throw err;
+    }
     return null;
   }
 }
@@ -167,6 +171,13 @@ export async function POST(
       message: "申请已提交，等待创建者审核",
     });
   } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      console.error("family-settings apply POST error: JWT_SECRET 未配置");
+      return NextResponse.json(
+        { success: false, error: "服务器认证配置不完整" },
+        { status: 500 }
+      );
+    }
     console.error("family-settings apply POST error:", err);
     return NextResponse.json(
       { success: false, error: "服务器内部错误" },
@@ -241,6 +252,13 @@ export async function GET(
       applications,
     });
   } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      console.error("family-settings apply GET error: JWT_SECRET 未配置");
+      return NextResponse.json(
+        { success: false, error: "服务器认证配置不完整" },
+        { status: 500 }
+      );
+    }
     console.error("family-settings apply GET error:", err);
     return NextResponse.json(
       { success: false, error: "服务器内部错误" },

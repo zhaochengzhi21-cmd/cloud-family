@@ -6,10 +6,7 @@ import { Wallet } from "@ethersproject/wallet";
 import { uploadFilesToIPFS, uploadJSONToIPFS } from "@/lib/uploadToIPFS";
 import type { FamilyTree } from "@/types/family";
 import jwt from "jsonwebtoken";
-
-/** JWT 密钥 */
-const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
-
+import { getJwtSecret } from "@/lib/jwtSecret";
 import { writeFamilyBinding, writeCreatorMeta, updateFamilyMetaMemberCount } from "@/lib/familyStore";
 
 /**
@@ -19,9 +16,12 @@ function getEmailHashFromRequest(request: NextRequest): string | null {
   try {
     const token = request.cookies.get("token")?.value;
     if (!token) return null;
-    const decoded = jwt.verify(token, JWT_SECRET) as { emailHash: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { emailHash: string };
     return decoded.emailHash;
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      throw err;
+    }
     return null;
   }
 }
@@ -430,6 +430,13 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     console.error("save-family API error:", error);
+
+    if (error instanceof Error && error.message.includes("JWT_SECRET 未配置")) {
+      return NextResponse.json(
+        { success: false, error: "服务器认证配置不完整" },
+        { status: 500 }
+      );
+    }
 
     // 模拟执行失败（revert）→ 返回 400 + 错误信息
     if (error instanceof SimulationError) {

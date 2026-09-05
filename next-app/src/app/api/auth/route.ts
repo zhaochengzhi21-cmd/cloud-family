@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCode } from "@/lib/verifyCode";
 import { findUser, createUser, updateLoginTime } from "@/lib/userStore";
+import { getJwtSecret } from "@/lib/jwtSecret";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-
-/** JWT 密钥（如未配置则使用默认值，生产环境请务必修改） */
-const JWT_SECRET = process.env.JWT_SECRET || "yunzupu-jwt-secret-default-key";
 
 /** Token 有效期 */
 const TOKEN_EXPIRY = "30d";
@@ -87,13 +85,13 @@ export async function POST(request: NextRequest) {
       await updateLoginTime(emailHash);
     }
 
-    // 生成 JWT
+    // 生成 JWT（缺少 JWT_SECRET 时明确失败，不使用默认密钥）
     const token = jwt.sign(
       {
         emailHash,
         iat: Math.floor(Date.now() / 1000),
       },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: TOKEN_EXPIRY }
     );
 
@@ -118,6 +116,13 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (err) {
+    if (err instanceof Error && err.message.includes("JWT_SECRET 未配置")) {
+      console.error("认证 API 错误: JWT_SECRET 未配置");
+      return NextResponse.json(
+        { success: false, error: "服务器认证配置不完整" },
+        { status: 500 }
+      );
+    }
     console.error("认证 API 错误:", err);
     return NextResponse.json(
       { success: false, error: "服务器内部错误" },
