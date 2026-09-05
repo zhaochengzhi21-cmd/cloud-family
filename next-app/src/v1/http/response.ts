@@ -102,6 +102,63 @@ export function graphDto(g: FamilyGraphDto) {
   return g;
 }
 
+export function mediaPendingDto(m: {
+  mediaId: string;
+  status: "PENDING_UPLOAD";
+  mimeType: string;
+  byteSize: number;
+  visibility: string;
+}) {
+  return {
+    id: m.mediaId,
+    status: m.status,
+    mimeType: m.mimeType,
+    byteSize: m.byteSize,
+    visibility: m.visibility,
+  };
+}
+
+export function mediaStatusDto(s: {
+  mediaId: string;
+  status: string;
+  mimeType?: string | null;
+  byteSize?: number | null;
+  visibility?: string;
+}) {
+  const out: Record<string, unknown> = {
+    mediaId: s.mediaId,
+    status: s.status,
+  };
+  if (s.status === "ACTIVE") {
+    out.mimeType = s.mimeType ?? null;
+    out.byteSize = s.byteSize ?? null;
+    out.visibility = s.visibility;
+  }
+  return out;
+}
+
+export function mediaReadDto(r: {
+  mediaId: string;
+  mimeType: string | null;
+  byteSize: number | null;
+  visibility: string;
+  signedUrl: string;
+  expiresAt: Date;
+}) {
+  return {
+    media: {
+      id: r.mediaId,
+      mimeType: r.mimeType,
+      byteSize: r.byteSize,
+      visibility: r.visibility,
+    },
+    read: {
+      url: r.signedUrl,
+      expiresAt: r.expiresAt.toISOString(),
+    },
+  };
+}
+
 export function okJson(body: unknown, status = 200): NextResponse {
   return NextResponse.json(body, {
     status,

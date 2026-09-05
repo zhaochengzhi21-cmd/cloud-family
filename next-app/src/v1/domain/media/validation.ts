@@ -5,7 +5,9 @@ import {
 import { MediaDomainError } from "./errors";
 import {
   ALLOWED_MEDIA_MIME_TYPES,
+  DANGEROUS_MEDIA_MIME_TYPES,
   MEDIA_MAX_BYTES,
+  type ReserveMediaUploadInput,
   type UploadMediaInput,
 } from "./types";
 
@@ -50,6 +52,41 @@ export function validateOriginalFilename(
   return name;
 }
 
+export function assertAllowedMimeType(mimeType: string): void {
+  if (
+    (DANGEROUS_MEDIA_MIME_TYPES as readonly string[]).includes(mimeType)
+  ) {
+    throw new MediaDomainError("INVALID_INPUT", "mimeType not allowed");
+  }
+  if (!(ALLOWED_MEDIA_MIME_TYPES as readonly string[]).includes(mimeType)) {
+    throw new MediaDomainError("INVALID_INPUT", "mimeType not allowed");
+  }
+}
+
+export function assertByteSizeForMime(mimeType: string, byteSize: number): void {
+  if (
+    typeof byteSize !== "number" ||
+    !Number.isInteger(byteSize) ||
+    byteSize <= 0
+  ) {
+    throw new MediaDomainError("INVALID_INPUT", "byteSize must be positive int");
+  }
+  const max = MEDIA_MAX_BYTES[mimeType] ?? 0;
+  if (byteSize > max) {
+    throw new MediaDomainError("INVALID_INPUT", "byteSize exceeds size limit");
+  }
+}
+
+function resolveVisibility(
+  visibility: MediaVisibility | undefined
+): MediaVisibility {
+  if (visibility === undefined) return "FAMILY";
+  if (!(MEDIA_VISIBILITY as readonly string[]).includes(visibility)) {
+    throw new MediaDomainError("INVALID_INPUT", "invalid visibility");
+  }
+  return visibility;
+}
+
 export type ValidatedUpload = {
   familyId: string;
   body: Buffer;
@@ -65,27 +102,36 @@ export function validateUploadMediaInput(
   if (!Buffer.isBuffer(input.body) || input.body.length === 0) {
     throw new MediaDomainError("INVALID_INPUT", "body required");
   }
-  if (
-    !(ALLOWED_MEDIA_MIME_TYPES as readonly string[]).includes(input.mimeType)
-  ) {
-    throw new MediaDomainError("INVALID_INPUT", "mimeType not allowed");
-  }
-  const max = MEDIA_MAX_BYTES[input.mimeType] ?? 0;
-  if (input.body.length > max) {
-    throw new MediaDomainError("INVALID_INPUT", "body exceeds size limit");
-  }
-  let visibility: MediaVisibility = "FAMILY";
-  if (input.visibility !== undefined) {
-    if (!(MEDIA_VISIBILITY as readonly string[]).includes(input.visibility)) {
-      throw new MediaDomainError("INVALID_INPUT", "invalid visibility");
-    }
-    visibility = input.visibility;
-  }
+  assertAllowedMimeType(input.mimeType);
+  assertByteSizeForMime(input.mimeType, input.body.length);
   return {
     familyId: input.familyId,
     body: input.body,
     mimeType: input.mimeType,
     originalFilename: validateOriginalFilename(input.originalFilename),
-    visibility,
+    visibility: resolveVisibility(input.visibility),
+  };
+}
+
+export type ValidatedReserve = {
+  familyId: string;
+  mimeType: string;
+  byteSize: number;
+  originalFilename: string | null;
+  visibility: MediaVisibility;
+};
+
+export function validateReserveMediaUploadInput(
+  input: ReserveMediaUploadInput
+): ValidatedReserve {
+  assertUuid(input.familyId, "familyId");
+  assertAllowedMimeType(input.mimeType);
+  assertByteSizeForMime(input.mimeType, input.byteSize);
+  return {
+    familyId: input.familyId,
+    mimeType: input.mimeType,
+    byteSize: input.byteSize,
+    originalFilename: validateOriginalFilename(input.originalFilename),
+    visibility: resolveVisibility(input.visibility),
   };
 }

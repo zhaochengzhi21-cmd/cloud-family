@@ -21,6 +21,7 @@
     "db:evidence-smoke": "tsx scripts/v1-evidence-smoke.ts",
     "db:auth-http-smoke": "tsx scripts/v1-auth-http-smoke.ts",
     "db:workspace-http-smoke": "tsx scripts/v1-workspace-http-smoke.ts",
+    "db:media-direct-upload-smoke": "tsx scripts/v1-media-direct-upload-smoke.ts",
     "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts"
   },
   "dependencies": {
