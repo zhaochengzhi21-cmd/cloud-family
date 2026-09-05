@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 import "./globals.css";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import LoginModal from "@/components/LoginModal";
 
-/**
- * 顶部导航栏（含登录按钮）
- */
 function Header() {
   const { isLoggedIn, maskedEmail, logout } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
@@ -16,7 +14,6 @@ function Header() {
     <>
       <header className="relative z-20 bg-white/90 backdrop-blur-sm border-b border-[#d4a76a]/20">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          {/* 左侧 Logo / 首页链接 */}
           <a
             href="/"
             className="text-lg font-black text-[#8b0000] tracking-wider hover:text-[#a52a2a] transition-colors"
@@ -24,7 +21,6 @@ function Header() {
             云族谱
           </a>
 
-          {/* 右侧：用户状态 */}
           <div className="flex items-center gap-4">
             {isLoggedIn ? (
               <>
@@ -63,6 +59,20 @@ function Header() {
   );
 }
 
+function LegacyShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || "";
+  const isAlpha = pathname.startsWith("/alpha");
+  if (isAlpha) {
+    return <>{children}</>;
+  }
+  return (
+    <AuthProvider>
+      <Header />
+      {children}
+    </AuthProvider>
+  );
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -71,10 +81,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="antialiased">
-        <AuthProvider>
-          <Header />
-          {children}
-        </AuthProvider>
+        <LegacyShell>{children}</LegacyShell>
       </body>
     </html>
   );

@@ -26,12 +26,25 @@ import {
   noStoreHeaders,
 } from "@/v1/http/auth/config";
 import {
+  isV1AlphaAppEnabled,
+  isV1AlphaUiEnabled,
+} from "@/v1/http/featureGate";
+import {
   buildClearSessionCookieHeader,
   buildSessionCookieHeader,
   readSessionTokenFromCookieHeader,
 } from "@/v1/http/auth/cookies";
 import { createResendOtpDeliveryAdapter } from "@/v1/email/resendOtpDeliveryAdapter";
 import { isResendConfigured } from "@/v1/email/config";
+
+/** Session resolve/logout for Alpha Workspace when APP/UI is on (OTP still AUTH-gated). */
+function isV1SessionHttpEnabled(): boolean {
+  return (
+    isV1AlphaAuthEnabled() ||
+    isV1AlphaAppEnabled() ||
+    isV1AlphaUiEnabled()
+  );
+}
 
 export type AuthHttpRequest = {
   method: string;
@@ -284,7 +297,7 @@ export async function handleMe(
   req: AuthHttpRequest,
   deps: AuthHttpDeps
 ): Promise<AuthHttpResponse> {
-  if (!isV1AlphaAuthEnabled()) return featureDisabled();
+  if (!isV1SessionHttpEnabled()) return featureDisabled();
 
   const raw = readSessionTokenFromCookieHeader(req.headers.get("cookie"));
   if (!raw) {
@@ -308,7 +321,7 @@ export async function handleLogout(
   req: AuthHttpRequest,
   deps: AuthHttpDeps
 ): Promise<AuthHttpResponse> {
-  if (!isV1AlphaAuthEnabled()) return featureDisabled();
+  if (!isV1SessionHttpEnabled()) return featureDisabled();
   const originBlock = requireMutationOrigin(req);
   if (originBlock) return originBlock;
 
