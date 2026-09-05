@@ -43,6 +43,13 @@
       "when": 1788584341147,
       "tag": "0005_motionless_abomination",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788590438293,
+      "tag": "0006_claim_evidence_engine",
+      "breakpoints": true
     }
   ]
 }

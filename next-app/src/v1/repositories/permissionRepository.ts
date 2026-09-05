@@ -6,8 +6,10 @@ import {
   familyShareLinks,
   persons,
   mediaObjects,
+  evidence,
 } from "@/db/schema";
 import type {
+  EvidenceVisibility,
   FamilyVisibility,
   LivingStatus,
   MediaStatus,
@@ -53,6 +55,14 @@ export type MediaAccessRow = {
   visibility: MediaVisibility;
   status: MediaStatus;
   storageKey: string;
+  deletedAt: Date | null;
+};
+
+export type EvidenceAccessRow = {
+  id: string;
+  familyId: string;
+  visibility: EvidenceVisibility;
+  mediaObjectId: string | null;
   deletedAt: Date | null;
 };
 
@@ -157,6 +167,31 @@ export async function findMediaForAccess(
     visibility: row.visibility as MediaVisibility,
     status: row.status as MediaStatus,
     storageKey: row.storageKey,
+    deletedAt: row.deletedAt,
+  };
+}
+
+export async function findEvidenceForAccess(
+  db: DbOrTx,
+  evidenceId: string
+): Promise<EvidenceAccessRow | null> {
+  const [row] = await db
+    .select({
+      id: evidence.id,
+      familyId: evidence.familyId,
+      visibility: evidence.visibility,
+      mediaObjectId: evidence.mediaObjectId,
+      deletedAt: evidence.deletedAt,
+    })
+    .from(evidence)
+    .where(eq(evidence.id, evidenceId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    id: row.id,
+    familyId: row.familyId,
+    visibility: row.visibility as EvidenceVisibility,
+    mediaObjectId: row.mediaObjectId,
     deletedAt: row.deletedAt,
   };
 }

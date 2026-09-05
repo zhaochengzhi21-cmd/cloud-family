@@ -8,6 +8,7 @@ import { getV1Db, type V1Db } from "@/db/client";
 import type { MembershipRole } from "@/db/constants";
 import { PermissionDomainError } from "@/v1/domain/permission/errors";
 import {
+  decideEvidenceAction,
   decideFamilyAction,
   decideMediaAction,
   decidePersonAction,
@@ -270,5 +271,66 @@ export async function authorizeMediaAction(
     validShareLink,
     mediaFamilyId: media.familyId,
     mediaActive,
+  };
+}
+
+export type AuthorizeEvidenceResult = AuthorizeFamilyResult & {
+  evidenceFamilyId: string;
+  evidenceActive: boolean;
+  mediaObjectId: string | null;
+};
+
+/**
+ * Authorize READ_EVIDENCE / DELETE_EVIDENCE using evidence visibility + family ceiling.
+ * Orphan / subject / media ceilings for PUBLIC external reads are applied in EvidenceService.
+ */
+export async function authorizeEvidenceAction(
+  evidenceId: string,
+  ctx: AccessContext,
+  action: "READ_EVIDENCE" | "DELETE_EVIDENCE",
+  options?: { db?: DbOrTx; now?: Date }
+): Promise<AuthorizeEvidenceResult> {
+  const database = dbOrDefault(options?.db);
+  const now = options?.now ?? new Date();
+
+  const row = await repo.findEvidenceForAccess(database, evidenceId);
+  if (!row) {
+    throw new PermissionDomainError("EVIDENCE_NOT_FOUND");
+  }
+
+  const family = await repo.findFamilyForAccess(database, row.familyId);
+  if (!family) {
+    throw new PermissionDomainError("FAMILY_NOT_FOUND");
+  }
+
+  const userId = extractUserId(ctx);
+  const rawToken = extractRawToken(ctx);
+  const activeRole = await resolveActiveRole(database, row.familyId, userId);
+  const validShareLink = await resolveValidShareLink(
+    database,
+    row.familyId,
+    rawToken,
+    now
+  );
+
+  const evidenceActive = row.deletedAt == null;
+
+  const decision = decideEvidenceAction({
+    familyVisibility: family.visibility,
+    familyDeleted: family.deletedAt != null,
+    activeRole,
+    validShareLink,
+    action,
+    evidenceVisibility: row.visibility,
+    evidenceActive,
+  });
+
+  return {
+    decision,
+    activeRole,
+    validShareLink,
+    evidenceFamilyId: row.familyId,
+    evidenceActive,
+    mediaObjectId: row.mediaObjectId,
   };
 }

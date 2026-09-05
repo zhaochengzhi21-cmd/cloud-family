@@ -9,17 +9,20 @@ export const PERMISSION_ACTIONS = [
   "READ_FAMILY",
   "READ_PERSON",
   "READ_MEDIA",
+  "READ_EVIDENCE",
   "EDIT_FAMILY_IDENTITY",
   "EDIT_PERSON",
   "EDIT_RELATIONSHIP",
   "EDIT_CLAIM",
   "EDIT_EVIDENCE",
+  "REVIEW_CLAIM",
   "UPLOAD_MEDIA",
   "MANAGE_MEMBERS",
   "MANAGE_PRIVACY",
   "MANAGE_SHARE_LINKS",
   "DELETE_PERSON",
   "DELETE_MEDIA",
+  "DELETE_EVIDENCE",
   "DELETE_FAMILY",
 ] as const;
 
@@ -56,6 +59,12 @@ export type MediaPolicyInput = FamilyPolicyInput & {
   mediaVisibility: import("@/db/constants").MediaVisibility;
   /** Only ACTIVE media is readable */
   mediaActive: boolean;
+};
+
+export type EvidencePolicyInput = FamilyPolicyInput & {
+  evidenceVisibility: import("@/db/constants").EvidenceVisibility;
+  /** Soft-deleted evidence is never readable */
+  evidenceActive: boolean;
 };
 
 export type EffectivePersonAccess =

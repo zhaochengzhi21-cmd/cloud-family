@@ -17,7 +17,8 @@
     "db:permission-smoke": "tsx scripts/v1-permission-smoke.ts",
     "db:person-smoke": "tsx scripts/v1-person-graph-smoke.ts",
     "db:media-smoke": "tsx scripts/v1-media-smoke.ts",
-    "db:media-blob-live-smoke": "tsx scripts/v1-media-blob-live-smoke.ts"
+    "db:media-blob-live-smoke": "tsx scripts/v1-media-blob-live-smoke.ts",
+    "db:evidence-smoke": "tsx scripts/v1-evidence-smoke.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

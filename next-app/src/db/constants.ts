@@ -85,6 +85,15 @@ export const CLAIM_STATUS = [
 ] as const;
 export type ClaimStatus = (typeof CLAIM_STATUS)[number];
 
+/** How a Claim entered the system — not Evidence. */
+export const CLAIM_ORIGIN_TYPE = [
+  "MANUAL",
+  "AI_EXTRACTION",
+  "IMPORT",
+  "MIGRATION",
+] as const;
+export type ClaimOriginType = (typeof CLAIM_ORIGIN_TYPE)[number];
+
 export const EVIDENCE_TYPE = [
   "GENEALOGY_PAGE",
   "PHOTO",
@@ -96,6 +105,9 @@ export const EVIDENCE_TYPE = [
   "OTHER",
 ] as const;
 export type EvidenceType = (typeof EVIDENCE_TYPE)[number];
+
+export const EVIDENCE_VISIBILITY = ["PRIVATE", "FAMILY", "PUBLIC"] as const;
+export type EvidenceVisibility = (typeof EVIDENCE_VISIBILITY)[number];
 
 export const CLAIM_EVIDENCE_RELATION = [
   "SUPPORTS",

@@ -15,6 +15,7 @@ import { claims } from "./claims";
 
 /**
  * Evidence sources. description may hold private info — do not full-text index.
+ * Default visibility FAMILY — Family PUBLIC does not auto-expose Evidence.
  */
 export const evidence = pgTable(
   "evidence",
@@ -31,6 +32,7 @@ export const evidence = pgTable(
     }),
     sourceLocator: text("source_locator"),
     sourceDateText: text("source_date_text"),
+    visibility: text("visibility").notNull().default("FAMILY"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -45,6 +47,10 @@ export const evidence = pgTable(
       "evidence_type_ck",
       sql`${t.evidenceType} IN ('GENEALOGY_PAGE', 'PHOTO', 'TOMBSTONE', 'ORAL_HISTORY', 'DOCUMENT', 'ARCHIVE', 'USER_TESTIMONY', 'OTHER')`
     ),
+    visibilityCk: check(
+      "evidence_visibility_ck",
+      sql`${t.visibility} IN ('PRIVATE', 'FAMILY', 'PUBLIC')`
+    ),
   })
 );
 
@@ -58,6 +64,9 @@ export const claimEvidence = pgTable(
       .notNull()
       .references(() => evidence.id, { onDelete: "restrict" }),
     relation: text("relation").notNull().default("SUPPORTS"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   },
   (t) => ({

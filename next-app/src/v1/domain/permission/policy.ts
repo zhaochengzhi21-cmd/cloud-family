@@ -10,6 +10,7 @@ import type {
 } from "@/db/constants";
 import type {
   Decision,
+  EvidencePolicyInput,
   FamilyPolicyInput,
   MediaPolicyInput,
   PermissionAction,
@@ -38,13 +39,15 @@ function roleAllowsAction(
         action === "READ_FAMILY" ||
         action === "READ_PERSON" ||
         action === "READ_MEDIA" ||
+        action === "READ_EVIDENCE" ||
         CONTENT_EDIT_ACTIONS.includes(action)
       );
     case "VIEWER":
       return (
         action === "READ_FAMILY" ||
         action === "READ_PERSON" ||
-        action === "READ_MEDIA"
+        action === "READ_MEDIA" ||
+        action === "READ_EVIDENCE"
       );
     default:
       return false;
@@ -87,8 +90,15 @@ export function decideFamilyAction(input: FamilyPolicyInput): Decision {
   // Mutations require ACTIVE membership role from DB
   if (!input.activeRole) return "DENY";
 
-  // DELETE_MEDIA: OWNER / ADMIN only (explicit — EDITOR DENY)
-  if (input.action === "DELETE_MEDIA") {
+  // DELETE_MEDIA / DELETE_EVIDENCE: OWNER / ADMIN only
+  if (input.action === "DELETE_MEDIA" || input.action === "DELETE_EVIDENCE") {
+    return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
+      ? "ALLOW"
+      : "DENY";
+  }
+
+  // REVIEW_CLAIM: OWNER / ADMIN only (EDITOR DENY)
+  if (input.action === "REVIEW_CLAIM") {
     return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
       ? "ALLOW"
       : "DENY";
@@ -134,6 +144,49 @@ export function decideMediaAction(input: MediaPolicyInput): Decision {
   }
   if (input.action === "DELETE_MEDIA") {
     if (input.familyDeleted) return "DENY";
+    if (!input.activeRole) return "DENY";
+    return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
+      ? "ALLOW"
+      : "DENY";
+  }
+  return "DENY";
+}
+
+/**
+ * Evidence base visibility (orphan / subject / media ceilings applied in service).
+ */
+export function decideEvidenceRead(input: EvidencePolicyInput): Decision {
+  if (input.familyDeleted || !input.evidenceActive) return "DENY";
+
+  const vis = input.evidenceVisibility;
+
+  if (vis === "PRIVATE") {
+    return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
+      ? "ALLOW"
+      : "DENY";
+  }
+
+  if (vis === "FAMILY") {
+    return input.activeRole ? "ALLOW" : "DENY";
+  }
+
+  // Evidence PUBLIC — Family visibility ceiling (extra subject/media rules in service)
+  if (input.familyVisibility === "PRIVATE") {
+    return input.activeRole ? "ALLOW" : "DENY";
+  }
+  if (input.familyVisibility === "LINK") {
+    if (input.activeRole) return "ALLOW";
+    return input.validShareLink ? "ALLOW" : "DENY";
+  }
+  return "ALLOW";
+}
+
+export function decideEvidenceAction(input: EvidencePolicyInput): Decision {
+  if (input.action === "READ_EVIDENCE") {
+    return decideEvidenceRead(input);
+  }
+  if (input.action === "DELETE_EVIDENCE") {
+    if (input.familyDeleted || !input.evidenceActive) return "DENY";
     if (!input.activeRole) return "DENY";
     return input.activeRole === "OWNER" || input.activeRole === "ADMIN"
       ? "ALLOW"
