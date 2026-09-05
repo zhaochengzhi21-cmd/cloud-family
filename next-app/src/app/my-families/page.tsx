@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
 import LoginModal from "@/components/LoginModal";
+import { isLegacyWriteFrozen } from "@/lib/legacyWriteGate";
+import LegacyUpgradeNotice from "@/components/LegacyUpgradeNotice";
 
 /**
  * 家族条目接口
@@ -63,9 +65,11 @@ export default function MyFamiliesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const frozen = isLegacyWriteFrozen();
+
   // ---------- 获取家族列表 ----------
   const fetchFamilies = useCallback(async () => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || frozen) {
       setLoading(false);
       return;
     }
@@ -88,7 +92,7 @@ export default function MyFamiliesPage() {
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, frozen]);
 
   useEffect(() => {
     fetchFamilies();
@@ -108,6 +112,29 @@ export default function MyFamiliesPage() {
   }, [router]);
 
   // ========== 渲染 ==========
+
+  if (frozen) {
+    return (
+      <div className="relative min-h-screen bg-[#f5f0e8]">
+        <div className="h-1 bg-gradient-to-r from-[#8b0000] via-[#ffd700] to-[#8b0000]" />
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-56px)] px-4 py-16">
+          <div className="w-full max-w-md bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-[#d4a76a]/30 p-10 text-center">
+            <h1 className="text-3xl font-black text-[#8b0000] tracking-wider mb-6">
+              我的家族
+            </h1>
+            <LegacyUpgradeNotice />
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="mt-8 px-6 py-2.5 rounded-xl bg-[#8b0000] text-white font-bold text-sm hover:bg-[#a52a2a] transition-colors"
+            >
+              返回首页
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---- 未登录状态 ----
   if (!isLoggedIn) {

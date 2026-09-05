@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyCode } from "@/lib/verifyCode";
 import { findUser, createUser, updateLoginTime } from "@/lib/userStore";
 import { getJwtSecret } from "@/lib/jwtSecret";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
@@ -24,6 +25,9 @@ function hashEmail(email: string): string {
  * Body: { email: string, code: string, action: "register" | "login" }
  */
 export async function POST(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { email, code, action } = await request.json();
 

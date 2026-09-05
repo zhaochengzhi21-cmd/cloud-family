@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { isLegacyWriteFrozen } from "@/lib/legacyWriteGate";
+import LegacyUpgradeNotice from "@/components/LegacyUpgradeNotice";
 
 interface LoginModalProps {
   open: boolean;
@@ -155,19 +157,25 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
           <h2 className="text-2xl font-black text-[#8b0000] tracking-wider">
             云族谱 · 登录
           </h2>
-          <p className="text-sm text-[#c4a67a] mt-2 tracking-wider">
-            {step === "email"
-              ? "输入邮箱地址，接收验证码"
-              : "请输入邮件中的6位验证码"}
-          </p>
+          {!isLegacyWriteFrozen() && (
+            <p className="text-sm text-[#c4a67a] mt-2 tracking-wider">
+              {step === "email"
+                ? "输入邮箱地址，接收验证码"
+                : "请输入邮件中的6位验证码"}
+            </p>
+          )}
           {/* 首次使用提示 */}
-          {step === "email" && (
+          {!isLegacyWriteFrozen() && step === "email" && (
             <p className="text-xs text-[#8b0000]/70 mt-3 bg-[#8b0000]/5 rounded-lg px-3 py-2 border border-[#8b0000]/10">
               📝 首次使用将自动注册，无需额外操作
             </p>
           )}
         </div>
 
+        {isLegacyWriteFrozen() ? (
+          <LegacyUpgradeNotice className="mb-2" />
+        ) : (
+        <>
         {/* 错误提示 */}
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm text-center">
@@ -274,6 +282,8 @@ export default function LoginModal({ open, onClose, onSuccess }: LoginModalProps
               </button>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

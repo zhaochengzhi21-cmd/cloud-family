@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getNewMatchResults, dismissMatchResult, getFamilyConnections } from "@/lib/matchingStore";
 import { getFamilyMeta } from "@/lib/familyStore";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * GET /api/family-matching/[familyId]/notifications
@@ -18,6 +19,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
 
@@ -74,6 +78,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
     const { matchFamilyId } = await request.json();

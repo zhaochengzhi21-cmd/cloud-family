@@ -13,6 +13,7 @@ import {
   disconnectConnection,
   getConnection,
 } from "@/lib/matchingStore";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * 从请求获取 emailHash
@@ -42,6 +43,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
     const { targetFamilyId, content } = await request.json();
@@ -120,6 +124,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
     const targetFamilyId = request.nextUrl.searchParams.get("targetFamilyId");
@@ -182,6 +189,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
     const { targetFamilyId } = await request.json();

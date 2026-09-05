@@ -17,6 +17,7 @@ import { defaultAbiCoder } from "@ethersproject/abi";
 import { getFamilyMeta, getAllFamilyMeta } from "@/lib/familyStore";
 import { fetchJsonFromIpfs } from "@/lib/ipfsGateway";
 import { recordNewMatchResult } from "@/lib/matchingStore";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 // ==================== 合约配置 ====================
 
@@ -230,6 +231,9 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
 

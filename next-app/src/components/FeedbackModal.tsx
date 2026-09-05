@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { isLegacyWriteFrozen } from "@/lib/legacyWriteGate";
+import LegacyUpgradeNotice from "@/components/LegacyUpgradeNotice";
 
 interface FeedbackModalProps {
   open: boolean;
@@ -93,12 +95,16 @@ export default function FeedbackModal({ open, onClose }: FeedbackModalProps) {
           <h2 className="text-2xl font-black text-[#8b0000] tracking-wider">
             💬 意见反馈
           </h2>
-          <p className="text-sm text-[#c4a67a] mt-2 tracking-wider">
-            您的建议是我们前进的动力
-          </p>
+          {!isLegacyWriteFrozen() && (
+            <p className="text-sm text-[#c4a67a] mt-2 tracking-wider">
+              您的建议是我们前进的动力
+            </p>
+          )}
         </div>
 
-        {success ? (
+        {isLegacyWriteFrozen() ? (
+          <LegacyUpgradeNotice />
+        ) : success ? (
           // 提交成功
           <div className="text-center py-8">
             <div className="text-6xl mb-4">🙏</div>

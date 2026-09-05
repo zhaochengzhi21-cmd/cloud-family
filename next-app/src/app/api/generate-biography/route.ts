@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 export async function POST(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { name, birth, death, relatives } = await request.json();
 

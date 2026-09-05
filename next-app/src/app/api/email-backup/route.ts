@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * 邮箱备份 API
@@ -12,6 +13,9 @@ import { Resend } from "resend";
  */
 
 export async function POST(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { email, familyName, url } = await request.json();
 

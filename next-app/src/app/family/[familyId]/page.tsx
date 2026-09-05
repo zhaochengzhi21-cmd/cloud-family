@@ -312,9 +312,15 @@ export default function FamilyPage() {
     }
   }, [familyId, isLoggedIn]);
 
-  // 获取编辑权限
+  // 获取编辑权限（Production 冻结时不请求管理接口）
   useEffect(() => {
     if (!familyId) return;
+    if (isLegacyWriteFrozen()) {
+      setCanEdit(false);
+      setIsCreator(false);
+      setSettingsLoaded(true);
+      return;
+    }
     const fetchSettings = async () => {
       try {
         const res = await fetch(`/api/family-settings/${familyId}`);
@@ -964,13 +970,15 @@ export default function FamilyPage() {
 
       {/* 主内容 */}
       <div className="max-w-5xl mx-auto px-4 py-6 md:py-8">
-        {/* ====== 匹配通知提示条（所有已登录用户可见） ====== */}
-        <MatchNotificationBar
-          familyId={familyId}
-          onScrollToMatching={() => {
-            matchingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-          }}
-        />
+        {/* ====== 匹配通知提示条（Production 冻结时隐藏） ====== */}
+        {!isLegacyWriteFrozen() && (
+          <MatchNotificationBar
+            familyId={familyId}
+            onScrollToMatching={() => {
+              matchingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }}
+          />
+        )}
 
         {/* ====== Hero 区域 ====== */}
         {isStructuredTree ? (
@@ -1073,8 +1081,8 @@ export default function FamilyPage() {
                   <span>邮箱备份</span>
                 </button>
 
-                {/* 申请编辑权限按钮（仅阅读者可见） */}
-                {settingsLoaded && !canEdit && !isCreator && (
+                {/* 申请编辑权限按钮（仅阅读者可见；Production 冻结） */}
+                {settingsLoaded && !canEdit && !isCreator && !isLegacyWriteFrozen() && (
                   applyStatus === "pending" ? (
                     <button
                       disabled
@@ -1205,6 +1213,7 @@ export default function FamilyPage() {
         </section>
 
         {/* ====== 邮箱备份 ====== */}
+        {!isLegacyWriteFrozen() && (
         <section id="email-backup-section" className="mb-8">
           <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
             <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
@@ -1244,9 +1253,10 @@ export default function FamilyPage() {
             )}
           </div>
         </section>
+        )}
 
         {/* ====== 待审核申请（创作者可见） ====== */}
-        {isCreator && (
+        {isCreator && !isLegacyWriteFrozen() && (
           <section className="mb-8">
             <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
               <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
@@ -1307,7 +1317,7 @@ export default function FamilyPage() {
         )}
 
         {/* ====== 邀请编辑者（创作者可见） ====== */}
-        {isCreator && (
+        {isCreator && !isLegacyWriteFrozen() && (
           <section className="mb-8">
             <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
               <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
@@ -1372,7 +1382,7 @@ export default function FamilyPage() {
         )}
 
         {/* ====== 家族关联匹配（创建者可见） ====== */}
-        {isCreator && (
+        {isCreator && !isLegacyWriteFrozen() && (
           <section className="mb-8" ref={matchingSectionRef}>
             <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
               <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">
@@ -1618,7 +1628,7 @@ export default function FamilyPage() {
         )}
 
         {/* ====== 转让创建者（创作者可见） ====== */}
-        {isCreator && (
+        {isCreator && !isLegacyWriteFrozen() && (
           <section className="mb-8">
             <div className="bg-white/90 rounded-2xl shadow-lg border border-[#d4a76a]/20 p-6">
               <h3 className="text-lg font-bold text-[#8b0000] mb-3 tracking-wider">

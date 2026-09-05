@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 // 意见反馈存储（内存存储，生产环境应使用数据库）
 interface FeedbackItem {
@@ -12,6 +13,9 @@ interface FeedbackItem {
 const feedbacks: FeedbackItem[] = [];
 
 export async function POST(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const body = await request.json();
     const { content, contact } = body;

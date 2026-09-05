@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { getJwtSecret } from "@/lib/jwtSecret";
 import { getUserFamilies, getUserEditedFamilies } from "@/lib/familyStore";
 import type { FamilyBinding, FamilyMeta } from "@/lib/familyStore";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /** 5 分钟缓存：key → { data, expiry } */
 const cache = new Map<string, { data: unknown; expiry: number }>();
@@ -42,6 +43,9 @@ function getEmailHashFromRequest(request: NextRequest): string | null {
  * 需要 JWT cookie 或 Authorization header 认证
  */
 export async function GET(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const emailHash = getEmailHashFromRequest(request);
 

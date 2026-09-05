@@ -15,6 +15,7 @@ import {
   establishConnection,
   getConnection,
 } from "@/lib/matchingStore";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * POST /api/family-matching/[familyId]/interest
@@ -28,6 +29,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
     const { targetFamilyId, action, targetFamilyName } = await request.json();
@@ -151,6 +155,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
     const targetFamilyId = request.nextUrl.searchParams.get("targetFamilyId");

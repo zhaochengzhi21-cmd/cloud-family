@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { storeCode } from "@/lib/verifyCode";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * 邮箱验证码发送 API
@@ -10,6 +11,9 @@ import { storeCode } from "@/lib/verifyCode";
  * Body: { email: string }
  */
 export async function POST(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { email } = await request.json();
 

@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import { getJwtSecret } from "@/lib/jwtSecret";
 import { getFamilyMeta } from "@/lib/familyStore";
 import { getKv } from "@/lib/kvClient";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /** 家族元数据接口（从 KV 读取的结构） */
 interface FamilyMeta {
@@ -60,6 +61,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { familyId: string } }
 ) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { familyId } = params;
 
