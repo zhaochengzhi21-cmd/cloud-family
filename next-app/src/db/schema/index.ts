@@ -8,3 +8,5 @@ export { evidence, claimEvidence } from "./evidence";
 export { familyVersions } from "./versions";
 export { auditEvents } from "./audit";
 export { legacyFamilyMaps } from "./legacy";
+export { authChallenges } from "./auth";
+export { sessions } from "./sessions";

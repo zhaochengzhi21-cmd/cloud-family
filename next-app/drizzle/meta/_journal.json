@@ -15,6 +15,13 @@
       "when": 1788579099798,
       "tag": "0001_lonely_nextwave",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788579876963,
+      "tag": "0002_omniscient_sersi",
+      "breakpoints": true
     }
   ]
 }

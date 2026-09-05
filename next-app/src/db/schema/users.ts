@@ -8,7 +8,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-/** bytea — encrypted email blob; encryption lands in V1 Auth task. */
+/** bytea — AES-256-GCM email ciphertext envelope. */
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType() {
     return "bytea";
@@ -17,7 +17,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 
 /**
  * Product account (not a genealogy Person).
- * No plaintext email. No password (passwordless planned).
+ * No plaintext email. No password (passwordless).
  */
 export const users = pgTable(
   "users",
@@ -26,6 +26,7 @@ export const users = pgTable(
     emailLookupHash: text("email_lookup_hash"),
     emailCiphertext: bytea("email_ciphertext"),
     emailKeyVersion: integer("email_key_version"),
+    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
