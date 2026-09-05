@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   text,
+  integer,
   timestamp,
   index,
   check,
@@ -13,6 +14,7 @@ import { users } from "./users";
 /**
  * Genealogy person — not a User account.
  * No father_id / mother_id / spouse_id columns: relationships table is sole truth.
+ * Generation is never stored — derived from relationships graph.
  */
 export const persons = pgTable(
   "persons",
@@ -25,6 +27,7 @@ export const persons = pgTable(
     gender: text("gender").notNull().default("UNKNOWN"),
     livingStatus: text("living_status").notNull().default("UNKNOWN"),
     privacyLevel: text("privacy_level").notNull().default("INHERIT"),
+    revisionNo: integer("revision_no").notNull().default(1),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -46,6 +49,10 @@ export const persons = pgTable(
     privacyCk: check(
       "persons_privacy_level_ck",
       sql`${t.privacyLevel} IN ('INHERIT', 'PRIVATE', 'FAMILY', 'PUBLIC')`
+    ),
+    revisionCk: check(
+      "persons_revision_no_ck",
+      sql`${t.revisionNo} > 0`
     ),
   })
 );

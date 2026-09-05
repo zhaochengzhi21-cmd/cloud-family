@@ -14,7 +14,8 @@
     "db:smoke": "tsx scripts/v1-db-smoke.ts",
     "db:identity-smoke": "tsx scripts/v1-family-identity-smoke.ts",
     "db:auth-smoke": "tsx scripts/v1-auth-smoke.ts",
-    "db:permission-smoke": "tsx scripts/v1-permission-smoke.ts"
+    "db:permission-smoke": "tsx scripts/v1-permission-smoke.ts",
+    "db:person-smoke": "tsx scripts/v1-person-graph-smoke.ts"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.8.0",

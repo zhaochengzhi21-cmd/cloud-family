@@ -29,6 +29,13 @@
       "when": 1788581461259,
       "tag": "0003_chief_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788583172057,
+      "tag": "0004_unknown_giant_girl",
+      "breakpoints": true
     }
   ]
 }

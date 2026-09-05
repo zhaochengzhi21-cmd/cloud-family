@@ -1,0 +1,3 @@
+ALTER TABLE "persons" ADD COLUMN "revision_no" integer DEFAULT 1 NOT NULL;--> statement-breakpoint
+ALTER TABLE "persons" ADD CONSTRAINT "persons_revision_no_ck" CHECK ("persons"."revision_no" > 0);--> statement-breakpoint
+ALTER TABLE "relationships" ADD CONSTRAINT "relationships_spouse_canonical_ck" CHECK ("relationships"."relationship_type" <> 'SPOUSE' OR "relationships"."from_person_id" < "relationships"."to_person_id");

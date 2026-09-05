@@ -19,8 +19,9 @@ import type {
   PermissionAction,
 } from "@/v1/domain/permission/types";
 import * as repo from "@/v1/repositories/permissionRepository";
+import type { DbOrTx } from "@/v1/repositories/permissionRepository";
 
-function dbOrDefault(db?: V1Db): V1Db {
+function dbOrDefault(db?: DbOrTx): DbOrTx {
   return db ?? getV1Db();
 }
 
@@ -43,7 +44,7 @@ function extractRawToken(ctx: AccessContext): string | null {
  * SUSPENDED → treated as no membership.
  */
 async function resolveActiveRole(
-  database: V1Db,
+  database: DbOrTx,
   familyId: string,
   userId: string | null
 ): Promise<MembershipRole | null> {
@@ -58,7 +59,7 @@ async function resolveActiveRole(
  * Does not log raw token or hash.
  */
 async function resolveValidShareLink(
-  database: V1Db,
+  database: DbOrTx,
   familyId: string,
   rawToken: string | null,
   now: Date
@@ -86,7 +87,7 @@ export async function authorizeFamilyAction(
   familyId: string,
   ctx: AccessContext,
   action: PermissionAction,
-  options?: { db?: V1Db; now?: Date }
+  options?: { db?: DbOrTx; now?: Date }
 ): Promise<AuthorizeFamilyResult> {
   const database = dbOrDefault(options?.db);
   const now = options?.now ?? new Date();
@@ -129,7 +130,7 @@ export async function authorizePersonAction(
   personId: string,
   ctx: AccessContext,
   action: PermissionAction,
-  options?: { db?: V1Db; now?: Date; expectedFamilyId?: string }
+  options?: { db?: DbOrTx; now?: Date; expectedFamilyId?: string }
 ): Promise<AuthorizePersonResult> {
   const database = dbOrDefault(options?.db);
   const now = options?.now ?? new Date();
@@ -199,7 +200,7 @@ export async function authorizePersonAction(
 export async function authorizeFamilyRead(
   familyId: string,
   ctx: AccessContext,
-  options?: { db?: V1Db; now?: Date }
+  options?: { db?: DbOrTx; now?: Date }
 ) {
   return authorizeFamilyAction(familyId, ctx, "READ_FAMILY", options);
 }
@@ -208,7 +209,7 @@ export async function authorizeFamilyRead(
 export async function authorizePersonRead(
   personId: string,
   ctx: AccessContext,
-  options?: { db?: V1Db; now?: Date; expectedFamilyId?: string }
+  options?: { db?: DbOrTx; now?: Date; expectedFamilyId?: string }
 ) {
   return authorizePersonAction(personId, ctx, "READ_PERSON", options);
 }

@@ -202,20 +202,14 @@ export async function updateFamilyIdentity(
       throw new FamilyDomainError("VERSION_CONFLICT");
     }
 
-    await repo.insertFamilyVersion(tx, {
-      id: randomUUID(),
+    const { recordFamilyMutationLedger } = await import(
+      "@/v1/repositories/familyMutationRepository"
+    );
+    await recordFamilyMutationLedger(tx, {
       familyId: validated.familyId,
       versionNo: newVersion,
-      createdByUserId: validated.actorUserId,
-      schemaVersion: 1,
-      summary: `Identity updated (${changedFields.join(", ")})`,
-      createdAt: now,
-    });
-
-    await repo.insertAuditEvent(tx, {
-      id: randomUUID(),
-      familyId: validated.familyId,
       actorUserId: validated.actorUserId,
+      summary: "FAMILY_IDENTITY_UPDATED",
       eventType: "FAMILY_IDENTITY_UPDATED",
       entityType: "FAMILY",
       entityId: validated.familyId,
@@ -223,8 +217,9 @@ export async function updateFamilyIdentity(
         fromVersion: validated.expectedVersion,
         toVersion: newVersion,
         changedFields,
+        familyVersion: newVersion,
       },
-      createdAt: now,
+      now,
     });
 
     const family = await repo.findActiveFamilyById(tx, validated.familyId);

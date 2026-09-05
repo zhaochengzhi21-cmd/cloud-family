@@ -57,5 +57,10 @@ export const relationships = pgTable(
       "relationships_no_self_ck",
       sql`${t.fromPersonId} <> ${t.toPersonId}`
     ),
+    /** SPOUSE is undirected — service normalizes min(uuid)→from, max→to. */
+    spouseCanonicalCk: check(
+      "relationships_spouse_canonical_ck",
+      sql`${t.relationshipType} <> 'SPOUSE' OR ${t.fromPersonId} < ${t.toPersonId}`
+    ),
   })
 );
