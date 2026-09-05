@@ -191,7 +191,7 @@ export async function createRelationship(
 export async function deleteRelationship(
   relationshipId: string,
   actorContext: AccessContext,
-  options?: { db?: V1Db }
+  options?: { db?: V1Db; expectedFamilyId?: string }
 ): Promise<DeleteRelationshipResult> {
   assertUuid(relationshipId, "relationshipId");
   const database = dbOrDefault(options?.db);
@@ -201,6 +201,12 @@ export async function deleteRelationship(
   return database.transaction(async (tx) => {
     const rel = await relRepo.findActiveRelationshipById(tx, relationshipId);
     if (!rel) throw new RelationshipDomainError("RELATIONSHIP_NOT_FOUND");
+    if (
+      options?.expectedFamilyId &&
+      rel.familyId !== options.expectedFamilyId
+    ) {
+      throw new RelationshipDomainError("RELATIONSHIP_NOT_FOUND");
+    }
 
     const family = await lockFamilyForMutation(tx, rel.familyId);
     if (!family) throw new RelationshipDomainError("FAMILY_NOT_FOUND");

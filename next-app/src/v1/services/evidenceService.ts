@@ -247,6 +247,17 @@ export async function deleteEvidence(
   const database = dbOrDefault(options?.db);
   const userId = actorUserId(actorContext);
 
+  // Family boundary first — wrong URL familyId must not leak existence via 403.
+  const existing = await evidenceRepo.findActiveEvidenceById(
+    database,
+    evidenceId
+  );
+  if (!existing || existing.familyId !== familyId) {
+    throw new EvidenceDomainError(
+      existing ? "CROSS_FAMILY" : "EVIDENCE_NOT_FOUND"
+    );
+  }
+
   const delAuth = await authorizeEvidenceAction(
     evidenceId,
     actorContext,
@@ -255,9 +266,6 @@ export async function deleteEvidence(
   ).catch(mapPerm);
   if (delAuth.decision !== "ALLOW") {
     throw new EvidenceDomainError("FORBIDDEN");
-  }
-  if (delAuth.evidenceFamilyId !== familyId) {
-    throw new EvidenceDomainError("CROSS_FAMILY");
   }
 
   const now = new Date();

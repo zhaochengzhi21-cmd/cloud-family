@@ -64,6 +64,36 @@ export async function findActiveMembership(
   return row ?? null;
 }
 
+/** ACTIVE memberships for a user with non-deleted families. */
+export async function listActiveFamilyMembershipsForUser(
+  db: DbOrTx,
+  userId: string
+): Promise<
+  Array<{
+    family: FamilyIdentity;
+    role: MembershipRole;
+  }>
+> {
+  const rows = await db
+    .select({
+      family: families,
+      role: familyMemberships.role,
+    })
+    .from(familyMemberships)
+    .innerJoin(families, eq(familyMemberships.familyId, families.id))
+    .where(
+      and(
+        eq(familyMemberships.userId, userId),
+        eq(familyMemberships.status, "ACTIVE"),
+        isNull(families.deletedAt)
+      )
+    );
+  return rows.map((r) => ({
+    family: mapFamily(r.family),
+    role: r.role as MembershipRole,
+  }));
+}
+
 export async function insertFamily(
   db: DbOrTx,
   values: {

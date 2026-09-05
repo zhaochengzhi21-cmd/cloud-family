@@ -1,9 +1,11 @@
 import { randomUUID } from "crypto";
 import { getV1Db, type V1Db } from "@/db/client";
+import type { MembershipRole } from "@/db/constants";
 import { FamilyDomainError } from "@/v1/domain/family/errors";
 import {
   validateCreateFamilyInput,
   validateUpdateFamilyIdentityInput,
+  assertUuid,
 } from "@/v1/domain/family/validation";
 import type {
   CreateFamilyInput,
@@ -12,34 +14,82 @@ import type {
   UpdateFamilyIdentityInput,
   UpdateFamilyResult,
 } from "@/v1/domain/family/types";
+import type { AccessContext } from "@/v1/domain/permission/types";
+import {
+  authorizeFamilyAction,
+  authorizeFamilyRead,
+} from "@/v1/services/permissionService";
+import { PermissionDomainError } from "@/v1/domain/permission/errors";
 import * as repo from "@/v1/repositories/familyRepository";
 
 function dbOrDefault(db?: V1Db): V1Db {
   return db ?? getV1Db();
 }
 
+function mapPerm(e: unknown): never {
+  if (e instanceof PermissionDomainError) {
+    if (e.code === "FAMILY_NOT_FOUND") {
+      throw new FamilyDomainError("FAMILY_NOT_FOUND");
+    }
+    throw new FamilyDomainError("FORBIDDEN");
+  }
+  throw e;
+}
+
 /**
- * Trusted server-side read — no public ACL (PERMISSION task later).
- * Soft-deleted families are not returned.
+ * Authorized family read via PermissionService.
+ */
+export async function getFamilyForActor(
+  familyId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db }
+): Promise<FamilyIdentity> {
+  assertUuid(familyId, "familyId");
+  const database = dbOrDefault(options?.db);
+  const auth = await authorizeFamilyRead(familyId, actorContext, {
+    db: database,
+  }).catch(mapPerm);
+  if (auth.decision !== "ALLOW") {
+    throw new FamilyDomainError("FORBIDDEN");
+  }
+  const family = await repo.findActiveFamilyById(database, familyId);
+  if (!family) throw new FamilyDomainError("FAMILY_NOT_FOUND");
+  return family;
+}
+
+/**
+ * Trusted server-side read — soft-deleted families are not returned.
+ * Prefer getFamilyForActor for HTTP.
  */
 export async function getFamilyById(
   familyId: string,
   db?: V1Db
 ): Promise<FamilyIdentity | null> {
-  const { assertUuid } = await import("@/v1/domain/family/validation");
   assertUuid(familyId, "familyId");
   return repo.findActiveFamilyById(dbOrDefault(db), familyId);
 }
 
+export type MyFamilyListItem = {
+  family: FamilyIdentity;
+  role: MembershipRole;
+};
+
+/** ACTIVE memberships only; suspended excluded. */
+export async function listMyFamilies(
+  userId: string,
+  options?: { db?: V1Db }
+): Promise<MyFamilyListItem[]> {
+  assertUuid(userId, "userId");
+  return repo.listActiveFamilyMembershipsForUser(
+    dbOrDefault(options?.db),
+    userId
+  );
+}
+
 export type CreateFamilyTestHooks = {
-  /** Smoke-only: fail after membership insert to prove atomic rollback. */
   failAfterMembership?: boolean;
 };
 
-/**
- * Atomically create stable Family + OWNER membership + version 1 + audit.
- * Does not create users — owner must already exist.
- */
 export async function createFamily(
   input: CreateFamilyInput,
   options?: { db?: V1Db; testHooks?: CreateFamilyTestHooks }
@@ -128,16 +178,20 @@ export async function createFamily(
 }
 
 /**
- * Update identity fields with optimistic concurrency.
- * familyId never changes; currentVersionNo increments on real changes.
+ * Authorization: PermissionService EDIT_FAMILY_IDENTITY (sole role authority).
  */
 export async function updateFamilyIdentity(
   input: UpdateFamilyIdentityInput,
-  options?: { db?: V1Db }
+  options?: { db?: V1Db; actorContext?: AccessContext }
 ): Promise<UpdateFamilyResult> {
   const validated = validateUpdateFamilyIdentityInput(input);
   const database = dbOrDefault(options?.db);
   const now = new Date();
+  const actorContext: AccessContext =
+    options?.actorContext ?? {
+      kind: "USER",
+      userId: validated.actorUserId,
+    };
 
   return database.transaction(async (tx) => {
     const locked = await repo.lockActiveFamilyRow(tx, validated.familyId);
@@ -145,15 +199,13 @@ export async function updateFamilyIdentity(
       throw new FamilyDomainError("FAMILY_NOT_FOUND");
     }
 
-    const membership = await repo.findActiveMembership(
-      tx,
+    const auth = await authorizeFamilyAction(
       validated.familyId,
-      validated.actorUserId
-    );
-    if (
-      !membership ||
-      (membership.role !== "OWNER" && membership.role !== "ADMIN")
-    ) {
+      actorContext,
+      "EDIT_FAMILY_IDENTITY",
+      { db: tx }
+    ).catch(mapPerm);
+    if (auth.decision !== "ALLOW") {
       throw new FamilyDomainError("FORBIDDEN");
     }
 

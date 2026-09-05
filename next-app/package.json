@@ -20,6 +20,7 @@
     "db:media-blob-live-smoke": "tsx scripts/v1-media-blob-live-smoke.ts",
     "db:evidence-smoke": "tsx scripts/v1-evidence-smoke.ts",
     "db:auth-http-smoke": "tsx scripts/v1-auth-http-smoke.ts",
+    "db:workspace-http-smoke": "tsx scripts/v1-workspace-http-smoke.ts",
     "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts"
   },
   "dependencies": {
@@ -49,7 +50,8 @@
     "react": "^18",
     "react-dom": "^18",
     "resend": "^6.12.4",
-    "web3.storage": "^4.5.5"
+    "web3.storage": "^4.5.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^7.0.0",
