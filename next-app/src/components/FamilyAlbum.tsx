@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from "react";
 import { getImageUrls, createImgFallback } from "@/lib/ipfsGateway";
 import type { AlbumPhoto, FamilyTree } from "@/types/family";
+import { isLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 // ==================== 单张照片上传信息 ====================
 interface UploadItem {
@@ -24,6 +25,7 @@ function PhotoViewer({
   onRestore,
   restoringIndex,
   restoredMap,
+  allowRestore = true,
 }: {
   photos: AlbumPhoto[];
   initialIndex: number;
@@ -31,6 +33,7 @@ function PhotoViewer({
   onRestore: (index: number, cid: string) => void;
   restoringIndex: number | null;
   restoredMap: Record<string, string>;
+  allowRestore?: boolean;
 }) {
   const [index, setIndex] = useState(initialIndex);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -73,7 +76,7 @@ function PhotoViewer({
                 {showOriginal ? "查看修复版" : "查看原图"}
               </button>
             )}
-            {!restoredUrl && !isRestoring && (
+            {!restoredUrl && !isRestoring && allowRestore && (
               <button
                 onClick={() => onRestore(index, photo.cid)}
                 className="text-xs font-bold px-3 py-1 rounded-lg bg-[#fdfbf7] text-[#8b0000] border border-[#d4a76a]/40 hover:bg-[#8b0000]/5 hover:border-[#8b0000]/30 transition-all"
@@ -165,6 +168,8 @@ export function FamilyAlbum({
   onTreeChange?: (newTree: FamilyTree) => void;
 }) {
   const photos: AlbumPhoto[] = tree.album || [];
+  const writesEnabled = isLegacyWriteEnabled();
+  const canMutateAlbum = !!editable && writesEnabled;
   const [showUploader, setShowUploader] = useState(false);
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -335,7 +340,7 @@ export function FamilyAlbum({
       </div>
 
       {/* 上传按钮（编辑模式） */}
-      {editable && (
+      {canMutateAlbum && (
         <div className="text-center mb-6">
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -590,6 +595,7 @@ export function FamilyAlbum({
           onRestore={handleRestore}
           restoringIndex={restoringIndex}
           restoredMap={restoredMap}
+          allowRestore={writesEnabled}
         />
       )}
     </div>

@@ -6,6 +6,11 @@ import type { Member } from "@/types/family";
 import { useAuth } from "@/lib/AuthContext";
 import LoginModal from "@/components/LoginModal";
 import FeedbackModal from "@/components/FeedbackModal";
+import {
+  isLegacyWriteFrozen,
+  LEGACY_FEATURE_UPGRADING,
+  LEGACY_UPGRADE_BODY,
+} from "@/lib/legacyWriteGate";
 
 // ---------- 类型定义 ----------
 interface UploadState {
@@ -56,6 +61,7 @@ function generateTempId(): string {
 // ====================================================================
 function OcrUploadButton() {
   const router = useRouter();
+  const frozen = isLegacyWriteFrozen();
   const [status, setStatus] = useState<OcrStatus>("idle");
   const [saving, setSaving] = useState(false);
   const [parsedMembers, setParsedMembers] = useState<ParsedMember[]>([]);
@@ -210,6 +216,17 @@ function OcrUploadButton() {
 
   return (
     <div className="w-full space-y-3">
+      {frozen ? (
+        <div className="w-full rounded-2xl border-2 border-[#d4a76a]/40 bg-[#fdfbf7] p-4 text-center">
+          <p className="text-base font-bold text-[#8b0000] tracking-wider mb-2">
+            {LEGACY_FEATURE_UPGRADING}
+          </p>
+          <p className="text-xs text-[#5c3a2e]/70 leading-relaxed">
+            {LEGACY_UPGRADE_BODY}
+          </p>
+        </div>
+      ) : (
+        <>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
       {status === "idle" && (
         <div className="flex flex-col items-center">
@@ -317,6 +334,8 @@ function OcrUploadButton() {
           </div>
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -357,6 +376,10 @@ export default function HomePage() {
   }, []);
 
   const handleRequireLogin = useCallback((action: "create-tree" | "ocr") => {
+    if (action === "create-tree" && isLegacyWriteFrozen()) {
+      router.push("/create-tree");
+      return;
+    }
     if (isLoggedIn) {
       if (action === "create-tree") router.push("/create-tree");
     } else {
@@ -461,6 +484,11 @@ export default function HomePage() {
                 </div>
                 {isLoggedIn ? (
                   <div className="w-full"><OcrUploadButton /></div>
+                ) : isLegacyWriteFrozen() ? (
+                  <div className="w-full rounded-2xl border-2 border-[#d4a76a]/40 bg-[#fdfbf7] p-4 text-center">
+                    <p className="text-base font-bold text-[#8b0000] tracking-wider mb-2">{LEGACY_FEATURE_UPGRADING}</p>
+                    <p className="text-xs text-[#5c3a2e]/70 leading-relaxed">{LEGACY_UPGRADE_BODY}</p>
+                  </div>
                 ) : (
                   <button onClick={() => { setPendingAction("ocr"); setShowLoginModal(true); }} className="w-full py-3 md:py-4 rounded-2xl bg-gradient-to-r from-[#5c3a2e] to-[#7a4e3a] text-white font-bold text-sm md:text-base tracking-wider hover:shadow-xl hover:scale-[1.02] active:scale-[0.97] transition-all duration-200">上传识别 →</button>
                 )}
@@ -471,9 +499,13 @@ export default function HomePage() {
                 <div>
                   <div className="text-5xl md:text-6xl mb-4">🌱</div>
                   <h3 className="text-xl md:text-2xl font-black text-[#8b0000] tracking-wider mb-3 group-hover:text-[#a52a2a] transition-colors">从零创建</h3>
-                  <p className="text-sm md:text-base text-[#5c3a2e]/70 mb-5 leading-relaxed">从零开始手动创建家族树谱系</p>
+                  <p className="text-sm md:text-base text-[#5c3a2e]/70 mb-5 leading-relaxed">
+                    {isLegacyWriteFrozen() ? LEGACY_FEATURE_UPGRADING : "从零开始手动创建家族树谱系"}
+                  </p>
                 </div>
-                <div className="w-full py-3 md:py-4 rounded-2xl bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white font-bold text-sm md:text-base tracking-wider hover:shadow-xl hover:scale-[1.02] active:scale-[0.97] transition-all duration-200">开始创建 →</div>
+                <div className="w-full py-3 md:py-4 rounded-2xl bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white font-bold text-sm md:text-base tracking-wider hover:shadow-xl hover:scale-[1.02] active:scale-[0.97] transition-all duration-200">
+                  {isLegacyWriteFrozen() ? "查看升级说明 →" : "开始创建 →"}
+                </div>
               </div>
             </button>
             <a href="/search" className="block group">
@@ -496,13 +528,20 @@ export default function HomePage() {
             </div>
           </div>
           <div className="mb-6">
-            <div className="relative cursor-pointer border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 border-[#d4a76a]/50 bg-[#fdfbf7] hover:border-[#8b0000]/50 hover:bg-[#8b0000]/5">
-              <p className="text-[#8b0000] font-medium flex items-center justify-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-                点击或拖拽上传家谱文件（JPG、PNG、PDF）
-              </p>
+            <div className="relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 border-[#d4a76a]/50 bg-[#fdfbf7]">
+              {isLegacyWriteFrozen() ? (
+                <>
+                  <p className="text-[#8b0000] font-bold mb-2">{LEGACY_FEATURE_UPGRADING}</p>
+                  <p className="text-sm text-[#5c3a2e]/70 leading-relaxed">{LEGACY_UPGRADE_BODY}</p>
+                </>
+              ) : (
+                <p className="text-[#8b0000] font-medium flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  点击或拖拽上传家谱文件（JPG、PNG、PDF）
+                </p>
+              )}
             </div>
           </div>
         </div>

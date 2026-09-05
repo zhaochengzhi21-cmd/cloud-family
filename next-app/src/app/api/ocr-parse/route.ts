@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * 获取百度 OCR access_token
@@ -144,6 +145,9 @@ async function parseTextViaDeepSeek(text: string): Promise<any[]> {
  * Body: { imageUrl: string }
  */
 export async function POST(req: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { imageUrl } = await req.json();
 

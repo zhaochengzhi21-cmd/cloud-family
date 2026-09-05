@@ -4,6 +4,11 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Member } from "@/types/family";
 import { useAuth } from "@/lib/AuthContext";
+import {
+  isLegacyWriteFrozen,
+  LEGACY_UPGRADE_TITLE,
+  LEGACY_UPGRADE_BODY,
+} from "@/lib/legacyWriteGate";
 
 // ====================================================================
 // 类型定义
@@ -998,6 +1003,36 @@ export default function CreateTreePage() {
       setSaveState({ status: "error", progress: 0, message: e.message || "保存失败" });
     }
   }, [members, emailHash, router]);
+
+  if (isLegacyWriteFrozen()) {
+    return (
+      <div className="min-h-screen bg-[#fdfbf7]">
+        <div className="h-2 bg-gradient-to-r from-[#8b0000] via-[#a52a2a] to-[#8b0000]" />
+        <div className="max-w-xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-3xl font-black text-[#5c3a2e] tracking-wider mb-4">
+            {LEGACY_UPGRADE_TITLE}
+          </h1>
+          <p className="text-base text-[#5c3a2e]/80 leading-relaxed mb-8">
+            {LEGACY_UPGRADE_BODY}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <a
+              href="/search"
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#8b0000] to-[#a52a2a] text-white font-bold text-sm hover:shadow-lg transition-all"
+            >
+              查找已有家族
+            </a>
+            <button
+              onClick={() => router.push("/")}
+              className="px-6 py-3 rounded-xl border-2 border-[#d4a76a]/50 text-[#5c3a2e] font-bold text-sm hover:bg-[#f5f0e8] transition-all"
+            >
+              返回首页
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#fdfbf7]">

@@ -15,6 +15,10 @@ import LoginModal from "@/components/LoginModal";
 import MatchNotificationBar from "@/components/MatchNotificationBar";
 import AnonymousChat from "@/components/AnonymousChat";
 import type { FamilyTree } from "@/types/family";
+import {
+  isLegacyWriteFrozen,
+  LEGACY_WRITE_FROZEN_MESSAGE,
+} from "@/lib/legacyWriteGate";
 
 // ---------- 类型定义 ----------
 interface IpfsData {
@@ -154,6 +158,7 @@ function LegacyContentView({ ipfsData, dataHash }: { ipfsData: IpfsData; dataHas
                     <p className="text-sm text-[#5c3a2e]">
                       第 {i + 1} 页
                     </p>
+                    {!isLegacyWriteFrozen() && (
                     <button
                       onClick={() => handleRestore(i, originalUrl)}
                       disabled={restoringIndex !== null}
@@ -169,6 +174,7 @@ function LegacyContentView({ ipfsData, dataHash }: { ipfsData: IpfsData; dataHas
                         ? "✓ 已修复"
                         : "✨ AI 修复"}
                     </button>
+                    )}
                   </div>
                 </div>
               );
@@ -680,6 +686,10 @@ export default function FamilyPage() {
 
   // 保存修订
   const handleSaveRevision = useCallback(async () => {
+    if (isLegacyWriteFrozen()) {
+      alert(LEGACY_WRITE_FROZEN_MESSAGE);
+      return;
+    }
     if (!editedTree || !familyId) return;
     setSaving(true);
     try {
@@ -984,9 +994,14 @@ export default function FamilyPage() {
           <>
             {/* ====== 工具栏（家族树上方） ====== */}
             <section className="mb-6">
+              {isLegacyWriteFrozen() && canEdit && (
+                <div className="mb-4 rounded-xl border border-[#d4a76a]/40 bg-[#fdfbf7] px-4 py-3 text-center text-sm text-[#5c3a2e]/80">
+                  {LEGACY_WRITE_FROZEN_MESSAGE}
+                </div>
+              )}
               <div className="flex flex-wrap items-center justify-center gap-3">
-                {/* 编辑/保存按钮 */}
-                {settingsLoaded && canEdit && (
+                {/* 编辑/保存按钮 — Production 写入冻结时隐藏 */}
+                {settingsLoaded && canEdit && !isLegacyWriteFrozen() && (
                   editing ? (
                     <>
                       <button

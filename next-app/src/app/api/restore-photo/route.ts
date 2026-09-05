@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getImageUrls } from "@/lib/ipfsGateway";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * POST /api/restore-photo
@@ -15,6 +16,9 @@ import { getImageUrls } from "@/lib/ipfsGateway";
  * - RESTORATION_API_KEY: Replicate API Token（可选，不设则返回模拟结果）
  */
 export async function POST(req: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const { imageUrl, cid } = await req.json();
 

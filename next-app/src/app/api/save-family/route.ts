@@ -8,6 +8,7 @@ import type { FamilyTree } from "@/types/family";
 import jwt from "jsonwebtoken";
 import { getJwtSecret } from "@/lib/jwtSecret";
 import { writeFamilyBinding, writeCreatorMeta, updateFamilyMetaMemberCount } from "@/lib/familyStore";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 /**
  * 从请求中获取 JWT token 并解析 emailHash
@@ -281,6 +282,9 @@ async function onChainSave(
 }
 
 export async function POST(request: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     // 检查环境变量
     if (!W3S_TOKEN) {

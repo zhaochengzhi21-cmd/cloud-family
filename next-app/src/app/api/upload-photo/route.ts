@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { assertLegacyWriteEnabled } from "@/lib/legacyWriteGate";
 
 const PINATA_BASE = "https://api.pinata.cloud";
 
@@ -8,6 +9,9 @@ const PINATA_BASE = "https://api.pinata.cloud";
  * Body: FormData { file: File }
  */
 export async function POST(req: NextRequest) {
+  const frozen = assertLegacyWriteEnabled();
+  if (frozen) return frozen;
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
