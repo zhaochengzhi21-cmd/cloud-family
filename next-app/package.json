@@ -13,7 +13,8 @@
     "db:check": "drizzle-kit check",
     "db:smoke": "tsx scripts/v1-db-smoke.ts",
     "db:identity-smoke": "tsx scripts/v1-family-identity-smoke.ts",
-    "db:auth-smoke": "tsx scripts/v1-auth-smoke.ts"
+    "db:auth-smoke": "tsx scripts/v1-auth-smoke.ts",
+    "db:permission-smoke": "tsx scripts/v1-permission-smoke.ts"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.8.0",

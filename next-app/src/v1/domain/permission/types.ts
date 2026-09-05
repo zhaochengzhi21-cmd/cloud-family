@@ -1,0 +1,57 @@
+import type {
+  FamilyVisibility,
+  LivingStatus,
+  MembershipRole,
+  PrivacyLevel,
+} from "@/db/constants";
+
+export const PERMISSION_ACTIONS = [
+  "READ_FAMILY",
+  "READ_PERSON",
+  "EDIT_FAMILY_IDENTITY",
+  "EDIT_PERSON",
+  "EDIT_RELATIONSHIP",
+  "EDIT_CLAIM",
+  "EDIT_EVIDENCE",
+  "UPLOAD_MEDIA",
+  "MANAGE_MEMBERS",
+  "MANAGE_PRIVACY",
+  "MANAGE_SHARE_LINKS",
+  "DELETE_PERSON",
+  "DELETE_FAMILY",
+] as const;
+
+export type PermissionAction = (typeof PERMISSION_ACTIONS)[number];
+
+/**
+ * Access context — roles are NEVER trusted from the caller.
+ * Membership role must be loaded from DB.
+ */
+export type AccessContext =
+  | { kind: "ANONYMOUS" }
+  | { kind: "USER"; userId: string }
+  | { kind: "SHARE_LINK"; rawToken: string }
+  | { kind: "USER_AND_SHARE_LINK"; userId: string; rawToken: string };
+
+export type Decision = "ALLOW" | "DENY";
+
+export type FamilyPolicyInput = {
+  familyVisibility: FamilyVisibility;
+  familyDeleted: boolean;
+  /** ACTIVE membership role, or null if none / suspended */
+  activeRole: MembershipRole | null;
+  validShareLink: boolean;
+  action: PermissionAction;
+};
+
+export type PersonPolicyInput = FamilyPolicyInput & {
+  privacyLevel: PrivacyLevel;
+  livingStatus: LivingStatus;
+  personDeleted: boolean;
+};
+
+export type EffectivePersonAccess =
+  | "OWNER_ADMIN_ONLY"
+  | "FAMILY_MEMBERS"
+  | "LINK_OR_PUBLIC"
+  | "PUBLIC";

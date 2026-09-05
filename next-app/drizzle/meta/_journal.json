@@ -22,6 +22,13 @@
       "when": 1788579876963,
       "tag": "0002_omniscient_sersi",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788581461259,
+      "tag": "0003_chief_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }

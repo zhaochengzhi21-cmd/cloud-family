@@ -10,3 +10,4 @@ export { auditEvents } from "./audit";
 export { legacyFamilyMaps } from "./legacy";
 export { authChallenges } from "./auth";
 export { sessions } from "./sessions";
+export { familyShareLinks } from "./shareLinks";
