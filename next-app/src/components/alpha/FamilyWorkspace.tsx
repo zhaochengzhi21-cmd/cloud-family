@@ -161,9 +161,21 @@ export function FamilyWorkspace({
 
   if (error && !familyName) {
     return (
-      <p className="py-12 text-center text-[#7a1f1f]" role="alert">
-        {error}
-      </p>
+      <div className="py-12 text-center">
+        <p className="text-[#7a1f1f]" role="alert">
+          {error}
+        </p>
+        <button
+          type="button"
+          className="mt-4 min-h-[44px] rounded-xl border border-[#d4a76a] px-4 text-sm font-semibold text-[#5c2018]"
+          onClick={() => {
+            setLoading(true);
+            void load();
+          }}
+        >
+          重新加载
+        </button>
+      </div>
     );
   }
 
@@ -1458,12 +1470,21 @@ function PersonDrawer({
 }) {
   const closeBtn = useRef<HTMLButtonElement>(null);
   const [name, setName] = useState(person.preferredName);
+  const [living, setLiving] = useState(person.livingStatus);
+  const [gender, setGender] = useState(person.gender);
   const [revision, setRevision] = useState(person.revisionNo);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const [localFlash, setLocalFlash] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
+
+  useEffect(() => {
+    setName(person.preferredName);
+    setLiving(person.livingStatus);
+    setGender(person.gender);
+    setRevision(person.revisionNo);
+  }, [person.id, person.preferredName, person.livingStatus, person.gender, person.revisionNo]);
 
   const loadClaims = useCallback(async () => {
     setClaimsLoading(true);
@@ -1513,7 +1534,7 @@ function PersonDrawer({
     return m;
   }, [activeClaims]);
 
-  async function saveName(e: FormEvent) {
+  async function saveBasics(e: FormEvent) {
     e.preventDefault();
     if (!canEdit) return;
     setBusy(true);
@@ -1522,8 +1543,13 @@ function PersonDrawer({
       const res = await v1api.patchPerson(familyId, person.id, {
         expectedRevision: revision,
         preferredName: name.trim(),
+        livingStatus: living,
+        gender,
       });
       setRevision(res.person.revisionNo);
+      setLiving(res.person.livingStatus);
+      setGender(res.person.gender);
+      setLocalFlash("已保存基本信息");
       await onChanged();
     } catch (err) {
       if (onAuth(err)) return;
@@ -1573,35 +1599,72 @@ function PersonDrawer({
               {localFlash}
             </p>
           ) : null}
-          <p className="text-sm text-[#8a6a4a]">
-            {LIVING_STATUS_LABEL[
-              person.livingStatus as keyof typeof LIVING_STATUS_LABEL
-            ]}
-          </p>
-          {canEdit ? (
+          {!canEdit ? (
+            <p className="text-sm text-[#8a6a4a]">
+              {LIVING_STATUS_LABEL[
+                living as keyof typeof LIVING_STATUS_LABEL
+              ] ?? living}
+              {gender !== "UNKNOWN"
+                ? ` · ${GENDER_LABEL[gender as keyof typeof GENDER_LABEL] ?? ""}`
+                : ""}
+            </p>
+          ) : (
             <form
-              onSubmit={saveName}
-              className="mt-4 space-y-2"
+              onSubmit={saveBasics}
+              className="mt-4 space-y-3"
               data-revision={revision}
             >
-              <label htmlFor="edit-name" className="block text-sm font-semibold">
-                姓名
-              </label>
-              <input
-                id="edit-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border px-3"
-              />
+              <div>
+                <label htmlFor="edit-name" className="mb-1 block text-sm font-semibold">
+                  姓名
+                </label>
+                <input
+                  id="edit-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full min-h-[44px] rounded-xl border px-3"
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-living" className="mb-1 block text-sm font-semibold">
+                  是否仍在世
+                </label>
+                <select
+                  id="edit-living"
+                  value={living}
+                  onChange={(e) => setLiving(e.target.value)}
+                  className="w-full min-h-[44px] rounded-xl border px-3"
+                >
+                  <option value="UNKNOWN">不确定</option>
+                  <option value="LIVING">在世</option>
+                  <option value="DECEASED">已故</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="edit-gender" className="mb-1 block text-sm font-semibold">
+                  性别（可选）
+                </label>
+                <select
+                  id="edit-gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full min-h-[44px] rounded-xl border px-3"
+                >
+                  <option value="UNKNOWN">未填写</option>
+                  <option value="MALE">男</option>
+                  <option value="FEMALE">女</option>
+                  <option value="OTHER">其他</option>
+                </select>
+              </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="min-h-[40px] rounded-lg bg-[#7a1f1f] px-3 text-sm font-bold text-white"
+                className="min-h-[44px] w-full rounded-xl bg-[#7a1f1f] px-3 text-sm font-bold text-white disabled:opacity-60"
               >
-                保存姓名
+                {busy ? "保存中…" : "保存基本信息"}
               </button>
             </form>
-          ) : null}
+          )}
           <h3 className="mt-6 font-bold text-[#5c2018]">家庭关系</h3>
           {relLines.length ? (
             <ul className="mt-2 space-y-1 text-sm text-[#6b5344]">

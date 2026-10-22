@@ -258,6 +258,15 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     expect((await relRespPromise).status()).toBe(201);
     await expect(page.getByText("第二代")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText("第一代")).toBeVisible();
+
+    // Drawer: living status edit
+    await page.getByRole("tab", { name: "成员" }).click();
+    await page.getByRole("button", { name: "赵甲" }).click();
+    await page.locator("#edit-living").selectOption("LIVING");
+    await page.getByRole("button", { name: "保存基本信息" }).click();
+    await expect(page.getByText("已保存基本信息")).toBeVisible();
+    await page.getByRole("button", { name: "关闭" }).click();
+    await expect(page.getByText("在世").first()).toBeVisible();
   });
 });
 
@@ -281,7 +290,9 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     const viewerPage = await viewerCtx.newPage();
     await loginAs(viewerPage, viewerId, baseURL!);
     await viewerPage.goto(`/alpha/families/${familyId}`);
-    await expect(viewerPage.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible();
+    await expect(
+      viewerPage.getByRole("heading", { name: "测试赵氏家庭" })
+    ).toBeVisible({ timeout: 60_000 });
     await expect(viewerPage.getByRole("button", { name: "+ 添加成员" })).toHaveCount(0);
     await expect(
       viewerPage.getByRole("button", { name: "+ 添加家庭关系" })
@@ -312,7 +323,12 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     const editorPage = await editorCtx.newPage();
     await loginAs(editorPage, editorId, baseURL!);
     await editorPage.goto(`/alpha/families/${familyId}`);
-    await expect(editorPage.getByRole("button", { name: "+ 添加成员" })).toBeVisible();
+    await expect(
+      editorPage.getByRole("heading", { name: "测试赵氏家庭" })
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(
+      editorPage.getByRole("button", { name: "+ 添加成员" })
+    ).toBeVisible();
     await editorPage.getByRole("tab", { name: "资料" }).click();
     await expect(
       editorPage.getByRole("button", { name: "确认这条资料" })
@@ -353,6 +369,9 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     const editorPage2 = await editorCtx2.newPage();
     await loginAs(editorPage2, editorId, baseURL!);
     await editorPage2.goto(`/alpha/families/${familyId}`);
+    await expect(
+      editorPage2.getByRole("heading", { name: "测试赵氏家庭" })
+    ).toBeVisible({ timeout: 60_000 });
     const privGet = await apiJson(
       editorPage2,
       `/api/v1/families/${familyId}/persons/${privId}`,
@@ -392,7 +411,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     expect(winRes.status(), await winRes.text()).toBe(200);
 
     await p2.locator("#edit-name").fill("赵乙应失败");
-    await p2.getByRole("button", { name: "保存姓名" }).click();
+    await p2.getByRole("button", { name: "保存基本信息" }).click();
     await expect(
       p2.getByText(/刚刚被更新|请重新载入/).first()
     ).toBeVisible({ timeout: 15_000 });

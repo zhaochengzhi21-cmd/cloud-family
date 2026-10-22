@@ -60,7 +60,31 @@ type FetchOpts = {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
+  /** Default 30s — avoid indefinite loading when Neon/DNS stalls. */
+  timeoutMs?: number;
 };
+
+function resolveFetchSignal(
+  user: AbortSignal | undefined,
+  timeoutMs: number
+): AbortSignal {
+  const timeout =
+    typeof AbortSignal !== "undefined" &&
+    typeof AbortSignal.timeout === "function"
+      ? AbortSignal.timeout(timeoutMs)
+      : undefined;
+  if (!user) {
+    return timeout ?? new AbortController().signal;
+  }
+  if (
+    timeout &&
+    typeof AbortSignal !== "undefined" &&
+    typeof AbortSignal.any === "function"
+  ) {
+    return AbortSignal.any([user, timeout]);
+  }
+  return user;
+}
 
 async function v1Fetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const method = opts.method ?? "GET";
@@ -69,6 +93,8 @@ async function v1Fetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
     headers["Content-Type"] = "application/json";
   }
 
+  const signal = resolveFetchSignal(opts.signal, opts.timeoutMs ?? 30_000);
+
   let res: Response;
   try {
     res = await fetch(path, {
@@ -76,7 +102,7 @@ async function v1Fetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
       headers,
       credentials: "include",
       body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-      signal: opts.signal,
+      signal,
     });
   } catch {
     throw new V1ApiError(0, "NETWORK");

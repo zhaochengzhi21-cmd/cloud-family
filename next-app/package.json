@@ -26,7 +26,8 @@
     "alpha:dev": "node scripts/alpha-local-dev.mjs",
     "db:local-operability-smoke": "tsx scripts/v1-local-operability-smoke.ts",
     "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts",
-    "db:alpha-local-bootstrap": "tsx scripts/v1-alpha-local-bootstrap.ts"
+    "db:alpha-local-bootstrap": "tsx scripts/v1-alpha-local-bootstrap.ts",
+    "probe:prod-isolation": "node scripts/v1-prod-isolation-probe.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
