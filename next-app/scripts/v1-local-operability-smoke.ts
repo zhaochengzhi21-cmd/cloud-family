@@ -17,6 +17,8 @@ import { setObjectStorageForTests } from "../src/v1/storage/objectStorage";
 import { isV1BlobLocalFinalizeEnabled } from "../src/v1/http/featureGate";
 import { isConsoleOtpDeliveryEnabled } from "../src/v1/email/consoleOtpDeliveryAdapter";
 import { createConsoleOtpDeliveryAdapter } from "../src/v1/email/consoleOtpDeliveryAdapter";
+import { createResendOtpDeliveryAdapter } from "../src/v1/email/resendOtpDeliveryAdapter";
+import { isResendConfigured } from "../src/v1/email/config";
 
 config({ path: ".env.local" });
 config({ path: ".env" });
@@ -63,6 +65,28 @@ async function main() {
     challengeId: randomUUID(),
   });
   pass("otp_console_deliver");
+
+  // Resend fail-closed for human recipients when flag unset
+  const prevSender = process.env.V1_AUTH_SENDER_VERIFIED;
+  delete process.env.V1_AUTH_SENDER_VERIFIED;
+  if (isResendConfigured()) {
+    try {
+      await createResendOtpDeliveryAdapter().deliver(
+        "human-probe@example.com",
+        "000000",
+        { challengeId: randomUUID() }
+      );
+      fail("sender_domain_required", "expected throw for human recipient");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg === "SENDER_DOMAIN_REQUIRED") pass("sender_domain_required");
+      else fail("sender_domain_required", msg);
+    }
+  } else {
+    pass("sender_domain_required", "skipped (no RESEND_API_KEY)");
+  }
+  if (prevSender === undefined) delete process.env.V1_AUTH_SENDER_VERIFIED;
+  else process.env.V1_AUTH_SENDER_VERIFIED = prevSender;
 
   process.env.V1_BLOB_LOCAL_FINALIZE = "true";
   if (isV1BlobLocalFinalizeEnabled()) pass("finalize_gate_opt_in");

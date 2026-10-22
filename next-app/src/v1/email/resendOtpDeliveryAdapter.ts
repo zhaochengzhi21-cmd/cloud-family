@@ -6,7 +6,13 @@ import type { OtpDeliveryAdapter, OtpDeliveryMeta } from "@/v1/domain/auth/deliv
 import {
   getV1AuthEmailFrom,
   isResendConfigured,
+  isVerifiedSenderDomainReady,
 } from "@/v1/email/config";
+
+/** Resend accepts these without a verified production sender domain. */
+function isResendOfficialTestRecipient(email: string): boolean {
+  return email.trim().toLowerCase().endsWith("@resend.dev");
+}
 
 export class ResendOtpDeliveryAdapter implements OtpDeliveryAdapter {
   async deliver(
@@ -16,6 +22,13 @@ export class ResendOtpDeliveryAdapter implements OtpDeliveryAdapter {
   ): Promise<void> {
     if (!isResendConfigured()) {
       throw new Error("RESEND_NOT_CONFIGURED");
+    }
+    // Fail-closed for human recipients until ops explicitly opts in.
+    if (
+      !isVerifiedSenderDomainReady() &&
+      !isResendOfficialTestRecipient(email)
+    ) {
+      throw new Error("SENDER_DOMAIN_REQUIRED");
     }
     const apiKey = process.env.RESEND_API_KEY!.trim();
     const { Resend } = await import("resend");
