@@ -121,7 +121,7 @@ export function FamilyWorkspace({
 
   const load = useCallback(async () => {
     setError("");
-    try {
+    const attempt = async () => {
       const [fam, list, graph] = await Promise.all([
         v1api.getFamily(familyId),
         v1api.listFamilies(),
@@ -135,12 +135,23 @@ export function FamilyWorkspace({
       setRelationships(graph.graph.relationships);
       setGenerationByPerson(graph.graph.generationByPerson);
       setComponentCount(graph.graph.componentCount);
-    } catch (e) {
-      if (handleAuthRedirect(e, router)) return;
-      if (e instanceof V1ApiError && e.status === 404) {
-        setError(ERROR_COPY.notFound);
-      } else {
-        setError(userMessageForApiError(e));
+      setError("");
+    };
+    try {
+      await attempt();
+    } catch (first) {
+      if (handleAuthRedirect(first, router)) return;
+      // Brief retry — Neon / edge blips after mutations should not blank the UI.
+      try {
+        await new Promise((r) => setTimeout(r, 400));
+        await attempt();
+      } catch (e) {
+        if (handleAuthRedirect(e, router)) return;
+        if (e instanceof V1ApiError && e.status === 404) {
+          setError(ERROR_COPY.notFound);
+        } else {
+          setError(userMessageForApiError(e));
+        }
       }
     } finally {
       setLoading(false);

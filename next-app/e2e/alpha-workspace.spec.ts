@@ -453,9 +453,10 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     });
     await loginPage.goto("/alpha/login");
     await expect(
-      loginPage.getByRole("heading", {
-        name: "把家里的故事，安全地留给下一代",
-      })
+      loginPage.getByRole("heading", { name: "云族谱" })
+    ).toBeVisible();
+    await expect(
+      loginPage.getByText("把家里的故事，安全地留给下一代")
     ).toBeVisible();
     await loginPage.getByLabel("邮箱").fill("test-zhao@example.com");
     await loginPage.getByRole("button", { name: /获取验证码|发送验证码|继续/ }).click();
