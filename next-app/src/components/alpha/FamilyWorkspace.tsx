@@ -557,19 +557,32 @@ function RecordsTab({
     return m;
   }, [active]);
 
+  if (persons.length === 0) {
+    return (
+      <div className="alpha-panel border-dashed px-5 py-12 text-center">
+        <p className="alpha-font-display text-xl font-bold text-[color:var(--a-ink)]">
+          还没有可记录的成员
+        </p>
+        <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+          先在「成员」里添加家人，再回来写下我们知道的事。
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <p className="mb-3 text-sm leading-relaxed text-[color:var(--a-muted)]">
+      <p className="mb-4 text-sm leading-relaxed text-[color:var(--a-muted)]">
         关于这个家族，我们知道些什么，以及这些信息从哪里来。
       </p>
-      <label htmlFor="records-person" className="mb-1 block text-sm font-semibold">
+      <label htmlFor="records-person" className="alpha-label">
         选择成员
       </label>
       <select
         id="records-person"
         value={personId}
         onChange={(e) => setPersonId(e.target.value)}
-        className="mb-4 w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] bg-white px-3"
+        className="alpha-input mb-4"
       >
         {persons.map((p) => (
           <option key={p.id} value={p.id}>
@@ -651,11 +664,16 @@ function RecordsTab({
       ) : null}
 
       {!loading && active.length === 0 ? (
-        <p className="text-sm text-[color:var(--a-muted)]">
-          {role === "VIEWER"
-            ? "暂无人物资料。"
-            : "还没有人物资料，可以从出生信息等开始记录。"}
-        </p>
+        <div className="alpha-panel border-dashed px-4 py-8 text-center">
+          <p className="font-semibold text-[color:var(--a-ink)]">
+            {role === "VIEWER" ? "暂无人物资料" : "还没有人物资料"}
+          </p>
+          <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+            {role === "VIEWER"
+              ? "有编辑权限的家人补充后，会显示在这里。"
+              : "可以从出生信息、祖籍等开始记录，以后再补来源。"}
+          </p>
+        </div>
       ) : null}
     </div>
   );
@@ -700,20 +718,17 @@ function AddClaimForm({
   }
 
   return (
-    <form
-      onSubmit={submit}
-      className="mb-5 space-y-3 rounded-2xl border border-[color:var(--a-brand-line)] bg-white/80 p-4"
-    >
+    <form onSubmit={submit} className="alpha-panel mb-5 space-y-3 p-4">
       <p className="font-bold text-[color:var(--a-ink)]">添加人物资料</p>
       <div>
-        <label htmlFor="claim-type" className="mb-1 block text-sm font-semibold">
+        <label htmlFor="claim-type" className="alpha-label">
           资料类型
         </label>
         <select
           id="claim-type"
           value={claimType}
           onChange={(e) => setClaimType(e.target.value)}
-          className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] bg-white px-3"
+          className="alpha-input"
         >
           {Object.entries(CLAIM_TYPE_UI).map(([k, v]) => (
             <option key={k} value={k}>
@@ -723,7 +738,7 @@ function AddClaimForm({
         </select>
       </div>
       <div>
-        <label htmlFor="claim-text" className="mb-1 block text-sm font-semibold">
+        <label htmlFor="claim-text" className="alpha-label">
           {CLAIM_TYPE_UI[claimType]?.label ?? "内容"}
         </label>
         <input
@@ -732,7 +747,7 @@ function AddClaimForm({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
-          className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] bg-white px-3"
+          className="alpha-input"
         />
       </div>
       <p className="text-xs text-[color:var(--a-muted)]">
@@ -742,7 +757,7 @@ function AddClaimForm({
       <button
         type="submit"
         disabled={busy}
-        className="min-h-[44px] rounded-xl bg-[color:var(--a-brand)] px-4 font-bold text-white disabled:opacity-60"
+        className="alpha-btn alpha-btn-primary !min-h-[44px]"
       >
         {busy ? "保存中…" : "保存资料"}
       </button>
@@ -1630,25 +1645,25 @@ function PersonDrawer({
               data-revision={revision}
             >
               <div>
-                <label htmlFor="edit-name" className="mb-1 block text-sm font-semibold">
+                <label htmlFor="edit-name" className="alpha-label">
                   姓名
                 </label>
                 <input
                   id="edit-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full min-h-[44px] rounded-xl border px-3"
+                  className="alpha-input"
                 />
               </div>
               <div>
-                <label htmlFor="edit-living" className="mb-1 block text-sm font-semibold">
+                <label htmlFor="edit-living" className="alpha-label">
                   是否仍在世
                 </label>
                 <select
                   id="edit-living"
                   value={living}
                   onChange={(e) => setLiving(e.target.value)}
-                  className="w-full min-h-[44px] rounded-xl border px-3"
+                  className="alpha-input"
                 >
                   <option value="UNKNOWN">不确定</option>
                   <option value="LIVING">在世</option>
@@ -1656,14 +1671,14 @@ function PersonDrawer({
                 </select>
               </div>
               <div>
-                <label htmlFor="edit-gender" className="mb-1 block text-sm font-semibold">
+                <label htmlFor="edit-gender" className="alpha-label">
                   性别（可选）
                 </label>
                 <select
                   id="edit-gender"
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
-                  className="w-full min-h-[44px] rounded-xl border px-3"
+                  className="alpha-input"
                 >
                   <option value="UNKNOWN">未填写</option>
                   <option value="MALE">男</option>
@@ -1674,7 +1689,7 @@ function PersonDrawer({
               <button
                 type="submit"
                 disabled={busy}
-                className="min-h-[44px] w-full rounded-xl bg-[color:var(--a-brand)] px-3 text-sm font-bold text-white disabled:opacity-60"
+                className="alpha-btn alpha-btn-primary w-full !min-h-[44px] !text-sm"
               >
                 {busy ? "保存中…" : "保存基本信息"}
               </button>
@@ -1725,8 +1740,10 @@ function PersonDrawer({
               >
                 <h4 className="font-bold text-[color:var(--a-ink)]">{label}</h4>
                 {conflicted.length >= 2 ? (
-                  <div className="mt-2 rounded-xl bg-[#fff6e8] px-3 py-2">
-                    <p className="font-semibold text-[#8a4b12]">存在不同说法</p>
+                  <div className="mt-2 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-2 ring-1 ring-[color:var(--a-brand-line)]">
+                    <p className="font-semibold text-[color:var(--a-brand)]">
+                      存在不同说法
+                    </p>
                     <p className="mt-1 text-sm text-[color:var(--a-muted)]">
                       目前资料中记录不一致，先保留两种说法，之后可以继续补充来源。
                     </p>
