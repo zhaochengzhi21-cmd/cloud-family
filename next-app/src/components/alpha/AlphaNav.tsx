@@ -22,25 +22,25 @@ export function AlphaNav() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-[#d4a76a]/25 bg-[#faf7f2]/95 backdrop-blur">
+    <header className="alpha-nav">
       <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4 sm:px-6">
         <Link
           href="/alpha/families"
-          className="text-lg font-bold tracking-wide text-[#7a1f1f]"
+          className="alpha-font-display text-lg font-bold tracking-wide text-[color:var(--a-brand)]"
         >
           {PRODUCT.brand}
         </Link>
-        <nav className="flex items-center gap-2 sm:gap-4">
+        <nav className="flex items-center gap-1 sm:gap-3">
           <Link
             href="/alpha/families"
-            className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-[#5c3a2e] hover:text-[#7a1f1f]"
+            className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-[color:var(--a-ink)] hover:text-[color:var(--a-brand)]"
           >
             我的家族
           </Link>
           <button
             type="button"
             onClick={onLogout}
-            className="inline-flex min-h-[44px] items-center rounded-lg border border-[#d4a76a]/40 px-3 text-sm font-semibold text-[#8a6a4a] hover:border-[#7a1f1f]/40 hover:text-[#7a1f1f]"
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
           >
             退出
           </button>
@@ -50,7 +50,10 @@ export function AlphaNav() {
   );
 }
 
-export function handleAuthRedirect(e: unknown, router: { replace: (h: string) => void }) {
+export function handleAuthRedirect(
+  e: unknown,
+  router: { replace: (h: string) => void }
+) {
   if (e instanceof V1ApiError && e.status === 401) {
     router.replace("/alpha/login?reason=expired");
     return true;

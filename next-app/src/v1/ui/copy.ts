@@ -85,7 +85,7 @@ export const ERROR_COPY = {
 export const LOGIN_COPY = {
   title: "把家里的故事，安全地留给下一代",
   subtitle:
-    "云族谱 Alpha 目前采用邀请制。已有邀请的用户可以通过邮箱验证码登录。",
+    "目前为邀请制内测。收到邀请后，用邮箱验证码即可进入你的家族档案。",
   otpHint: "验证码 10 分钟内有效。",
 } as const;
 

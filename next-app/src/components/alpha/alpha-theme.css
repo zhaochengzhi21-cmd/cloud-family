@@ -1,0 +1,251 @@
+/**
+ * Closed Alpha visual system — 「墨青」ink + celadon
+ * Cool mist surfaces, deep ink type, celadon actions.
+ * Avoids cream/terracotta brochure look.
+ */
+
+.alpha-shell {
+  --a-ink: #15202b;
+  --a-muted: #5c6d7a;
+  --a-brand: #1a5c52;
+  --a-brand-hover: #134840;
+  --a-brand-soft: #d7ebe6;
+  --a-brand-line: rgba(26, 92, 82, 0.28);
+  --a-surface: rgba(255, 255, 255, 0.82);
+  --a-surface-strong: #ffffff;
+  --a-danger: #8f2d2d;
+  --a-danger-soft: #f7e8e8;
+  --a-ok: #1f5c3a;
+  --a-ok-soft: #e5f3ea;
+  --a-warn-soft: #eef3f0;
+  --a-radius: 1rem;
+  --a-radius-sm: 0.75rem;
+  --a-shadow: 0 12px 40px rgba(21, 32, 43, 0.08);
+
+  color: var(--a-ink);
+  background:
+    radial-gradient(1200px 500px at 12% -10%, rgba(26, 92, 82, 0.14), transparent 55%),
+    radial-gradient(900px 420px at 100% 0%, rgba(60, 90, 110, 0.1), transparent 50%),
+    linear-gradient(165deg, #f3f7f8 0%, #e7eef0 48%, #dfe8ea 100%);
+  min-height: 100vh;
+}
+
+.alpha-shell .alpha-font-display {
+  font-family: var(--font-alpha-display), "Noto Serif SC", serif;
+}
+
+.alpha-shell .alpha-font-body {
+  font-family: var(--font-alpha-body), "Noto Sans SC", system-ui, sans-serif;
+}
+
+.alpha-fade-in {
+  animation: alpha-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.alpha-fade-in-delay {
+  animation: alpha-fade-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
+}
+
+@keyframes alpha-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes alpha-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.alpha-drawer-panel {
+  animation: alpha-drawer-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.alpha-btn {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--a-radius-sm);
+  padding: 0 1.15rem;
+  font-size: 1rem;
+  font-weight: 700;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease,
+    opacity 0.18s ease;
+}
+
+.alpha-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.alpha-btn:disabled {
+  opacity: 0.55;
+}
+
+.alpha-btn-primary {
+  background: var(--a-brand);
+  color: #fff;
+}
+
+.alpha-btn-primary:hover:not(:disabled) {
+  background: var(--a-brand-hover);
+}
+
+.alpha-btn-secondary {
+  border: 1px solid var(--a-brand-line);
+  background: transparent;
+  color: var(--a-brand);
+}
+
+.alpha-btn-secondary:hover:not(:disabled) {
+  border-color: var(--a-brand);
+  background: rgba(26, 92, 82, 0.06);
+}
+
+.alpha-btn-ghost {
+  min-height: 44px;
+  color: var(--a-muted);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.alpha-input {
+  width: 100%;
+  min-height: 44px;
+  border-radius: var(--a-radius-sm);
+  border: 1px solid var(--a-brand-line);
+  background: var(--a-surface-strong);
+  padding: 0 0.85rem;
+  color: var(--a-ink);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.alpha-input:focus {
+  border-color: var(--a-brand);
+  box-shadow: 0 0 0 3px rgba(26, 92, 82, 0.15);
+}
+
+.alpha-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--a-ink);
+}
+
+.alpha-panel {
+  border-radius: 1.15rem;
+  border: 1px solid var(--a-brand-line);
+  background: var(--a-surface);
+  backdrop-filter: blur(8px);
+}
+
+.alpha-panel-interactive {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.alpha-panel-interactive:hover {
+  border-color: rgba(26, 92, 82, 0.45);
+  box-shadow: var(--a-shadow);
+}
+
+.alpha-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--a-brand-soft);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--a-brand);
+}
+
+.alpha-alert {
+  border-radius: var(--a-radius-sm);
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.alpha-alert-error {
+  background: var(--a-danger-soft);
+  color: var(--a-danger);
+}
+
+.alpha-alert-ok {
+  background: var(--a-ok-soft);
+  color: var(--a-ok);
+}
+
+.alpha-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-radius: var(--a-radius);
+  background: rgba(26, 92, 82, 0.08);
+  padding: 0.25rem;
+}
+
+.alpha-tab {
+  min-height: 44px;
+  flex: 1;
+  border-radius: var(--a-radius-sm);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--a-muted);
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.alpha-tab[aria-selected="true"] {
+  background: var(--a-surface-strong);
+  color: var(--a-brand);
+  box-shadow: 0 1px 4px rgba(21, 32, 43, 0.08);
+}
+
+.alpha-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  border-bottom: 1px solid var(--a-brand-line);
+  background: rgba(243, 247, 248, 0.88);
+  backdrop-filter: blur(12px);
+}
+
+.alpha-login-mark {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 1rem;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #1a5c52, #0f3f39);
+  color: #e8f5f1;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 10px 28px rgba(26, 92, 82, 0.28);
+}
+
+.alpha-lineage-rail {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.alpha-lineage-rail::before {
+  content: "";
+  position: absolute;
+  left: 0.15rem;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 2px;
+  background: linear-gradient(180deg, var(--a-brand), transparent);
+  opacity: 0.35;
+  border-radius: 999px;
+}

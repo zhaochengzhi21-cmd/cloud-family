@@ -153,7 +153,10 @@ export function FamilyWorkspace({
 
   if (loading) {
     return (
-      <p className="py-12 text-center text-[#8a6a4a]" role="status">
+      <p
+        className="py-16 text-center text-[color:var(--a-muted)]"
+        role="status"
+      >
         正在读取家族成员…
       </p>
     );
@@ -162,12 +165,12 @@ export function FamilyWorkspace({
   if (error && !familyName) {
     return (
       <div className="py-12 text-center">
-        <p className="text-[#7a1f1f]" role="alert">
+        <p className="text-[color:var(--a-danger)]" role="alert">
           {error}
         </p>
         <button
           type="button"
-          className="mt-4 min-h-[44px] rounded-xl border border-[#d4a76a] px-4 text-sm font-semibold text-[#5c2018]"
+          className="alpha-btn alpha-btn-secondary mt-4"
           onClick={() => {
             setLoading(true);
             void load();
@@ -180,33 +183,29 @@ export function FamilyWorkspace({
   }
 
   return (
-    <div className="py-2">
-      <header className="mb-4">
-        <h1 className="text-2xl font-bold text-[#5c2018]">{familyName}</h1>
-        <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[#8a6a4a]">
+    <div className="alpha-fade-in py-2">
+      <header className="mb-5">
+        <h1 className="alpha-font-display text-3xl font-bold text-[color:var(--a-ink)]">
+          {familyName}
+        </h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
           {surname ? <span>{surname}</span> : null}
-          <span className="rounded-full bg-[#efe6d8] px-2 py-0.5 text-[#5c3a2e]">
-            {PRODUCT.privacyFamilyOnly}
-          </span>
+          <span className="alpha-chip">{PRODUCT.privacyFamilyOnly}</span>
         </div>
       </header>
 
       {flash ? (
-        <p className="mb-3 rounded-xl bg-[#eef6ee] px-3 py-2 text-sm text-[#2f5d3a]" role="status">
+        <p className="mb-3 alpha-alert alpha-alert-ok" role="status">
           {flash}
         </p>
       ) : null}
       {error ? (
-        <p className="mb-3 rounded-xl bg-[#f8ece8] px-3 py-2 text-sm text-[#7a1f1f]" role="alert">
+        <p className="mb-3 alpha-alert alpha-alert-error" role="alert">
           {error}
         </p>
       ) : null}
 
-      <div
-        role="tablist"
-        aria-label="家族视图"
-        className="mb-4 flex gap-1 rounded-xl bg-[#efe6d8]/80 p-1"
-      >
+      <div role="tablist" aria-label="家族视图" className="alpha-tabs mb-5">
         {(
           [
             ["members", "成员"],
@@ -220,11 +219,7 @@ export function FamilyWorkspace({
             role="tab"
             aria-selected={tab === id}
             onClick={() => setTab(id)}
-            className={`min-h-[44px] flex-1 rounded-lg text-sm font-bold ${
-              tab === id
-                ? "bg-white text-[#7a1f1f] shadow-sm"
-                : "text-[#6b5344]"
-            }`}
+            className="alpha-tab"
           >
             {label}
           </button>
@@ -327,16 +322,18 @@ function MembersTab({
 }) {
   if (persons.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#d4a76a]/50 bg-white/50 px-4 py-10 text-center">
-        <p className="font-bold text-[#5c2018]">还没有家族成员</p>
-        <p className="mt-2 text-sm text-[#6b5344]">
+      <div className="alpha-panel border-dashed px-5 py-12 text-center">
+        <p className="alpha-font-display text-xl font-bold text-[color:var(--a-ink)]">
+          还没有家族成员
+        </p>
+        <p className="mt-2 text-sm text-[color:var(--a-muted)]">
           先添加你熟悉的一两位家人即可。
         </p>
         {canEdit ? (
           <button
             type="button"
             onClick={onAdd}
-            className="mt-5 inline-flex min-h-[48px] items-center rounded-xl bg-[#7a1f1f] px-5 font-bold text-white"
+            className="alpha-btn alpha-btn-primary mt-6"
           >
             添加成员
           </button>
@@ -351,7 +348,7 @@ function MembersTab({
         <button
           type="button"
           onClick={onAdd}
-          className="mb-3 inline-flex min-h-[44px] items-center rounded-xl border border-[#7a1f1f]/40 px-4 text-sm font-bold text-[#7a1f1f]"
+          className="alpha-btn alpha-btn-secondary mb-3 !min-h-[44px] !text-sm"
         >
           + 添加成员
         </button>
@@ -362,11 +359,13 @@ function MembersTab({
             <button
               type="button"
               onClick={() => onOpen(p.id)}
-              className="flex w-full min-h-[56px] items-center justify-between rounded-2xl border border-[#d4a76a]/30 bg-white/80 px-4 text-left"
+              className="alpha-panel alpha-panel-interactive flex w-full min-h-[60px] items-center justify-between px-4 text-left"
             >
               <div>
-                <p className="font-bold text-[#5c2018]">{p.preferredName}</p>
-                <p className="text-sm text-[#8a6a4a]">
+                <p className="font-bold text-[color:var(--a-ink)]">
+                  {p.preferredName}
+                </p>
+                <p className="text-sm text-[color:var(--a-muted)]">
                   {LIVING_STATUS_LABEL[
                     p.livingStatus as keyof typeof LIVING_STATUS_LABEL
                   ] ?? p.livingStatus}
@@ -378,7 +377,9 @@ function MembersTab({
                     : ""}
                 </p>
               </div>
-              <span className="text-sm text-[#8a6a4a]">查看</span>
+              <span className="text-sm font-semibold text-[color:var(--a-brand)]">
+                查看
+              </span>
             </button>
           </li>
         ))}
@@ -422,27 +423,27 @@ function LineageTab({
         <button
           type="button"
           onClick={onAddRel}
-          className="mb-3 inline-flex min-h-[44px] items-center rounded-xl border border-[#7a1f1f]/40 px-4 text-sm font-bold text-[#7a1f1f]"
+          className="alpha-btn alpha-btn-secondary mb-3 !min-h-[44px] !text-sm"
         >
           + 添加家庭关系
         </button>
       ) : null}
 
       {componentCount > 1 ? (
-        <p className="mb-3 text-sm text-[#6b5344]">
+        <p className="mb-3 text-sm text-[color:var(--a-muted)]">
           当前档案中有 {componentCount} 个尚未连接的家族分支。
         </p>
       ) : null}
 
       {byGen.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[#d4a76a]/50 px-4 py-8 text-center text-[#8a6a4a]">
+        <p className="alpha-panel border-dashed px-4 py-10 text-center text-[color:var(--a-muted)]">
           添加成员并建立关系后，这里会按世代展示。
         </p>
       ) : (
-        <div className="space-y-6">
+        <div className="alpha-lineage-rail space-y-6">
           {byGen.map(([gen, list]) => (
             <section key={gen}>
-              <h3 className="mb-2 text-sm font-bold tracking-wide text-[#8a6a4a]">
+              <h3 className="mb-2 text-sm font-bold tracking-wide text-[color:var(--a-brand)]">
                 {generationLabel(gen)}
               </h3>
               <ul className="flex flex-wrap gap-2">
@@ -463,13 +464,13 @@ function LineageTab({
                   return (
                     <li
                       key={p.id}
-                      className="rounded-xl border border-[#d4a76a]/35 bg-white/80 px-3 py-2"
+                      className="alpha-panel px-3 py-2"
                     >
-                      <p className="font-bold text-[#5c2018]">
+                      <p className="font-bold text-[color:var(--a-ink)]">
                         {p.preferredName}
                       </p>
                       {spouseNames.length ? (
-                        <p className="text-xs text-[#8a6a4a]">
+                        <p className="text-xs text-[color:var(--a-muted)]">
                           配偶：{spouseNames.join("、")}
                         </p>
                       ) : null}
@@ -547,7 +548,7 @@ function RecordsTab({
 
   return (
     <div>
-      <p className="mb-3 text-sm leading-relaxed text-[#6b5344]">
+      <p className="mb-3 text-sm leading-relaxed text-[color:var(--a-muted)]">
         关于这个家族，我们知道些什么，以及这些信息从哪里来。
       </p>
       <label htmlFor="records-person" className="mb-1 block text-sm font-semibold">
@@ -557,7 +558,7 @@ function RecordsTab({
         id="records-person"
         value={personId}
         onChange={(e) => setPersonId(e.target.value)}
-        className="mb-4 w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3"
+        className="mb-4 w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] bg-white px-3"
       >
         {persons.map((p) => (
           <option key={p.id} value={p.id}>
@@ -581,7 +582,7 @@ function RecordsTab({
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-[#8a6a4a]" role="status">
+        <p className="text-sm text-[color:var(--a-muted)]" role="status">
           正在读取人物资料…
         </p>
       ) : null}
@@ -592,13 +593,13 @@ function RecordsTab({
         return (
           <section
             key={type}
-            className="mb-4 rounded-2xl border border-[#d4a76a]/30 bg-white/70 p-4"
+            className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-white/70 p-4"
           >
-            <h3 className="font-bold text-[#5c2018]">{label}</h3>
+            <h3 className="font-bold text-[color:var(--a-ink)]">{label}</h3>
             {conflicted.length >= 2 ? (
-              <div className="mt-2 rounded-xl bg-[#fff6e8] px-3 py-2">
-                <p className="font-semibold text-[#8a4b12]">存在不同说法</p>
-                <p className="mt-1 text-sm text-[#6b5344]">
+              <div className="mt-2 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-2 ring-1 ring-[color:var(--a-brand-line)]">
+                <p className="font-semibold text-[color:var(--a-brand)]">存在不同说法</p>
+                <p className="mt-1 text-sm text-[color:var(--a-muted)]">
                   目前资料中记录不一致，先保留两种说法，之后可以继续补充来源。
                 </p>
               </div>
@@ -623,11 +624,11 @@ function RecordsTab({
       })}
 
       {rejected.length > 0 ? (
-        <details className="mt-4 rounded-xl border border-[#d4a76a]/25 bg-white/50 p-3">
-          <summary className="cursor-pointer font-semibold text-[#8a6a4a]">
+        <details className="mt-4 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-white/50 p-3">
+          <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
             查看不采用的记录（{rejected.length}）
           </summary>
-          <ul className="mt-2 space-y-2 text-sm text-[#6b5344]">
+          <ul className="mt-2 space-y-2 text-sm text-[color:var(--a-muted)]">
             {rejected.map((c) => (
               <li key={c.id}>
                 {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
@@ -639,7 +640,7 @@ function RecordsTab({
       ) : null}
 
       {!loading && active.length === 0 ? (
-        <p className="text-sm text-[#8a6a4a]">
+        <p className="text-sm text-[color:var(--a-muted)]">
           {role === "VIEWER"
             ? "暂无人物资料。"
             : "还没有人物资料，可以从出生信息等开始记录。"}
@@ -690,9 +691,9 @@ function AddClaimForm({
   return (
     <form
       onSubmit={submit}
-      className="mb-5 space-y-3 rounded-2xl border border-[#d4a76a]/35 bg-white/80 p-4"
+      className="mb-5 space-y-3 rounded-2xl border border-[color:var(--a-brand-line)] bg-white/80 p-4"
     >
-      <p className="font-bold text-[#5c2018]">添加人物资料</p>
+      <p className="font-bold text-[color:var(--a-ink)]">添加人物资料</p>
       <div>
         <label htmlFor="claim-type" className="mb-1 block text-sm font-semibold">
           资料类型
@@ -701,7 +702,7 @@ function AddClaimForm({
           id="claim-type"
           value={claimType}
           onChange={(e) => setClaimType(e.target.value)}
-          className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3"
+          className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] bg-white px-3"
         >
           {Object.entries(CLAIM_TYPE_UI).map(([k, v]) => (
             <option key={k} value={k}>
@@ -720,17 +721,17 @@ function AddClaimForm({
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
-          className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3"
+          className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] bg-white px-3"
         />
       </div>
-      <p className="text-xs text-[#8a6a4a]">
+      <p className="text-xs text-[color:var(--a-muted)]">
         保存后为「待确认」
         {canReview ? "，可继续添加资料来源后再确认。" : "。"}
       </p>
       <button
         type="submit"
         disabled={busy}
-        className="min-h-[44px] rounded-xl bg-[#7a1f1f] px-4 font-bold text-white disabled:opacity-60"
+        className="min-h-[44px] rounded-xl bg-[color:var(--a-brand)] px-4 font-bold text-white disabled:opacity-60"
       >
         {busy ? "保存中…" : "保存资料"}
       </button>
@@ -782,19 +783,19 @@ function ClaimCard({
     claim.status;
 
   return (
-    <li className="rounded-xl border border-[#efe6d8] bg-[#faf7f2] p-3">
+    <li className="rounded-xl border border-[#efe6d8] bg-[color:var(--a-surface-strong)] p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-base font-semibold text-[#3d2a1f]">
             {claim.value?.text ?? "—"}
           </p>
-          <p className="mt-1 text-sm text-[#8a6a4a]">{statusLabel}</p>
+          <p className="mt-1 text-sm text-[color:var(--a-muted)]">{statusLabel}</p>
         </div>
         {canReview && claim.status === "PROPOSED" ? (
           <div className="flex gap-2">
             <button
               type="button"
-              className="min-h-[40px] rounded-lg bg-[#7a1f1f] px-3 text-sm font-bold text-white"
+              className="min-h-[40px] rounded-lg bg-[color:var(--a-brand)] px-3 text-sm font-bold text-white"
               onClick={async () => {
                 try {
                   await v1api.acceptClaim(familyId, claim.id);
@@ -810,7 +811,7 @@ function ClaimCard({
             </button>
             <button
               type="button"
-              className="min-h-[40px] rounded-lg border border-[#d4a76a]/50 px-3 text-sm font-semibold"
+              className="min-h-[40px] rounded-lg border border-[color:var(--a-brand-line)] px-3 text-sm font-semibold"
               onClick={async () => {
                 try {
                   await v1api.rejectClaim(familyId, claim.id);
@@ -829,7 +830,7 @@ function ClaimCard({
         {canReview && claim.status === "CONFLICTED" ? (
           <button
             type="button"
-            className="min-h-[40px] rounded-lg border border-[#d4a76a]/50 px-3 text-sm font-semibold"
+            className="min-h-[40px] rounded-lg border border-[color:var(--a-brand-line)] px-3 text-sm font-semibold"
             onClick={async () => {
               try {
                 await v1api.rejectClaim(familyId, claim.id);
@@ -849,7 +850,7 @@ function ClaimCard({
       {bundle?.evidenceLinks?.length ? (
         <ul className="mt-3 space-y-2 border-t border-[#efe6d8] pt-2 text-sm">
           {bundle.evidenceLinks.map((l) => (
-            <li key={l.evidence.id} className="text-[#6b5344]">
+            <li key={l.evidence.id} className="text-[color:var(--a-muted)]">
               <span className="font-semibold">
                 {EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源"}
               </span>
@@ -873,7 +874,7 @@ function ClaimCard({
       {canEdit ? (
         <button
           type="button"
-          className="mt-2 text-sm font-semibold text-[#7a1f1f]"
+          className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
           onClick={() => setShowEvidence(true)}
         >
           添加资料来源
@@ -1062,7 +1063,7 @@ function AddEvidenceForm({
   }
 
   return (
-    <div className="mt-3 rounded-xl border border-[#d4a76a]/40 bg-white p-3">
+    <div className="mt-3 rounded-xl border border-[color:var(--a-brand-line)] bg-white p-3">
       <form onSubmit={submit} className="space-y-3">
         <div>
           <label htmlFor="ev-type" className="mb-1 block text-sm font-semibold">
@@ -1072,7 +1073,7 @@ function AddEvidenceForm({
             id="ev-type"
             value={evidenceType}
             onChange={(e) => setEvidenceType(e.target.value)}
-            className="w-full min-h-[44px] rounded-lg border border-[#d4a76a]/50 px-2"
+            className="w-full min-h-[44px] rounded-lg border border-[color:var(--a-brand-line)] px-2"
           >
             {Object.entries(EVIDENCE_TYPE_UI).map(([k, v]) => (
               <option key={k} value={k}>
@@ -1089,7 +1090,7 @@ function AddEvidenceForm({
             id="ev-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full min-h-[44px] rounded-lg border border-[#d4a76a]/50 px-2"
+            className="w-full min-h-[44px] rounded-lg border border-[color:var(--a-brand-line)] px-2"
           />
         </div>
         <div>
@@ -1101,7 +1102,7 @@ function AddEvidenceForm({
             value={sourceLocator}
             onChange={(e) => setSourceLocator(e.target.value)}
             placeholder="例如：第17页"
-            className="w-full min-h-[44px] rounded-lg border border-[#d4a76a]/50 px-2"
+            className="w-full min-h-[44px] rounded-lg border border-[color:var(--a-brand-line)] px-2"
           />
         </div>
         <div>
@@ -1113,7 +1114,7 @@ function AddEvidenceForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-[#d4a76a]/50 px-2 py-2"
+            className="w-full rounded-lg border border-[color:var(--a-brand-line)] px-2 py-2"
           />
         </div>
         <div>
@@ -1127,11 +1128,11 @@ function AddEvidenceForm({
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-sm"
           />
-          <p className="mt-1 text-xs text-[#8a6a4a]">
+          <p className="mt-1 text-xs text-[color:var(--a-muted)]">
             支持 JPG/PNG/WEBP/PDF 与常见音视频。图片最大 20 MB。仅家族成员可见。
           </p>
           {uploadState ? (
-            <p className="mt-1 text-sm text-[#6b5344]" role="status">
+            <p className="mt-1 text-sm text-[color:var(--a-muted)]" role="status">
               {uploadState}
             </p>
           ) : null}
@@ -1140,14 +1141,14 @@ function AddEvidenceForm({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] flex-1 rounded-lg border border-[#d4a76a]/40"
+            className="min-h-[44px] flex-1 rounded-lg border border-[color:var(--a-brand-line)]"
           >
             取消
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[44px] flex-1 rounded-lg bg-[#7a1f1f] font-bold text-white disabled:opacity-60"
+            className="min-h-[44px] flex-1 rounded-lg bg-[color:var(--a-brand)] font-bold text-white disabled:opacity-60"
           >
             {busy ? "保存中…" : "保存来源"}
           </button>
@@ -1211,7 +1212,7 @@ function AddPersonModal({
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 px-3"
+            className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] px-3"
           />
         </div>
         <div>
@@ -1222,7 +1223,7 @@ function AddPersonModal({
             id="p-living"
             value={living}
             onChange={(e) => setLiving(e.target.value)}
-            className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 px-3"
+            className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] px-3"
           >
             <option value="UNKNOWN">不确定</option>
             <option value="LIVING">在世</option>
@@ -1237,7 +1238,7 @@ function AddPersonModal({
             id="p-gender"
             value={gender}
             onChange={(e) => setGender(e.target.value)}
-            className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 px-3"
+            className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] px-3"
           >
             <option value="UNKNOWN">未填写</option>
             <option value="MALE">男</option>
@@ -1256,7 +1257,7 @@ function AddPersonModal({
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[44px] flex-1 rounded-xl bg-[#7a1f1f] font-bold text-white"
+            className="min-h-[44px] flex-1 rounded-xl bg-[color:var(--a-brand)] font-bold text-white"
           >
             {busy ? "添加中…" : "添加"}
           </button>
@@ -1322,7 +1323,7 @@ function AddRelationshipModal({
           <button
             type="button"
             className={`min-h-[40px] flex-1 rounded-lg text-sm font-bold ${
-              mode === "parent" ? "bg-[#7a1f1f] text-white" : "border"
+              mode === "parent" ? "bg-[color:var(--a-brand)] text-white" : "border"
             }`}
             onClick={() => setMode("parent")}
           >
@@ -1331,7 +1332,7 @@ function AddRelationshipModal({
           <button
             type="button"
             className={`min-h-[40px] flex-1 rounded-lg text-sm font-bold ${
-              mode === "spouse" ? "bg-[#7a1f1f] text-white" : "border"
+              mode === "spouse" ? "bg-[color:var(--a-brand)] text-white" : "border"
             }`}
             onClick={() => setMode("spouse")}
           >
@@ -1435,7 +1436,7 @@ function AddRelationshipModal({
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[44px] flex-1 rounded-xl bg-[#7a1f1f] font-bold text-white"
+            className="min-h-[44px] flex-1 rounded-xl bg-[color:var(--a-brand)] font-bold text-white"
           >
             {busy ? "保存中…" : "保存"}
           </button>
@@ -1569,14 +1570,17 @@ function PersonDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex justify-end bg-black/35"
+      className="fixed inset-0 z-40 flex justify-end bg-[color:var(--a-ink)]/35"
       role="dialog"
       aria-modal="true"
       aria-labelledby="person-drawer-title"
     >
-      <div className="flex h-full w-full max-w-md flex-col bg-[#faf7f2] shadow-xl">
-        <div className="flex items-center justify-between border-b border-[#d4a76a]/30 px-4 py-3">
-          <h2 id="person-drawer-title" className="text-lg font-bold text-[#5c2018]">
+      <div className="alpha-drawer-panel flex h-full w-full max-w-md flex-col bg-[color:var(--a-surface-strong)] shadow-[var(--a-shadow)]">
+        <div className="flex items-center justify-between border-b border-[color:var(--a-brand-line)] px-4 py-3">
+          <h2
+            id="person-drawer-title"
+            className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
+          >
             {person.preferredName}
           </h2>
           <button
@@ -1590,17 +1594,17 @@ function PersonDrawer({
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {localError ? (
-            <p className="mb-3 rounded-xl bg-[#f8ece8] px-3 py-2 text-sm text-[#7a1f1f]" role="alert">
+            <p className="mb-3 alpha-alert alpha-alert-error" role="alert">
               {localError}
             </p>
           ) : null}
           {localFlash ? (
-            <p className="mb-3 rounded-xl bg-[#eef6ee] px-3 py-2 text-sm text-[#2f5d3a]" role="status">
+            <p className="mb-3 rounded-xl bg-[color:var(--a-ok-soft)] px-3 py-2 text-sm text-[color:var(--a-ok)]" role="status">
               {localFlash}
             </p>
           ) : null}
           {!canEdit ? (
-            <p className="text-sm text-[#8a6a4a]">
+            <p className="text-sm text-[color:var(--a-muted)]">
               {LIVING_STATUS_LABEL[
                 living as keyof typeof LIVING_STATUS_LABEL
               ] ?? living}
@@ -1659,24 +1663,24 @@ function PersonDrawer({
               <button
                 type="submit"
                 disabled={busy}
-                className="min-h-[44px] w-full rounded-xl bg-[#7a1f1f] px-3 text-sm font-bold text-white disabled:opacity-60"
+                className="min-h-[44px] w-full rounded-xl bg-[color:var(--a-brand)] px-3 text-sm font-bold text-white disabled:opacity-60"
               >
                 {busy ? "保存中…" : "保存基本信息"}
               </button>
             </form>
           )}
-          <h3 className="mt-6 font-bold text-[#5c2018]">家庭关系</h3>
+          <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">家庭关系</h3>
           {relLines.length ? (
-            <ul className="mt-2 space-y-1 text-sm text-[#6b5344]">
+            <ul className="mt-2 space-y-1 text-sm text-[color:var(--a-muted)]">
               {relLines.map((l, i) => (
                 <li key={i}>{l}</li>
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-[#8a6a4a]">暂无关系</p>
+            <p className="mt-2 text-sm text-[color:var(--a-muted)]">暂无关系</p>
           )}
-          <h3 className="mt-6 font-bold text-[#5c2018]">人物资料</h3>
-          <p className="mt-1 mb-3 text-sm text-[#6b5344]">
+          <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
+          <p className="mt-1 mb-3 text-sm text-[color:var(--a-muted)]">
             记录我们知道的内容，以及资料从哪里来。
           </p>
           {canEdit ? (
@@ -1696,7 +1700,7 @@ function PersonDrawer({
             />
           ) : null}
           {claimsLoading ? (
-            <p className="text-sm text-[#8a6a4a]" role="status">
+            <p className="text-sm text-[color:var(--a-muted)]" role="status">
               正在读取人物资料…
             </p>
           ) : null}
@@ -1706,13 +1710,13 @@ function PersonDrawer({
             return (
               <section
                 key={type}
-                className="mb-4 rounded-2xl border border-[#d4a76a]/30 bg-white/70 p-3"
+                className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-white/70 p-3"
               >
-                <h4 className="font-bold text-[#5c2018]">{label}</h4>
+                <h4 className="font-bold text-[color:var(--a-ink)]">{label}</h4>
                 {conflicted.length >= 2 ? (
                   <div className="mt-2 rounded-xl bg-[#fff6e8] px-3 py-2">
                     <p className="font-semibold text-[#8a4b12]">存在不同说法</p>
-                    <p className="mt-1 text-sm text-[#6b5344]">
+                    <p className="mt-1 text-sm text-[color:var(--a-muted)]">
                       目前资料中记录不一致，先保留两种说法，之后可以继续补充来源。
                     </p>
                   </div>
@@ -1739,11 +1743,11 @@ function PersonDrawer({
             );
           })}
           {rejectedClaims.length > 0 ? (
-            <details className="mt-2 rounded-xl border border-[#d4a76a]/25 bg-white/50 p-3">
-              <summary className="cursor-pointer font-semibold text-[#8a6a4a]">
+            <details className="mt-2 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-white/50 p-3">
+              <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
                 查看不采用的记录（{rejectedClaims.length}）
               </summary>
-              <ul className="mt-2 space-y-2 text-sm text-[#6b5344]">
+              <ul className="mt-2 space-y-2 text-sm text-[color:var(--a-muted)]">
                 {rejectedClaims.map((c) => (
                   <li key={c.id}>
                     {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
@@ -1754,7 +1758,7 @@ function PersonDrawer({
             </details>
           ) : null}
           {!claimsLoading && activeClaims.length === 0 ? (
-            <p className="text-sm text-[#8a6a4a]">
+            <p className="text-sm text-[color:var(--a-muted)]">
               {canEdit
                 ? "还没有人物资料，可以从出生信息等开始记录。"
                 : "暂无人物资料。"}
@@ -1785,14 +1789,16 @@ function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 p-4 sm:items-center"
+      className="fixed inset-0 z-40 flex items-end justify-center bg-[color:var(--a-ink)]/35 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
-      <div className="w-full max-w-md rounded-2xl bg-[#faf7f2] p-5 shadow-xl">
+      <div className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-[#5c2018]">{title}</h2>
+          <h2 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
+            {title}
+          </h2>
           <button type="button" onClick={onClose} className="min-h-[40px] px-2 text-sm font-semibold">
             关闭
           </button>

@@ -73,106 +73,120 @@ export default function AlphaLoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md py-8 sm:py-14">
-      <p className="mb-2 text-sm font-semibold tracking-wide text-[#8a6a4a]">
-        {PRODUCT.brand} Alpha
-      </p>
-      <h1 className="text-2xl font-bold leading-snug text-[#5c2018] sm:text-3xl">
-        {LOGIN_COPY.title}
-      </h1>
-      <p className="mt-3 text-base leading-relaxed text-[#6b5344]">
-        {LOGIN_COPY.subtitle}
-      </p>
+    <div className="mx-auto max-w-md py-10 sm:py-16">
+      <div className="alpha-fade-in mb-8">
+        <div className="alpha-login-mark alpha-font-display mb-5" aria-hidden>
+          云
+        </div>
+        <p className="mb-2 text-sm font-semibold tracking-[0.16em] text-[color:var(--a-brand)]">
+          ALPHA · 邀请制
+        </p>
+        <h1 className="alpha-font-display text-4xl font-bold leading-none tracking-wide text-[color:var(--a-ink)] sm:text-5xl">
+          {PRODUCT.brand}
+        </h1>
+        <p className="mt-4 text-lg font-semibold leading-snug text-[color:var(--a-ink)]">
+          {LOGIN_COPY.title}
+        </p>
+        <p className="mt-3 text-base leading-relaxed text-[color:var(--a-muted)]">
+          {LOGIN_COPY.subtitle}
+        </p>
+      </div>
 
-      {!challengeId ? (
-        <form onSubmit={onRequestCode} className="mt-8 space-y-5">
-          <div>
-            <label htmlFor="alpha-email" className="mb-1.5 block text-sm font-semibold">
-              邮箱
-            </label>
-            <input
-              id="alpha-email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3 text-base outline-none focus:border-[#7a1f1f]"
-            />
-          </div>
-          <div>
-            <label htmlFor="alpha-invite" className="mb-1.5 block text-sm font-semibold">
-              邀请码（首次使用时填写）
-            </label>
-            <input
-              id="alpha-invite"
-              type="text"
-              autoComplete="off"
-              value={inviteToken}
-              onChange={(e) => setInviteToken(e.target.value)}
-              className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3 text-base outline-none focus:border-[#7a1f1f]"
-            />
-          </div>
-          {message ? (
-            <p className="text-sm text-[#6b5344]" role="status">
-              {message}
+      <div className="alpha-fade-in-delay alpha-panel p-5 sm:p-6">
+        {!challengeId ? (
+          <form onSubmit={onRequestCode} className="space-y-5">
+            <div>
+              <label htmlFor="alpha-email" className="alpha-label">
+                邮箱
+              </label>
+              <input
+                id="alpha-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="alpha-input"
+              />
+            </div>
+            <div>
+              <label htmlFor="alpha-invite" className="alpha-label">
+                邀请码（首次使用时填写）
+              </label>
+              <input
+                id="alpha-invite"
+                type="text"
+                autoComplete="off"
+                value={inviteToken}
+                onChange={(e) => setInviteToken(e.target.value)}
+                className="alpha-input"
+              />
+            </div>
+            {message ? (
+              <p className="text-sm text-[color:var(--a-muted)]" role="status">
+                {message}
+              </p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={busy}
+              className="alpha-btn alpha-btn-primary w-full"
+            >
+              {busy ? "请稍候…" : "获取验证码"}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={onVerify} className="space-y-5">
+            <p className="text-sm text-[color:var(--a-muted)]" role="status">
+              {ERROR_COPY.requestCodeGeneric}
             </p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={busy}
-            className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[#7a1f1f] px-4 text-base font-bold text-white disabled:opacity-60"
-          >
-            {busy ? "请稍候…" : "获取验证码"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={onVerify} className="mt-8 space-y-5">
-          <p className="text-sm text-[#6b5344]" role="status">
-            {ERROR_COPY.requestCodeGeneric}
-          </p>
-          <div>
-            <label htmlFor="alpha-otp" className="mb-1.5 block text-sm font-semibold">
-              验证码
-            </label>
-            <input
-              id="alpha-otp"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3 text-center text-xl tracking-[0.4em] outline-none focus:border-[#7a1f1f]"
-            />
-            <p className="mt-1.5 text-sm text-[#8a6a4a]">{LOGIN_COPY.otpHint}</p>
-          </div>
-          {message ? (
-            <p className="text-sm text-[#7a1f1f]" role="alert">
-              {message}
-            </p>
-          ) : null}
-          <button
-            type="submit"
-            disabled={busy || code.length !== 6}
-            className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-[#7a1f1f] px-4 text-base font-bold text-white disabled:opacity-60"
-          >
-            {busy ? "验证中…" : "登录"}
-          </button>
-          <button
-            type="button"
-            disabled={busy || cooldown > 0}
-            onClick={() => {
-              setChallengeId(null);
-              setCode("");
-              setMessage("");
-            }}
-            className="inline-flex min-h-[44px] w-full items-center justify-center text-sm font-semibold text-[#8a6a4a] disabled:opacity-50"
-          >
-            {cooldown > 0 ? `重新发送（${cooldown}s）` : "重新发送"}
-          </button>
-        </form>
-      )}
+            <div>
+              <label htmlFor="alpha-otp" className="alpha-label">
+                验证码
+              </label>
+              <input
+                id="alpha-otp"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                required
+                value={code}
+                onChange={(e) =>
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
+                }
+                className="alpha-input text-center text-xl tracking-[0.4em]"
+              />
+              <p className="mt-1.5 text-sm text-[color:var(--a-muted)]">
+                {LOGIN_COPY.otpHint}
+              </p>
+            </div>
+            {message ? (
+              <p className="alpha-alert alpha-alert-error" role="alert">
+                {message}
+              </p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={busy || code.length !== 6}
+              className="alpha-btn alpha-btn-primary w-full"
+            >
+              {busy ? "验证中…" : "登录"}
+            </button>
+            <button
+              type="button"
+              disabled={busy || cooldown > 0}
+              onClick={() => {
+                setChallengeId(null);
+                setCode("");
+                setMessage("");
+              }}
+              className="alpha-btn alpha-btn-ghost w-full"
+            >
+              {cooldown > 0 ? `重新发送（${cooldown}s）` : "重新发送"}
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

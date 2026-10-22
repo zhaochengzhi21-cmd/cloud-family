@@ -25,7 +25,10 @@ export default function AlphaRootPage() {
   }, [router]);
 
   return (
-    <p className="py-16 text-center text-[#8a6a4a]" role="status">
+    <p
+      className="py-16 text-center text-[color:var(--a-muted)]"
+      role="status"
+    >
       正在进入…
     </p>
   );

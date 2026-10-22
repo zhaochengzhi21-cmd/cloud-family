@@ -4,10 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EMPTY_FAMILIES, PRODUCT } from "@/v1/ui/copy";
-import {
-  userMessageForApiError,
-  v1api,
-} from "@/v1/client/api";
+import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
 
 type FamilyItem = {
@@ -16,6 +13,13 @@ type FamilyItem = {
   surname: string | null;
   role: string;
   currentVersionNo: number;
+};
+
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: "创建者",
+  ADMIN: "管理员",
+  EDITOR: "可编辑",
+  VIEWER: "只读",
 };
 
 export default function AlphaFamiliesPage() {
@@ -63,35 +67,47 @@ export default function AlphaFamiliesPage() {
 
   if (families === null && !error) {
     return (
-      <p className="py-12 text-center text-[#8a6a4a]" role="status">
+      <p
+        className="py-16 text-center text-[color:var(--a-muted)]"
+        role="status"
+      >
         正在读取你的家族档案…
       </p>
     );
   }
 
   return (
-    <div className="py-4">
-      <h1 className="text-2xl font-bold text-[#5c2018]">我的家族</h1>
-      <p className="mt-1 text-sm text-[#8a6a4a]">
-        管理你参与的{PRODUCT.family}
-      </p>
+    <div className="alpha-fade-in py-2">
+      <header className="mb-8">
+        <h1 className="alpha-font-display text-3xl font-bold text-[color:var(--a-ink)]">
+          我的家族
+        </h1>
+        <p className="mt-2 text-base text-[color:var(--a-muted)]">
+          管理你参与的{PRODUCT.family}
+        </p>
+      </header>
 
       {error ? (
-        <p className="mt-4 rounded-xl bg-[#f8ece8] px-3 py-2 text-sm text-[#7a1f1f]" role="alert">
+        <p className="mb-4 alpha-alert alpha-alert-error" role="alert">
           {error}
         </p>
       ) : null}
 
       {families && families.length === 0 && !creating ? (
-        <div className="mt-10 rounded-2xl border border-dashed border-[#d4a76a]/50 bg-white/60 px-5 py-10 text-center">
-          <h2 className="text-xl font-bold text-[#5c2018]">{EMPTY_FAMILIES.title}</h2>
-          <p className="mt-3 text-base leading-relaxed text-[#6b5344]">
+        <div className="alpha-panel px-6 py-12 text-center">
+          <p className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]">
+            从这里开始
+          </p>
+          <h2 className="alpha-font-display mt-2 text-2xl font-bold text-[color:var(--a-ink)]">
+            {EMPTY_FAMILIES.title}
+          </h2>
+          <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-[color:var(--a-muted)]">
             {EMPTY_FAMILIES.body}
           </p>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="mt-6 inline-flex min-h-[48px] items-center justify-center rounded-xl bg-[#7a1f1f] px-5 text-base font-bold text-white"
+            className="alpha-btn alpha-btn-primary mt-8"
           >
             {EMPTY_FAMILIES.cta}
           </button>
@@ -99,28 +115,34 @@ export default function AlphaFamiliesPage() {
       ) : null}
 
       {families && families.length > 0 ? (
-        <ul className="mt-6 space-y-3">
+        <ul className="space-y-3">
           {families.map((f) => (
             <li key={f.id}>
               <Link
                 href={`/alpha/families/${f.id}`}
-                className="flex min-h-[56px] items-center justify-between rounded-2xl border border-[#d4a76a]/30 bg-white/80 px-4 py-3 hover:border-[#7a1f1f]/40"
+                className="alpha-panel alpha-panel-interactive flex min-h-[64px] items-center justify-between px-4 py-3"
               >
                 <div>
-                  <p className="font-bold text-[#5c2018]">{f.displayName}</p>
-                  {f.surname ? (
-                    <p className="text-sm text-[#8a6a4a]">{f.surname}</p>
-                  ) : null}
+                  <p className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
+                    {f.displayName}
+                  </p>
+                  <p className="mt-0.5 text-sm text-[color:var(--a-muted)]">
+                    {[f.surname, ROLE_LABEL[f.role] || f.role]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
                 </div>
-                <span className="text-sm text-[#8a6a4a]">打开</span>
+                <span className="text-sm font-semibold text-[color:var(--a-brand)]">
+                  打开
+                </span>
               </Link>
             </li>
           ))}
-          <li>
+          <li className="pt-2">
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="inline-flex min-h-[44px] items-center text-sm font-semibold text-[#7a1f1f]"
+              className="alpha-btn alpha-btn-ghost !justify-start !px-0"
             >
               + 创建家族档案
             </button>
@@ -130,24 +152,27 @@ export default function AlphaFamiliesPage() {
 
       {creating ? (
         <div
-          className="fixed inset-0 z-40 flex items-end justify-center bg-black/35 p-4 sm:items-center"
+          className="fixed inset-0 z-40 flex items-end justify-center bg-[color:var(--a-ink)]/35 p-4 sm:items-center"
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-family-title"
         >
           <form
             onSubmit={onCreate}
-            className="w-full max-w-md rounded-2xl bg-[#faf7f2] p-5 shadow-xl"
+            className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]"
           >
-            <h2 id="create-family-title" className="text-lg font-bold text-[#5c2018]">
+            <h2
+              id="create-family-title"
+              className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
+            >
               创建家族档案
             </h2>
-            <p className="mt-2 text-sm text-[#6b5344]">
+            <p className="mt-2 text-sm text-[color:var(--a-muted)]">
               新建家族默认仅家族成员可见。
             </p>
             <div className="mt-4 space-y-4">
               <div>
-                <label htmlFor="fam-name" className="mb-1 block text-sm font-semibold">
+                <label htmlFor="fam-name" className="alpha-label">
                   家族名称 *
                 </label>
                 <input
@@ -156,11 +181,11 @@ export default function AlphaFamiliesPage() {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="例如：赵氏家庭"
-                  className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3 outline-none focus:border-[#7a1f1f]"
+                  className="alpha-input"
                 />
               </div>
               <div>
-                <label htmlFor="fam-surname" className="mb-1 block text-sm font-semibold">
+                <label htmlFor="fam-surname" className="alpha-label">
                   姓氏（可选）
                 </label>
                 <input
@@ -168,7 +193,7 @@ export default function AlphaFamiliesPage() {
                   value={surname}
                   onChange={(e) => setSurname(e.target.value)}
                   placeholder="例如：赵"
-                  className="w-full min-h-[44px] rounded-xl border border-[#d4a76a]/50 bg-white px-3 outline-none focus:border-[#7a1f1f]"
+                  className="alpha-input"
                 />
               </div>
             </div>
@@ -176,14 +201,14 @@ export default function AlphaFamiliesPage() {
               <button
                 type="button"
                 onClick={() => setCreating(false)}
-                className="min-h-[44px] flex-1 rounded-xl border border-[#d4a76a]/40 font-semibold"
+                className="alpha-btn alpha-btn-secondary flex-1"
               >
                 取消
               </button>
               <button
                 type="submit"
                 disabled={busy}
-                className="min-h-[44px] flex-1 rounded-xl bg-[#7a1f1f] font-bold text-white disabled:opacity-60"
+                className="alpha-btn alpha-btn-primary flex-1"
               >
                 {busy ? "创建中…" : "创建"}
               </button>
