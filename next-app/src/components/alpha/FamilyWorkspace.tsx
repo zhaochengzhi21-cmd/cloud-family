@@ -1008,6 +1008,14 @@ function AddEvidenceForm({
           if (st.status === "FAILED") {
             throw new Error("upload failed");
           }
+          // Local Preview: webhook cannot reach localhost — opt-in finalize.
+          if (st.status === "PENDING_UPLOAD") {
+            try {
+              await v1api.mediaFinalizeLocal(familyId, reserved.media.id);
+            } catch {
+              /* Production 404 / object not ready — keep polling */
+            }
+          }
           await new Promise((r) => setTimeout(r, 400));
         }
         if (!mediaObjectId) {

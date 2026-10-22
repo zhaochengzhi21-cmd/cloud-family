@@ -588,6 +588,63 @@ export async function getMediaUploadStatus(
 }
 
 /**
+ * Local/Preview substitute for Vercel onUploadCompleted webhook.
+ * Caller must gate with isV1BlobLocalFinalizeEnabled() at HTTP layer.
+ * Requires UPLOAD_MEDIA; never trusts client byteSize — uses storage head.
+ */
+export async function finalizeLocalPendingMedia(
+  familyId: string,
+  mediaId: string,
+  actorContext: AccessContext,
+  options?: MediaServiceOptions
+): Promise<FinalizeClientUploadResult> {
+  assertUuid(familyId, "familyId");
+  assertUuid(mediaId, "mediaId");
+  const database = dbOrDefault(options?.db);
+  const storage = options?.storage ?? getObjectStorage();
+
+  const auth = await authorizeFamilyAction(
+    familyId,
+    actorContext,
+    "UPLOAD_MEDIA",
+    { db: database }
+  ).catch(mapPerm);
+  if (auth.decision !== "ALLOW") {
+    throw new MediaDomainError("FORBIDDEN");
+  }
+
+  const media = await mediaRepo.findMediaById(database, mediaId);
+  if (!media || media.familyId !== familyId) {
+    throw new MediaDomainError("MEDIA_NOT_FOUND");
+  }
+  if (media.status === "ACTIVE") {
+    return {
+      status: "ALREADY_ACTIVE",
+      mediaId: media.id,
+      familyVersion: null,
+    };
+  }
+  if (media.status !== "PENDING_UPLOAD") {
+    throw new MediaDomainError("MEDIA_NOT_ACTIVE");
+  }
+
+  const head = await storage.headObject(media.storageKey);
+  if (!head || head.contentLength == null || head.contentLength < 0) {
+    throw new MediaDomainError("UPLOAD_FAILED");
+  }
+
+  return finalizeClientUpload(
+    {
+      mediaId: media.id,
+      pathname: media.storageKey,
+      contentType: media.mimeType || head.contentType || "application/octet-stream",
+      actualByteSize: head.contentLength,
+    },
+    { db: database, storage }
+  );
+}
+
+/**
  * Authorized signed READ URL (TTL ≤ 60s). Never accepts caller storageKey.
  */
 export async function getMediaReadAccess(

@@ -23,6 +23,8 @@
     "db:workspace-http-smoke": "tsx scripts/v1-workspace-http-smoke.ts",
     "db:media-direct-upload-smoke": "tsx scripts/v1-media-direct-upload-smoke.ts",
     "test:e2e:alpha": "playwright test e2e/alpha-workspace.spec.ts",
+    "alpha:dev": "node scripts/alpha-local-dev.mjs",
+    "db:local-operability-smoke": "tsx scripts/v1-local-operability-smoke.ts",
     "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts"
   },
   "dependencies": {

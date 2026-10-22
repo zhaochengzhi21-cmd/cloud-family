@@ -391,6 +391,16 @@ export const v1api = {
       `/api/v1/families/${familyId}/media/${mediaId}/status`
     ),
 
+  /**
+   * Local/Preview only when server has V1_BLOB_LOCAL_FINALIZE=true.
+   * Production returns 404 — callers must ignore failures.
+   */
+  mediaFinalizeLocal: (familyId: string, mediaId: string) =>
+    v1Fetch<{ mediaId: string; status: string }>(
+      `/api/v1/families/${familyId}/media/${mediaId}/finalize-local`,
+      { method: "POST", body: {} }
+    ),
+
   mediaRead: (familyId: string, mediaId: string) =>
     v1Fetch<{
       media: { id: string; mimeType: string | null; byteSize: number | null };

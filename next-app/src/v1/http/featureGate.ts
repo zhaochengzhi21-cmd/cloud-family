@@ -13,3 +13,11 @@ export function isV1AlphaAppEnabled(): boolean {
 export function isV1AlphaUiEnabled(): boolean {
   return process.env.V1_ALPHA_UI_ENABLED === "true";
 }
+
+/**
+ * Local/Preview only: allow session-authenticated finalize when Vercel
+ * cannot callback localhost. Production must leave unset → false.
+ */
+export function isV1BlobLocalFinalizeEnabled(): boolean {
+  return process.env.V1_BLOB_LOCAL_FINALIZE === "true";
+}

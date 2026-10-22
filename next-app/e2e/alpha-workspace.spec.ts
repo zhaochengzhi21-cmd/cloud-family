@@ -14,7 +14,6 @@ import {
   closeDb,
   apiJson,
   trackMedia,
-  finalizePendingUploadsForFamily,
 } from "./helpers/v1";
 import { isV1AlphaUiEnabled } from "../src/v1/http/featureGate";
 
@@ -185,18 +184,8 @@ async function runCoreJourney(
     mimeType: "image/png",
     buffer: png,
   });
-  const saveClick = page.getByRole("button", { name: "保存来源" }).click();
-  const finalizeLoop = finalizePendingUploadsForFamily(familyId, ownerId, {
-    timeoutMs: 90_000,
-  });
-  const [, finalized] = await Promise.all([saveClick, finalizeLoop]);
-  if (!finalized) {
-    throw new Error("media finalize: no PENDING_UPLOAD became ACTIVE (blob put/callback)");
-  }
-  const uploadErr = page.getByText(/上传失败|上传超时|不支持的文件/);
-  if (await uploadErr.count()) {
-    throw new Error(`media upload UI error: ${await uploadErr.first().textContent()}`);
-  }
+  await page.getByRole("button", { name: "保存来源" }).click();
+  // Server has V1_BLOB_LOCAL_FINALIZE=true in Playwright webServer — UI polls + finalize-local.
   await expect(page.getByText("测试合成照片")).toBeVisible({
     timeout: 90_000,
   });

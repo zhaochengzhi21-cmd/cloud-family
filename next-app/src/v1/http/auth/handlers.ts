@@ -35,6 +35,10 @@ import {
   readSessionTokenFromCookieHeader,
 } from "@/v1/http/auth/cookies";
 import { createResendOtpDeliveryAdapter } from "@/v1/email/resendOtpDeliveryAdapter";
+import {
+  createConsoleOtpDeliveryAdapter,
+  isConsoleOtpDeliveryEnabled,
+} from "@/v1/email/consoleOtpDeliveryAdapter";
 import { isResendConfigured } from "@/v1/email/config";
 
 /** Session resolve/logout for Alpha Workspace when APP/UI is on (OTP still AUTH-gated). */
@@ -44,6 +48,16 @@ function isV1SessionHttpEnabled(): boolean {
     isV1AlphaAppEnabled() ||
     isV1AlphaUiEnabled()
   );
+}
+
+function resolveOtpDelivery(): OtpDeliveryAdapter {
+  if (isConsoleOtpDeliveryEnabled()) {
+    return createConsoleOtpDeliveryAdapter();
+  }
+  if (isResendConfigured()) {
+    return createResendOtpDeliveryAdapter();
+  }
+  return new InMemoryOtpDeliveryAdapter();
 }
 
 export type AuthHttpRequest = {
@@ -72,14 +86,9 @@ export type AuthHttpDeps = {
 export function defaultAuthHttpDeps(
   overrides?: Partial<AuthHttpDeps>
 ): AuthHttpDeps {
-  const delivery =
-    overrides?.delivery ??
-    (isResendConfigured()
-      ? createResendOtpDeliveryAdapter()
-      : new InMemoryOtpDeliveryAdapter());
   return {
     db: overrides?.db ?? getV1Db(),
-    delivery,
+    delivery: overrides?.delivery ?? resolveOtpDelivery(),
     now: overrides?.now ?? (() => new Date()),
     secureCookie: overrides?.secureCookie,
   };

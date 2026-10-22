@@ -29,6 +29,8 @@ export default defineConfig({
       V1_ALPHA_UI_ENABLED: "true",
       V1_ALPHA_APP_ENABLED: "true",
       V1_ALPHA_AUTH_ENABLED: "false",
+      V1_BLOB_LOCAL_FINALIZE: "true",
+      V1_OTP_DELIVERY: "console",
       V1_ALLOWED_ORIGINS: `${BASE},http://localhost:${PORT}`,
       PORT: String(PORT),
     },
