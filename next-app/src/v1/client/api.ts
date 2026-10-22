@@ -271,6 +271,16 @@ export const v1api = {
       body,
     }),
 
+  deletePerson: (familyId: string, personId: string) =>
+    v1Fetch<{
+      personId: string;
+      familyVersion: number;
+      relationshipsRemovedCount: number;
+    }>(`/api/v1/families/${familyId}/persons/${personId}`, {
+      method: "DELETE",
+      body: {},
+    }),
+
   createRelationship: (
     familyId: string,
     body: {

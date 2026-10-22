@@ -12,6 +12,7 @@ export default function AlphaLoginPage() {
 
   const [email, setEmail] = useState("");
   const [inviteToken, setInviteToken] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState(
@@ -20,28 +21,33 @@ export default function AlphaLoginPage() {
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  async function onRequestCode(e: FormEvent) {
-    e.preventDefault();
+  function startCooldown() {
+    setCooldown(60);
+    const t = window.setInterval(() => {
+      setCooldown((c) => {
+        if (c <= 1) {
+          window.clearInterval(t);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+  }
+
+  async function requestCode() {
     setBusy(true);
     setMessage("");
     try {
       const body: { email: string; inviteToken?: string } = {
         email: email.trim(),
       };
-      if (inviteToken.trim()) body.inviteToken = inviteToken.trim();
+      if (showInvite && inviteToken.trim()) {
+        body.inviteToken = inviteToken.trim();
+      }
       const res = await v1api.requestCode(body);
       setChallengeId(res.challengeId ?? "pending");
       setMessage(ERROR_COPY.requestCodeGeneric);
-      setCooldown(60);
-      const t = window.setInterval(() => {
-        setCooldown((c) => {
-          if (c <= 1) {
-            window.clearInterval(t);
-            return 0;
-          }
-          return c - 1;
-        });
-      }, 1000);
+      startCooldown();
     } catch (err) {
       if (err instanceof V1ApiError && err.status === 404) {
         setMessage("当前环境暂未开放登录。");
@@ -52,6 +58,11 @@ export default function AlphaLoginPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function onRequestCode(e: FormEvent) {
+    e.preventDefault();
+    await requestCode();
   }
 
   async function onVerify(e: FormEvent) {
@@ -109,19 +120,42 @@ export default function AlphaLoginPage() {
                 className="alpha-input"
               />
             </div>
-            <div>
-              <label htmlFor="alpha-invite" className="alpha-label">
-                邀请码（首次使用时填写）
-              </label>
-              <input
-                id="alpha-invite"
-                type="text"
-                autoComplete="off"
-                value={inviteToken}
-                onChange={(e) => setInviteToken(e.target.value)}
-                className="alpha-input"
-              />
-            </div>
+
+            {showInvite ? (
+              <div>
+                <label htmlFor="alpha-invite" className="alpha-label">
+                  邀请码
+                </label>
+                <input
+                  id="alpha-invite"
+                  type="text"
+                  autoComplete="off"
+                  value={inviteToken}
+                  onChange={(e) => setInviteToken(e.target.value)}
+                  className="alpha-input"
+                  placeholder="粘贴收到的邀请码"
+                />
+                <button
+                  type="button"
+                  className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
+                  onClick={() => {
+                    setShowInvite(false);
+                    setInviteToken("");
+                  }}
+                >
+                  我已有账号，不需要邀请码
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)]"
+                onClick={() => setShowInvite(true)}
+              >
+                首次使用？填写邀请码
+              </button>
+            )}
+
             {message ? (
               <p className="text-sm text-[color:var(--a-muted)]" role="status">
                 {message}
@@ -155,6 +189,7 @@ export default function AlphaLoginPage() {
                   setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                 }
                 className="alpha-input text-center text-xl tracking-[0.4em]"
+                autoComplete="one-time-code"
               />
               <p className="mt-1.5 text-sm text-[color:var(--a-muted)]">
                 {LOGIN_COPY.otpHint}
@@ -172,58 +207,30 @@ export default function AlphaLoginPage() {
             >
               {busy ? "验证中…" : "登录"}
             </button>
-          <button
-            type="button"
-            disabled={busy || cooldown > 0}
-            onClick={async () => {
-              if (cooldown > 0) return;
-              setCode("");
-              setMessage("");
-              setBusy(true);
-              try {
-                const body: { email: string; inviteToken?: string } = {
-                  email: email.trim(),
-                };
-                if (inviteToken.trim()) body.inviteToken = inviteToken.trim();
-                const res = await v1api.requestCode(body);
-                setChallengeId(res.challengeId ?? "pending");
-                setMessage(ERROR_COPY.requestCodeGeneric);
-                setCooldown(60);
-                const t = window.setInterval(() => {
-                  setCooldown((c) => {
-                    if (c <= 1) {
-                      window.clearInterval(t);
-                      return 0;
-                    }
-                    return c - 1;
-                  });
-                }, 1000);
-              } catch (err) {
-                if (err instanceof V1ApiError && err.status === 404) {
-                  setMessage("当前环境暂未开放登录。");
-                } else {
-                  setMessage(ERROR_COPY.requestCodeGeneric);
-                }
-              } finally {
-                setBusy(false);
-              }
-            }}
-            className="alpha-btn alpha-btn-ghost w-full"
-          >
-            {cooldown > 0 ? `重新发送（${cooldown}s）` : "重新发送验证码"}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              setChallengeId(null);
-              setCode("");
-              setMessage("");
-            }}
-            className="alpha-btn alpha-btn-ghost w-full !text-[color:var(--a-muted)]"
-          >
-            返回修改邮箱
-          </button>
+            <button
+              type="button"
+              disabled={busy || cooldown > 0}
+              onClick={() => {
+                if (cooldown > 0) return;
+                setCode("");
+                void requestCode();
+              }}
+              className="alpha-btn alpha-btn-ghost w-full"
+            >
+              {cooldown > 0 ? `重新发送（${cooldown}s）` : "重新发送验证码"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setChallengeId(null);
+                setCode("");
+                setMessage("");
+              }}
+              className="alpha-btn alpha-btn-ghost w-full !text-[color:var(--a-muted)]"
+            >
+              返回修改邮箱
+            </button>
           </form>
         )}
       </div>

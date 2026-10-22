@@ -93,7 +93,7 @@ export const ERROR_COPY = {
 export const LOGIN_COPY = {
   title: "把家里的故事，安全地留给下一代",
   subtitle:
-    "目前为邀请制内测。收到邀请后，用邮箱验证码即可进入你的家族档案。",
+    "目前为邀请制内测。老用户直接用邮箱验证码登录；首次使用请展开并填写邀请码。",
   otpHint: "验证码 10 分钟内有效。",
 } as const;
 

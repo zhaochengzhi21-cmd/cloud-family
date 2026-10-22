@@ -124,6 +124,7 @@ async function runCoreJourney(
   // Flow 05–09 claims / evidence / conflict
   await page.getByRole("tab", { name: "资料" }).click();
   await page.locator("#records-person").selectOption({ label: "赵乙" });
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
   await page.locator("#claim-text").fill("民国十三年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("待确认").first()).toBeVisible();
@@ -141,6 +142,7 @@ async function runCoreJourney(
   await page.getByRole("button", { name: "确认这条资料" }).click();
   await expect(page.getByText("已确认").first()).toBeVisible();
 
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
   await page.locator("#claim-text").fill("民国十四年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("民国十四年")).toBeVisible();

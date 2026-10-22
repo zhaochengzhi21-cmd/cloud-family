@@ -322,7 +322,7 @@ export function FamilyWorkspace({
         />
       ) : null}
 
-      {selectedPersonId ? (
+      {selectedPersonId && personMap.get(selectedPersonId) ? (
         <PersonDrawer
           familyId={familyId}
           person={personMap.get(selectedPersonId)!}
@@ -332,6 +332,17 @@ export function FamilyWorkspace({
           canReview={canReview}
           onClose={() => setSelectedPersonId(null)}
           onChanged={async () => {
+            await load();
+          }}
+          onRequestAddRel={() => {
+            setSelectedPersonId(null);
+            setTab("lineage");
+            setShowAddRel(true);
+          }}
+          onDeleted={async () => {
+            setSelectedPersonId(null);
+            setError("");
+            setFlash("已移除该成员");
             await load();
           }}
           onError={(msg) => setError(msg)}
@@ -627,6 +638,7 @@ function RecordsTab({
           familyId={familyId}
           personId={personId}
           canReview={canReview}
+          compact
           onAuthError={onAuthError}
           onDone={async () => {
             setFlash("已添加人物资料");
@@ -717,6 +729,7 @@ function AddClaimForm({
   onDone,
   onError,
   onAuthError,
+  compact = false,
 }: {
   familyId: string;
   personId: string;
@@ -724,10 +737,13 @@ function AddClaimForm({
   onDone: () => Promise<void>;
   onError: (s: string) => void;
   onAuthError: (e: unknown) => boolean;
+  /** On mobile-first surfaces, start collapsed to reduce density. */
+  compact?: boolean;
 }) {
   const [claimType, setClaimType] = useState("BIRTH_DATE");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [open, setOpen] = useState(!compact);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -739,6 +755,7 @@ function AddClaimForm({
         value: { text: text.trim() },
       });
       setText("");
+      if (compact) setOpen(false);
       await onDone();
     } catch (err) {
       if (onAuthError(err)) return;
@@ -748,50 +765,79 @@ function AddClaimForm({
     }
   }
 
-  return (
-    <form onSubmit={submit} className="alpha-panel mb-5 space-y-3 p-4">
-      <p className="font-bold text-[color:var(--a-ink)]">添加人物资料</p>
-      <div>
-        <label htmlFor="claim-type" className="alpha-label">
-          资料类型
-        </label>
-        <select
-          id="claim-type"
-          value={claimType}
-          onChange={(e) => setClaimType(e.target.value)}
-          className="alpha-input"
-        >
-          {Object.entries(CLAIM_TYPE_UI).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v.label}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div>
-        <label htmlFor="claim-text" className="alpha-label">
-          {CLAIM_TYPE_UI[claimType]?.label ?? "内容"}
-        </label>
-        <input
-          id="claim-text"
-          required
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
-          className="alpha-input"
-        />
-      </div>
-      <p className="text-xs text-[color:var(--a-muted)]">
-        保存后为「待确认」
-        {canReview ? "，可继续添加资料来源后再确认。" : "。"}
-      </p>
+  if (compact && !open) {
+    return (
       <button
-        type="submit"
-        disabled={busy}
-        className="alpha-btn alpha-btn-primary !min-h-[44px]"
+        type="button"
+        onClick={() => setOpen(true)}
+        className="alpha-btn alpha-btn-secondary mb-4 w-full !min-h-[44px] !text-sm"
       >
-        {busy ? "保存中…" : "保存资料"}
+        + 添加人物资料
       </button>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="alpha-claim-composer alpha-panel mb-5 space-y-3 p-4"
+      data-collapsed={compact && !open ? "true" : "false"}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-bold text-[color:var(--a-ink)]">添加人物资料</p>
+        {compact ? (
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-muted)]"
+            onClick={() => setOpen(false)}
+          >
+            收起
+          </button>
+        ) : null}
+      </div>
+      <div className="alpha-claim-composer-body space-y-3">
+        <div>
+          <label htmlFor="claim-type" className="alpha-label">
+            资料类型
+          </label>
+          <select
+            id="claim-type"
+            value={claimType}
+            onChange={(e) => setClaimType(e.target.value)}
+            className="alpha-input"
+          >
+            {Object.entries(CLAIM_TYPE_UI).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="claim-text" className="alpha-label">
+            {CLAIM_TYPE_UI[claimType]?.label ?? "内容"}
+          </label>
+          <input
+            id="claim-text"
+            required
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
+            className="alpha-input"
+          />
+        </div>
+        <p className="text-xs text-[color:var(--a-muted)]">
+          保存后为「待确认」
+          {canReview ? "，可继续添加资料来源后再确认。" : "。"}
+        </p>
+        <button
+          type="submit"
+          disabled={busy}
+          className="alpha-btn alpha-btn-primary !min-h-[44px]"
+        >
+          {busy ? "保存中…" : "保存资料"}
+        </button>
+      </div>
     </form>
   );
 }
@@ -838,16 +884,24 @@ function ClaimCard({
   const statusLabel =
     CLAIM_STATUS_LABEL[claim.status as keyof typeof CLAIM_STATUS_LABEL] ??
     claim.status;
+  const statusChip =
+    claim.status === "ACCEPTED"
+      ? "alpha-chip alpha-chip-accepted"
+      : claim.status === "CONFLICTED"
+        ? "alpha-chip alpha-chip-conflicted"
+        : claim.status === "REJECTED"
+          ? "alpha-chip alpha-chip-rejected"
+          : "alpha-chip alpha-chip-proposed";
 
   return (
     <li className="alpha-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-base font-semibold text-[color:var(--a-ink)]">
             {claim.value?.text ?? "—"}
           </p>
           <p className="mt-1">
-            <span className="alpha-chip">{statusLabel}</span>
+            <span className={statusChip}>{statusLabel}</span>
           </p>
         </div>
         {canReview && claim.status === "PROPOSED" ? (
@@ -1523,6 +1577,8 @@ function PersonDrawer({
   canReview,
   onClose,
   onChanged,
+  onDeleted,
+  onRequestAddRel,
   onError,
   onAuth,
 }: {
@@ -1534,6 +1590,8 @@ function PersonDrawer({
   canReview: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
+  onDeleted: () => Promise<void>;
+  onRequestAddRel: () => void;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -1542,6 +1600,8 @@ function PersonDrawer({
   const [living, setLiving] = useState(person.livingStatus);
   const [gender, setGender] = useState(person.gender);
   const [revision, setRevision] = useState(person.revisionNo);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const [localFlash, setLocalFlash] = useState("");
@@ -1745,7 +1805,20 @@ function PersonDrawer({
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-[color:var(--a-muted)]">暂无关系</p>
+            <div className="mt-2">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                暂无关系。建立父母/配偶关系后，世系页会按代展示。
+              </p>
+              {canEdit ? (
+                <button
+                  type="button"
+                  className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
+                  onClick={onRequestAddRel}
+                >
+                  去添加家庭关系
+                </button>
+              ) : null}
+            </div>
           )}
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
           <p className="mt-1 mb-3 text-sm text-[color:var(--a-muted)]">
@@ -1756,6 +1829,7 @@ function PersonDrawer({
               familyId={familyId}
               personId={person.id}
               canReview={canReview}
+              compact
               onAuthError={onAuth}
               onDone={async () => {
                 setLocalFlash("已添加人物资料");
@@ -1833,6 +1907,59 @@ function PersonDrawer({
                 ? "还没有人物资料，可以从出生信息等开始记录。"
                 : "暂无人物资料。"}
             </p>
+          ) : null}
+
+          {canEdit ? (
+            <div className="mt-10 border-t border-[color:var(--a-brand-line)] pt-5">
+              {!confirmDelete ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-danger w-full !min-h-[44px] !text-sm"
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  移除这位成员
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-[color:var(--a-danger)]" role="alert">
+                    确认移除「{person.preferredName}」？相关家庭关系也会一并取消，此操作用于整理档案，请谨慎。
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="alpha-btn alpha-btn-secondary flex-1"
+                      disabled={deleting}
+                      onClick={() => setConfirmDelete(false)}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      className="alpha-btn alpha-btn-danger flex-1"
+                      disabled={deleting}
+                      onClick={async () => {
+                        setDeleting(true);
+                        setLocalError("");
+                        try {
+                          await v1api.deletePerson(familyId, person.id);
+                          await onDeleted();
+                        } catch (err) {
+                          if (onAuth(err)) return;
+                          const msg = userMessageForApiError(err);
+                          setLocalError(msg);
+                          onError(msg);
+                          setConfirmDelete(false);
+                        } finally {
+                          setDeleting(false);
+                        }
+                      }}
+                    >
+                      {deleting ? "移除中…" : "确认移除"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : null}
         </div>
       </div>

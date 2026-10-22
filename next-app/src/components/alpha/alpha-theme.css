@@ -170,6 +170,42 @@
   color: var(--a-brand);
 }
 
+.alpha-chip-proposed {
+  background: #eef2f6;
+  color: #3d5266;
+}
+
+.alpha-chip-accepted {
+  background: var(--a-ok-soft);
+  color: var(--a-ok);
+}
+
+.alpha-chip-conflicted {
+  background: #f3eee6;
+  color: #6b5344;
+}
+
+.alpha-chip-rejected {
+  background: var(--a-danger-soft);
+  color: var(--a-danger);
+}
+
+.alpha-btn-danger {
+  border: 1px solid rgba(143, 45, 45, 0.35);
+  background: transparent;
+  color: var(--a-danger);
+}
+
+.alpha-btn-danger:hover:not(:disabled) {
+  background: var(--a-danger-soft);
+}
+
+@media (max-width: 640px) {
+  .alpha-claim-composer[data-collapsed="true"] .alpha-claim-composer-body {
+    display: none;
+  }
+}
+
 .alpha-alert {
   border-radius: var(--a-radius-sm);
   padding: 0.65rem 0.85rem;
