@@ -30,7 +30,8 @@
     "probe:prod-isolation": "node scripts/v1-prod-isolation-probe.mjs",
     "probe:sender-domain": "node --env-file=.env.local scripts/v1-sender-domain-probe.mjs",
     "alpha:go-live:dry": "node --env-file=.env.local scripts/v1-alpha-go-live.mjs",
-    "alpha:go-live:apply": "node --env-file=.env.local scripts/v1-alpha-go-live.mjs --apply"
+    "alpha:go-live:apply": "node --env-file=.env.local scripts/v1-alpha-go-live.mjs --apply",
+    "alpha:ready-accept": "node --env-file=.env.local scripts/v1-alpha-ready-accept.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

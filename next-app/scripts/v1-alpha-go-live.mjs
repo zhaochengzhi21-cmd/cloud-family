@@ -90,11 +90,13 @@ async function upsertEnv(key, value) {
 async function main() {
   console.log(`go-live mode=${APPLY ? "APPLY" : "DRY_RUN"} project=${PROJECT}`);
   if (!TOKEN) {
-    console.error("FAIL VERCEL_TOKEN missing — cannot talk to Vercel API");
-    console.error(
+    console.log("NEED VERCEL_TOKEN missing — cannot talk to Vercel API");
+    console.log(
       "Set VERCEL_TOKEN then re-run. Gates will not flip without --apply."
     );
-    process.exit(2);
+    if (APPLY) process.exit(2);
+    console.log("RESULT DRY_RUN_BLOCKED_NO_TOKEN");
+    return;
   }
 
   const envs = await listEnv();
