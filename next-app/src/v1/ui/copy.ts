@@ -14,6 +14,14 @@ export const PRODUCT = {
   privacyFamilyOnly: "仅家族成员可见",
 } as const;
 
+/** User-facing role labels — never show OWNER/EDITOR raw enums. */
+export const ROLE_LABEL = {
+  OWNER: "创建者",
+  ADMIN: "管理员",
+  EDITOR: "可编辑",
+  VIEWER: "只读",
+} as const;
+
 export const CLAIM_STATUS_LABEL = {
   PROPOSED: "待确认",
   ACCEPTED: "已确认",

@@ -172,18 +172,58 @@ export default function AlphaLoginPage() {
             >
               {busy ? "验证中…" : "登录"}
             </button>
-            <button
-              type="button"
-              disabled={busy || cooldown > 0}
-              onClick={() => {
-                setChallengeId(null);
-                setCode("");
-                setMessage("");
-              }}
-              className="alpha-btn alpha-btn-ghost w-full"
-            >
-              {cooldown > 0 ? `重新发送（${cooldown}s）` : "重新发送"}
-            </button>
+          <button
+            type="button"
+            disabled={busy || cooldown > 0}
+            onClick={async () => {
+              if (cooldown > 0) return;
+              setCode("");
+              setMessage("");
+              setBusy(true);
+              try {
+                const body: { email: string; inviteToken?: string } = {
+                  email: email.trim(),
+                };
+                if (inviteToken.trim()) body.inviteToken = inviteToken.trim();
+                const res = await v1api.requestCode(body);
+                setChallengeId(res.challengeId ?? "pending");
+                setMessage(ERROR_COPY.requestCodeGeneric);
+                setCooldown(60);
+                const t = window.setInterval(() => {
+                  setCooldown((c) => {
+                    if (c <= 1) {
+                      window.clearInterval(t);
+                      return 0;
+                    }
+                    return c - 1;
+                  });
+                }, 1000);
+              } catch (err) {
+                if (err instanceof V1ApiError && err.status === 404) {
+                  setMessage("当前环境暂未开放登录。");
+                } else {
+                  setMessage(ERROR_COPY.requestCodeGeneric);
+                }
+              } finally {
+                setBusy(false);
+              }
+            }}
+            className="alpha-btn alpha-btn-ghost w-full"
+          >
+            {cooldown > 0 ? `重新发送（${cooldown}s）` : "重新发送验证码"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setChallengeId(null);
+              setCode("");
+              setMessage("");
+            }}
+            className="alpha-btn alpha-btn-ghost w-full !text-[color:var(--a-muted)]"
+          >
+            返回修改邮箱
+          </button>
           </form>
         )}
       </div>

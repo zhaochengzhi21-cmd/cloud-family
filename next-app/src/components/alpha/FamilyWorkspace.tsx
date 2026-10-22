@@ -18,6 +18,7 @@ import {
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
+  ROLE_LABEL,
   generationLabel,
 } from "@/v1/ui/copy";
 import {
@@ -162,6 +163,12 @@ export function FamilyWorkspace({
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!flash) return;
+    const t = window.setTimeout(() => setFlash(""), 4500);
+    return () => window.clearTimeout(t);
+  }, [flash]);
+
   if (loading) {
     return (
       <p
@@ -202,7 +209,19 @@ export function FamilyWorkspace({
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
           {surname ? <span>{surname}</span> : null}
           <span className="alpha-chip">{PRODUCT.privacyFamilyOnly}</span>
+          <span className="alpha-chip">
+            我的权限：{ROLE_LABEL[role] ?? role}
+          </span>
         </div>
+        {!canEdit ? (
+          <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+            当前为只读。如需添加成员或资料，请联系家族创建者。
+          </p>
+        ) : !canReview ? (
+          <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+            你可以编辑资料；确认或不采用需由创建者/管理员操作。
+          </p>
+        ) : null}
       </header>
 
       {flash ? (
@@ -210,7 +229,7 @@ export function FamilyWorkspace({
           {flash}
         </p>
       ) : null}
-      {error ? (
+      {error && !flash ? (
         <p className="mb-3 alpha-alert alpha-alert-error" role="alert">
           {error}
         </p>
@@ -254,6 +273,7 @@ export function FamilyWorkspace({
           componentCount={componentCount}
           canEdit={canEdit}
           onAddRel={() => setShowAddRel(true)}
+          onOpen={(id) => setSelectedPersonId(id)}
           personMap={personMap}
         />
       ) : null}
@@ -277,6 +297,7 @@ export function FamilyWorkspace({
           onClose={() => setShowAddPerson(false)}
           onDone={async () => {
             setShowAddPerson(false);
+            setError("");
             setFlash("已添加家族成员");
             await load();
           }}
@@ -292,6 +313,7 @@ export function FamilyWorkspace({
           onClose={() => setShowAddRel(false)}
           onDone={async () => {
             setShowAddRel(false);
+            setError("");
             setFlash("已添加家庭关系");
             await load();
           }}
@@ -406,6 +428,7 @@ function LineageTab({
   componentCount,
   canEdit,
   onAddRel,
+  onOpen,
   personMap,
 }: {
   persons: GraphPerson[];
@@ -414,6 +437,7 @@ function LineageTab({
   componentCount: number;
   canEdit: boolean;
   onAddRel: () => void;
+  onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
 }) {
   const byGen = useMemo(() => {
@@ -473,18 +497,25 @@ function LineageTab({
                     })
                     .filter(Boolean);
                   return (
-                    <li
-                      key={p.id}
-                      className="alpha-panel px-3 py-2"
-                    >
-                      <p className="font-bold text-[color:var(--a-ink)]">
-                        {p.preferredName}
-                      </p>
-                      {spouseNames.length ? (
-                        <p className="text-xs text-[color:var(--a-muted)]">
-                          配偶：{spouseNames.join("、")}
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpen(p.id)}
+                        className="alpha-panel alpha-panel-interactive px-3 py-2 text-left"
+                      >
+                        <p className="font-bold text-[color:var(--a-ink)]">
+                          {p.preferredName}
                         </p>
-                      ) : null}
+                        {spouseNames.length ? (
+                          <p className="text-xs text-[color:var(--a-muted)]">
+                            配偶：{spouseNames.join("、")}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-[color:var(--a-brand)]">
+                            查看详情
+                          </p>
+                        )}
+                      </button>
                     </li>
                   );
                 })}
@@ -809,19 +840,21 @@ function ClaimCard({
     claim.status;
 
   return (
-    <li className="rounded-xl border border-[#efe6d8] bg-[color:var(--a-surface-strong)] p-3">
+    <li className="alpha-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-base font-semibold text-[#3d2a1f]">
+          <p className="text-base font-semibold text-[color:var(--a-ink)]">
             {claim.value?.text ?? "—"}
           </p>
-          <p className="mt-1 text-sm text-[color:var(--a-muted)]">{statusLabel}</p>
+          <p className="mt-1">
+            <span className="alpha-chip">{statusLabel}</span>
+          </p>
         </div>
         {canReview && claim.status === "PROPOSED" ? (
           <div className="flex gap-2">
             <button
               type="button"
-              className="min-h-[40px] rounded-lg bg-[color:var(--a-brand)] px-3 text-sm font-bold text-white"
+              className="alpha-btn alpha-btn-primary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
                 try {
                   await v1api.acceptClaim(familyId, claim.id);
@@ -837,7 +870,7 @@ function ClaimCard({
             </button>
             <button
               type="button"
-              className="min-h-[40px] rounded-lg border border-[color:var(--a-brand-line)] px-3 text-sm font-semibold"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
                 try {
                   await v1api.rejectClaim(familyId, claim.id);
@@ -856,7 +889,7 @@ function ClaimCard({
         {canReview && claim.status === "CONFLICTED" ? (
           <button
             type="button"
-            className="min-h-[40px] rounded-lg border border-[color:var(--a-brand-line)] px-3 text-sm font-semibold"
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
             onClick={async () => {
               try {
                 await v1api.rejectClaim(familyId, claim.id);
@@ -874,7 +907,7 @@ function ClaimCard({
       </div>
 
       {bundle?.evidenceLinks?.length ? (
-        <ul className="mt-3 space-y-2 border-t border-[#efe6d8] pt-2 text-sm">
+        <ul className="mt-3 space-y-2 border-t border-[color:var(--a-brand-line)] pt-2 text-sm">
           {bundle.evidenceLinks.map((l) => (
             <li key={l.evidence.id} className="text-[color:var(--a-muted)]">
               <span className="font-semibold">
@@ -1201,6 +1234,7 @@ function AddPersonModal({
   const [living, setLiving] = useState("UNKNOWN");
   const [gender, setGender] = useState("UNKNOWN");
   const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState("");
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -1210,6 +1244,7 @@ function AddPersonModal({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setLocalError("");
     try {
       await v1api.createPerson(familyId, {
         preferredName: name.trim(),
@@ -1219,7 +1254,9 @@ function AddPersonModal({
       await onDone();
     } catch (err) {
       if (onAuth(err)) return;
-      onError(userMessageForApiError(err));
+      const msg = userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
     } finally {
       setBusy(false);
     }
@@ -1228,8 +1265,13 @@ function AddPersonModal({
   return (
     <ModalShell title="添加成员" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
+        {localError ? (
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {localError}
+          </p>
+        ) : null}
         <div>
-          <label htmlFor="p-name" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="p-name" className="alpha-label">
             姓名 / 常用称呼 *
           </label>
           <input
@@ -1238,18 +1280,18 @@ function AddPersonModal({
             required
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] px-3"
+            className="alpha-input"
           />
         </div>
         <div>
-          <label htmlFor="p-living" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="p-living" className="alpha-label">
             是否仍在世
           </label>
           <select
             id="p-living"
             value={living}
             onChange={(e) => setLiving(e.target.value)}
-            className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] px-3"
+            className="alpha-input"
           >
             <option value="UNKNOWN">不确定</option>
             <option value="LIVING">在世</option>
@@ -1257,14 +1299,14 @@ function AddPersonModal({
           </select>
         </div>
         <div>
-          <label htmlFor="p-gender" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="p-gender" className="alpha-label">
             性别（可选）
           </label>
           <select
             id="p-gender"
             value={gender}
             onChange={(e) => setGender(e.target.value)}
-            className="w-full min-h-[44px] rounded-xl border border-[color:var(--a-brand-line)] px-3"
+            className="alpha-input"
           >
             <option value="UNKNOWN">未填写</option>
             <option value="MALE">男</option>
@@ -1276,14 +1318,14 @@ function AddPersonModal({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] flex-1 rounded-xl border"
+            className="alpha-btn alpha-btn-secondary flex-1"
           >
             取消
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[44px] flex-1 rounded-xl bg-[color:var(--a-brand)] font-bold text-white"
+            className="alpha-btn alpha-btn-primary flex-1"
           >
             {busy ? "添加中…" : "添加"}
           </button>

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { EMPTY_FAMILIES, PRODUCT } from "@/v1/ui/copy";
+import { EMPTY_FAMILIES, PRODUCT, ROLE_LABEL } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
 
@@ -13,13 +13,6 @@ type FamilyItem = {
   surname: string | null;
   role: string;
   currentVersionNo: number;
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  OWNER: "创建者",
-  ADMIN: "管理员",
-  EDITOR: "可编辑",
-  VIEWER: "只读",
 };
 
 export default function AlphaFamiliesPage() {
@@ -127,7 +120,10 @@ export default function AlphaFamiliesPage() {
                     {f.displayName}
                   </p>
                   <p className="mt-0.5 text-sm text-[color:var(--a-muted)]">
-                    {[f.surname, ROLE_LABEL[f.role] || f.role]
+                    {[
+                      f.surname,
+                      ROLE_LABEL[f.role as keyof typeof ROLE_LABEL] || f.role,
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
