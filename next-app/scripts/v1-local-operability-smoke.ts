@@ -60,6 +60,20 @@ async function main() {
   if (isConsoleOtpDeliveryEnabled()) pass("otp_console_opt_in");
   else fail("otp_console_opt_in", "expected true");
 
+  // Production hard-disable even if misconfigured
+  const prevVercelEnv = process.env.VERCEL_ENV;
+  process.env.VERCEL_ENV = "production";
+  process.env.V1_OTP_DELIVERY = "console";
+  process.env.V1_BLOB_LOCAL_FINALIZE = "true";
+  if (!isConsoleOtpDeliveryEnabled()) pass("otp_console_prod_hard_off");
+  else fail("otp_console_prod_hard_off", "console must be off in Vercel production");
+  if (!isV1BlobLocalFinalizeEnabled()) pass("finalize_prod_hard_off");
+  else fail("finalize_prod_hard_off", "finalize-local must be off in Vercel production");
+  if (prevVercelEnv === undefined) delete process.env.VERCEL_ENV;
+  else process.env.VERCEL_ENV = prevVercelEnv;
+  process.env.V1_OTP_DELIVERY = "console";
+  delete process.env.V1_BLOB_LOCAL_FINALIZE;
+
   const adapter = createConsoleOtpDeliveryAdapter();
   await adapter.deliver("test-zhao@example.com", "123456", {
     challengeId: randomUUID(),

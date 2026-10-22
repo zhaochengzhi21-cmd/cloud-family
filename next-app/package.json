@@ -28,7 +28,9 @@
     "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts",
     "db:alpha-local-bootstrap": "tsx scripts/v1-alpha-local-bootstrap.ts",
     "probe:prod-isolation": "node scripts/v1-prod-isolation-probe.mjs",
-    "probe:sender-domain": "node --env-file=.env.local scripts/v1-sender-domain-probe.mjs"
+    "probe:sender-domain": "node --env-file=.env.local scripts/v1-sender-domain-probe.mjs",
+    "alpha:go-live:dry": "node --env-file=.env.local scripts/v1-alpha-go-live.mjs",
+    "alpha:go-live:apply": "node --env-file=.env.local scripts/v1-alpha-go-live.mjs --apply"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

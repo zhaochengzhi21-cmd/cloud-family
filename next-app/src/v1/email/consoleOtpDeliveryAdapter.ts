@@ -37,7 +37,15 @@ export function createConsoleOtpDeliveryAdapter(): ConsoleOtpDeliveryAdapter {
   return new ConsoleOtpDeliveryAdapter();
 }
 
-/** Explicit opt-in: V1_OTP_DELIVERY=console */
+function isVercelProductionRuntime(): boolean {
+  return process.env.VERCEL_ENV === "production";
+}
+
+/**
+ * Explicit opt-in: V1_OTP_DELIVERY=console.
+ * Hard-disabled on Vercel Production even if mis-set.
+ */
 export function isConsoleOtpDeliveryEnabled(): boolean {
+  if (isVercelProductionRuntime()) return false;
   return process.env.V1_OTP_DELIVERY?.trim().toLowerCase() === "console";
 }
