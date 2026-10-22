@@ -1461,6 +1461,22 @@ function PersonDrawer({
   const [revision, setRevision] = useState(person.revisionNo);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [localFlash, setLocalFlash] = useState("");
+  const [claims, setClaims] = useState<ClaimRow[]>([]);
+  const [claimsLoading, setClaimsLoading] = useState(true);
+
+  const loadClaims = useCallback(async () => {
+    setClaimsLoading(true);
+    try {
+      const res = await v1api.listPersonClaims(familyId, person.id);
+      setClaims(res.claims);
+    } catch (e) {
+      if (onAuth(e)) return;
+      setLocalError(userMessageForApiError(e));
+    } finally {
+      setClaimsLoading(false);
+    }
+  }, [familyId, person.id, onAuth]);
 
   useEffect(() => {
     closeBtn.current?.focus();
@@ -1470,6 +1486,10 @@ function PersonDrawer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  useEffect(() => {
+    void loadClaims();
+  }, [loadClaims]);
 
   const relLines = relationships
     .filter((r) => r.fromPersonId === person.id || r.toPersonId === person.id)
@@ -1481,6 +1501,17 @@ function PersonDrawer({
       if (r.fromPersonId === person.id) return `子女：${otherName}`;
       return `父母：${otherName}`;
     });
+
+  const activeClaims = claims.filter((c) => c.status !== "REJECTED");
+  const rejectedClaims = claims.filter((c) => c.status === "REJECTED");
+  const grouped = useMemo(() => {
+    const m = new Map<string, ClaimRow[]>();
+    for (const c of activeClaims) {
+      if (!m.has(c.claimType)) m.set(c.claimType, []);
+      m.get(c.claimType)!.push(c);
+    }
+    return m;
+  }, [activeClaims]);
 
   async function saveName(e: FormEvent) {
     e.preventDefault();
@@ -1537,6 +1568,11 @@ function PersonDrawer({
               {localError}
             </p>
           ) : null}
+          {localFlash ? (
+            <p className="mb-3 rounded-xl bg-[#eef6ee] px-3 py-2 text-sm text-[#2f5d3a]" role="status">
+              {localFlash}
+            </p>
+          ) : null}
           <p className="text-sm text-[#8a6a4a]">
             {LIVING_STATUS_LABEL[
               person.livingStatus as keyof typeof LIVING_STATUS_LABEL
@@ -1577,10 +1613,90 @@ function PersonDrawer({
             <p className="mt-2 text-sm text-[#8a6a4a]">暂无关系</p>
           )}
           <h3 className="mt-6 font-bold text-[#5c2018]">人物资料</h3>
-          <p className="mt-1 text-sm text-[#8a6a4a]">
-            请到「资料」页查看与编辑完整记录。
-            {canReview ? "" : ""}
+          <p className="mt-1 mb-3 text-sm text-[#6b5344]">
+            记录我们知道的内容，以及资料从哪里来。
           </p>
+          {canEdit ? (
+            <AddClaimForm
+              familyId={familyId}
+              personId={person.id}
+              canReview={canReview}
+              onAuthError={onAuth}
+              onDone={async () => {
+                setLocalFlash("已添加人物资料");
+                await loadClaims();
+              }}
+              onError={(msg) => {
+                setLocalError(msg);
+                onError(msg);
+              }}
+            />
+          ) : null}
+          {claimsLoading ? (
+            <p className="text-sm text-[#8a6a4a]" role="status">
+              正在读取人物资料…
+            </p>
+          ) : null}
+          {[...grouped.entries()].map(([type, rows]) => {
+            const conflicted = rows.filter((r) => r.status === "CONFLICTED");
+            const label = CLAIM_TYPE_UI[type]?.label ?? type;
+            return (
+              <section
+                key={type}
+                className="mb-4 rounded-2xl border border-[#d4a76a]/30 bg-white/70 p-3"
+              >
+                <h4 className="font-bold text-[#5c2018]">{label}</h4>
+                {conflicted.length >= 2 ? (
+                  <div className="mt-2 rounded-xl bg-[#fff6e8] px-3 py-2">
+                    <p className="font-semibold text-[#8a4b12]">存在不同说法</p>
+                    <p className="mt-1 text-sm text-[#6b5344]">
+                      目前资料中记录不一致，先保留两种说法，之后可以继续补充来源。
+                    </p>
+                  </div>
+                ) : null}
+                <ul className="mt-3 space-y-3">
+                  {rows.map((c) => (
+                    <ClaimCard
+                      key={c.id}
+                      familyId={familyId}
+                      claim={c}
+                      canEdit={canEdit}
+                      canReview={canReview}
+                      onAuthError={onAuth}
+                      onChanged={loadClaims}
+                      onError={(msg) => {
+                        setLocalError(msg);
+                        onError(msg);
+                      }}
+                      onFlash={setLocalFlash}
+                    />
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+          {rejectedClaims.length > 0 ? (
+            <details className="mt-2 rounded-xl border border-[#d4a76a]/25 bg-white/50 p-3">
+              <summary className="cursor-pointer font-semibold text-[#8a6a4a]">
+                查看不采用的记录（{rejectedClaims.length}）
+              </summary>
+              <ul className="mt-2 space-y-2 text-sm text-[#6b5344]">
+                {rejectedClaims.map((c) => (
+                  <li key={c.id}>
+                    {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
+                    {c.value?.text ?? "—"}（不采用）
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
+          {!claimsLoading && activeClaims.length === 0 ? (
+            <p className="text-sm text-[#8a6a4a]">
+              {canEdit
+                ? "还没有人物资料，可以从出生信息等开始记录。"
+                : "暂无人物资料。"}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
