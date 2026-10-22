@@ -25,7 +25,8 @@
     "test:e2e:alpha": "playwright test e2e/alpha-workspace.spec.ts",
     "alpha:dev": "node scripts/alpha-local-dev.mjs",
     "db:local-operability-smoke": "tsx scripts/v1-local-operability-smoke.ts",
-    "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts"
+    "db:alpha-invite": "tsx scripts/v1-alpha-invite.ts",
+    "db:alpha-local-bootstrap": "tsx scripts/v1-alpha-local-bootstrap.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",
