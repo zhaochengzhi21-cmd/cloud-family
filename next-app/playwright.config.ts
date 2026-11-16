@@ -20,7 +20,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: `npx next dev -H 127.0.0.1 -p ${PORT}`,
+    // Fresh .next avoids intermittent webpack "require.C is not a function" in long Alpha E2E runs.
+    command: `node -e "try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}" && npx next dev -H 127.0.0.1 -p ${PORT}`,
     url: BASE,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
