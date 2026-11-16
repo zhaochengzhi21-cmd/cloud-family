@@ -421,13 +421,18 @@ function MembersTab({
   >("ALL");
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return persons.filter((p) => {
-      if (livingFilter !== "ALL" && p.livingStatus !== livingFilter) {
-        return false;
-      }
-      if (!q) return true;
-      return p.preferredName.toLowerCase().includes(q);
-    });
+    return persons
+      .filter((p) => {
+        if (livingFilter !== "ALL" && p.livingStatus !== livingFilter) {
+          return false;
+        }
+        if (!q) return true;
+        return p.preferredName.toLowerCase().includes(q);
+      })
+      .slice()
+      .sort((a, b) =>
+        a.preferredName.localeCompare(b.preferredName, "zh-CN")
+      );
   }, [persons, query, livingFilter]);
 
   if (persons.length === 0) {
@@ -906,6 +911,11 @@ function AddClaimForm({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(!compact);
+  const textRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) textRef.current?.focus();
+  }, [open]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -980,6 +990,7 @@ function AddClaimForm({
             {CLAIM_TYPE_UI[claimType]?.label ?? "内容"}
           </label>
           <input
+            ref={textRef}
             id="claim-text"
             required
             value={text}
