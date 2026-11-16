@@ -212,7 +212,7 @@ export default function AlphaFamiliesPage() {
 
       {creating ? (
         <div
-          className="fixed inset-0 z-40 flex items-end justify-center bg-[color:var(--a-ink)]/35 p-4 sm:items-center"
+          className="fixed inset-0 z-40 overflow-y-auto bg-[color:var(--a-ink)]/35 p-4"
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-family-title"
@@ -220,64 +220,72 @@ export default function AlphaFamiliesPage() {
             if (e.target === e.currentTarget && !busy) setCreating(false);
           }}
         >
-          <form
-            onSubmit={onCreate}
-            className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]"
-          >
-            <h2
-              id="create-family-title"
-              className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
+          <div className="flex min-h-full items-center justify-center py-6">
+            <form
+              onSubmit={onCreate}
+              className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]"
+              onClick={(e) => e.stopPropagation()}
             >
-              创建家族档案
-            </h2>
-            <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-              新建家族默认仅家族成员可见。
-            </p>
-            <div className="mt-4 space-y-4">
-              <div>
-                <label htmlFor="fam-name" className="alpha-label">
-                  家族名称 *
-                </label>
-                <input
-                  ref={nameInputRef}
-                  id="fam-name"
-                  required
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="例如：赵氏家庭"
-                  className="alpha-input"
-                />
-              </div>
-              <div>
-                <label htmlFor="fam-surname" className="alpha-label">
-                  姓氏（可选）
-                </label>
-                <input
-                  id="fam-surname"
-                  value={surname}
-                  onChange={(e) => setSurname(e.target.value)}
-                  placeholder="例如：赵"
-                  className="alpha-input"
-                />
-              </div>
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={() => setCreating(false)}
-                className="alpha-btn alpha-btn-secondary flex-1"
+              <h2
+                id="create-family-title"
+                className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
               >
-                取消
-              </button>
-              <button
-                type="submit"
-                disabled={busy}
-                className="alpha-btn alpha-btn-primary flex-1"
-              >
-                {busy ? "创建中…" : "创建"}
-              </button>
-            </div>
-          </form>
+                创建家族档案
+              </h2>
+              <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+                新建家族默认仅家族成员可见。
+              </p>
+              {error ? (
+                <p className="mt-3 alpha-alert alpha-alert-error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label htmlFor="fam-name" className="alpha-label">
+                    家族名称 *
+                  </label>
+                  <input
+                    ref={nameInputRef}
+                    id="fam-name"
+                    required
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="例如：赵氏家庭"
+                    className="alpha-input"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="fam-surname" className="alpha-label">
+                    姓氏（可选）
+                  </label>
+                  <input
+                    id="fam-surname"
+                    value={surname}
+                    onChange={(e) => setSurname(e.target.value)}
+                    placeholder="例如：赵"
+                    className="alpha-input"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCreating(false)}
+                  className="alpha-btn alpha-btn-secondary flex-1"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="alpha-btn alpha-btn-primary flex-1"
+                >
+                  {busy ? "创建中…" : "创建"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       ) : null}
     </div>

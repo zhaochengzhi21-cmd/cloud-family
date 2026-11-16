@@ -112,6 +112,7 @@ export function FamilyWorkspace({
   const [flash, setFlash] = useState("");
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [lineageFocusId, setLineageFocusId] = useState<string | null>(null);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddRel, setShowAddRel] = useState(false);
   const [showEditFamily, setShowEditFamily] = useState(false);
@@ -199,6 +200,12 @@ export function FamilyWorkspace({
     const t = window.setTimeout(() => setFlash(""), 4500);
     return () => window.clearTimeout(t);
   }, [flash]);
+
+  useEffect(() => {
+    if (!lineageFocusId) return;
+    const t = window.setTimeout(() => setLineageFocusId(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [lineageFocusId]);
 
   const tabsOrder = useMemo(
     () =>
@@ -356,6 +363,7 @@ export function FamilyWorkspace({
           generationByPerson={generationByPerson}
           componentCount={componentCount}
           canEdit={canEdit}
+          focusPersonId={lineageFocusId}
           onAddRel={() => {
             setRelFocusPersonId(null);
             setShowAddRel(true);
@@ -451,6 +459,12 @@ export function FamilyWorkspace({
             setTab("lineage");
             setRelFocusPersonId(pid);
             setShowAddRel(true);
+          }}
+          onShowInLineage={() => {
+            const pid = selectedPersonId;
+            setSelectedPersonId(null);
+            setTab("lineage");
+            setLineageFocusId(pid);
           }}
           onDeleted={async () => {
             setSelectedPersonId(null);
@@ -633,6 +647,7 @@ function LineageTab({
   generationByPerson,
   componentCount,
   canEdit,
+  focusPersonId,
   onAddRel,
   onOpen,
   personMap,
@@ -642,6 +657,7 @@ function LineageTab({
   generationByPerson: Record<string, number>;
   componentCount: number;
   canEdit: boolean;
+  focusPersonId?: string | null;
   onAddRel: () => void;
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
@@ -710,6 +726,17 @@ function LineageTab({
     }
     return m;
   }, [parentRels, personMap]);
+
+  useEffect(() => {
+    if (!focusPersonId) return;
+    const el = document.querySelector(
+      `[data-lineage-person="${focusPersonId}"]`
+    );
+    if (el instanceof HTMLElement) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.focus();
+    }
+  }, [focusPersonId, byGen]);
 
   return (
     <div>
@@ -809,8 +836,13 @@ function LineageTab({
                               ) : null}
                               <button
                                 type="button"
+                                data-lineage-person={p.id}
                                 onClick={() => onOpen(p.id)}
-                                className="alpha-panel alpha-panel-interactive min-w-[7.5rem] px-3 py-2 text-left"
+                                className={`alpha-panel alpha-panel-interactive min-w-[7.5rem] px-3 py-2 text-left ${
+                                  focusPersonId === p.id
+                                    ? "ring-2 ring-[color:var(--a-brand)] ring-offset-2"
+                                    : ""
+                                }`}
                               >
                                 <p className="font-bold text-[color:var(--a-ink)]">
                                   {p.preferredName}
@@ -2134,6 +2166,7 @@ function PersonDrawer({
   onChanged,
   onDeleted,
   onRequestAddRel,
+  onShowInLineage,
   onError,
   onAuth,
 }: {
@@ -2147,6 +2180,7 @@ function PersonDrawer({
   onChanged: () => Promise<void>;
   onDeleted: () => Promise<void>;
   onRequestAddRel: () => void;
+  onShowInLineage: () => void;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -2444,15 +2478,24 @@ function PersonDrawer({
               暂无关系。建立父母/配偶关系后，世系页会按代展示。
             </p>
           )}
-          {canEdit ? (
+          <div className="mt-2 flex flex-wrap gap-3">
+            {canEdit ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)]"
+                onClick={onRequestAddRel}
+              >
+                {relRows.length ? "再添加一条关系" : "去添加家庭关系"}
+              </button>
+            ) : null}
             <button
               type="button"
-              className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
-              onClick={onRequestAddRel}
+              className="text-sm font-semibold text-[color:var(--a-brand)]"
+              onClick={onShowInLineage}
             >
-              {relRows.length ? "再添加一条关系" : "去添加家庭关系"}
+              在世系中查看
             </button>
-          ) : null}
+          </div>
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
           <p className="mt-1 mb-3 text-sm text-[color:var(--a-muted)]">
             记录我们知道的内容，以及资料从哪里来。
