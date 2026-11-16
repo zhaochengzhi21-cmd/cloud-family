@@ -78,6 +78,14 @@ export default function AlphaFamiliesPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    const prev = document.title;
+    document.title = `我的家族 · ${PRODUCT.brand}`;
+    return () => {
+      document.title = prev;
+    };
+  }, []);
+
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     setBusy(true);

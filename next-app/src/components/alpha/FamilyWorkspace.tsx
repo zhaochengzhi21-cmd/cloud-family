@@ -1128,7 +1128,15 @@ function AddClaimForm({
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(!compact);
+  const [localError, setLocalError] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setLocalError("");
+    setText("");
+    setClaimType("BIRTH_DATE");
+    if (compact) setOpen(false);
+  }, [personId, compact]);
 
   useEffect(() => {
     if (open) textRef.current?.focus();
@@ -1137,6 +1145,7 @@ function AddClaimForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setLocalError("");
     try {
       await v1api.createClaim(familyId, {
         subjectId: personId,
@@ -1148,7 +1157,9 @@ function AddClaimForm({
       await onDone();
     } catch (err) {
       if (onAuthError(err)) return;
-      onError(userMessageForApiError(err));
+      const msg = userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
     } finally {
       setBusy(false);
     }
@@ -1158,7 +1169,10 @@ function AddClaimForm({
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setLocalError("");
+          setOpen(true);
+        }}
         className="alpha-btn alpha-btn-secondary mb-4 w-full !min-h-[44px] !text-sm"
       >
         + 添加人物资料
@@ -1184,6 +1198,11 @@ function AddClaimForm({
           </button>
         ) : null}
       </div>
+      {localError ? (
+        <p className="alpha-alert alpha-alert-error" role="alert">
+          {localError}
+        </p>
+      ) : null}
       <div className="alpha-claim-composer-body space-y-3">
         <div>
           <label htmlFor="claim-type" className="alpha-label">
