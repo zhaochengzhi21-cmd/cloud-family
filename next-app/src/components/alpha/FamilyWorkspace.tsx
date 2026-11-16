@@ -110,6 +110,7 @@ export function FamilyWorkspace({
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddRel, setShowAddRel] = useState(false);
+  const [relFocusPersonId, setRelFocusPersonId] = useState<string | null>(null);
 
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "EDITOR";
   const canReview = role === "OWNER" || role === "ADMIN";
@@ -272,7 +273,10 @@ export function FamilyWorkspace({
           generationByPerson={generationByPerson}
           componentCount={componentCount}
           canEdit={canEdit}
-          onAddRel={() => setShowAddRel(true)}
+          onAddRel={() => {
+            setRelFocusPersonId(null);
+            setShowAddRel(true);
+          }}
           onOpen={(id) => setSelectedPersonId(id)}
           personMap={personMap}
         />
@@ -310,9 +314,14 @@ export function FamilyWorkspace({
         <AddRelationshipModal
           familyId={familyId}
           persons={persons}
-          onClose={() => setShowAddRel(false)}
+          focusPersonId={relFocusPersonId}
+          onClose={() => {
+            setShowAddRel(false);
+            setRelFocusPersonId(null);
+          }}
           onDone={async () => {
             setShowAddRel(false);
+            setRelFocusPersonId(null);
             setError("");
             setFlash("已添加家庭关系");
             await load();
@@ -335,8 +344,10 @@ export function FamilyWorkspace({
             await load();
           }}
           onRequestAddRel={() => {
+            const pid = selectedPersonId;
             setSelectedPersonId(null);
             setTab("lineage");
+            setRelFocusPersonId(pid);
             setShowAddRel(true);
           }}
           onDeleted={async () => {
@@ -720,7 +731,7 @@ function RecordsTab({
         return (
           <section
             key={type}
-            className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-white/70 p-4"
+            className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface)] p-4"
           >
             <h3 className="font-bold text-[color:var(--a-ink)]">{label}</h3>
             {conflicted.length >= 2 ? (
@@ -751,7 +762,7 @@ function RecordsTab({
       })}
 
       {rejected.length > 0 ? (
-        <details className="mt-4 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-white/50 p-3">
+        <details className="mt-4 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3">
           <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
             查看不采用的记录（{rejected.length}）
           </summary>
@@ -1252,7 +1263,7 @@ function AddEvidenceForm({
   }
 
   return (
-    <div className="mt-3 rounded-xl border border-[color:var(--a-brand-line)] bg-white p-3">
+    <div className="mt-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface-strong)] p-3">
       <form onSubmit={submit} className="space-y-3">
         <div>
           <label htmlFor="ev-type" className="mb-1 block text-sm font-semibold">
@@ -1495,6 +1506,7 @@ function AddPersonModal({
 function AddRelationshipModal({
   familyId,
   persons,
+  focusPersonId,
   onClose,
   onDone,
   onError,
@@ -1502,30 +1514,51 @@ function AddRelationshipModal({
 }: {
   familyId: string;
   persons: GraphPerson[];
+  focusPersonId?: string | null;
   onClose: () => void;
   onDone: () => Promise<void>;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
+  const fallbackA = persons[0]?.id ?? "";
+  const fallbackB = persons[1]?.id ?? persons[0]?.id ?? "";
+  const focus =
+    focusPersonId && persons.some((p) => p.id === focusPersonId)
+      ? focusPersonId
+      : null;
+  const other =
+    persons.find((p) => p.id !== focus)?.id ?? fallbackB;
+
   const [mode, setMode] = useState<"parent" | "spouse">("parent");
-  const [parentId, setParentId] = useState(persons[0]?.id ?? "");
-  const [childId, setChildId] = useState(persons[1]?.id ?? persons[0]?.id ?? "");
+  // From drawer: default focused person as child (common: add their parent).
+  const [parentId, setParentId] = useState(focus ? other : fallbackA);
+  const [childId, setChildId] = useState(focus ?? fallbackB);
   const [parentType, setParentType] = useState("BIOLOGICAL_PARENT");
-  const [aId, setAId] = useState(persons[0]?.id ?? "");
-  const [bId, setBId] = useState(persons[1]?.id ?? persons[0]?.id ?? "");
+  const [aId, setAId] = useState(focus ?? fallbackA);
+  const [bId, setBId] = useState(focus ? other : fallbackB);
   const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState("");
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setLocalError("");
     try {
       if (mode === "parent") {
+        if (parentId === childId) {
+          setLocalError("父母与子女不能是同一人。");
+          return;
+        }
         await v1api.createRelationship(familyId, {
           fromPersonId: parentId,
           toPersonId: childId,
           relationshipType: parentType,
         });
       } else {
+        if (aId === bId) {
+          setLocalError("请选择两位不同的成员。");
+          return;
+        }
         await v1api.createRelationship(familyId, {
           fromPersonId: aId,
           toPersonId: bId,
@@ -1535,7 +1568,9 @@ function AddRelationshipModal({
       await onDone();
     } catch (err) {
       if (onAuth(err)) return;
-      onError(userMessageForApiError(err));
+      const msg = userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
     } finally {
       setBusy(false);
     }
@@ -1544,11 +1579,25 @@ function AddRelationshipModal({
   return (
     <ModalShell title="添加家庭关系" onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
+        {focus ? (
+          <p className="text-sm text-[color:var(--a-muted)]">
+            正在为「
+            {persons.find((p) => p.id === focus)?.preferredName ?? "成员"}
+            」补充关系
+          </p>
+        ) : null}
+        {localError ? (
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {localError}
+          </p>
+        ) : null}
         <div className="flex gap-2">
           <button
             type="button"
-            className={`min-h-[40px] flex-1 rounded-lg text-sm font-bold ${
-              mode === "parent" ? "bg-[color:var(--a-brand)] text-white" : "border"
+            className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
+              mode === "parent"
+                ? "alpha-btn-primary"
+                : "alpha-btn-secondary"
             }`}
             onClick={() => setMode("parent")}
           >
@@ -1556,8 +1605,10 @@ function AddRelationshipModal({
           </button>
           <button
             type="button"
-            className={`min-h-[40px] flex-1 rounded-lg text-sm font-bold ${
-              mode === "spouse" ? "bg-[color:var(--a-brand)] text-white" : "border"
+            className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
+              mode === "spouse"
+                ? "alpha-btn-primary"
+                : "alpha-btn-secondary"
             }`}
             onClick={() => setMode("spouse")}
           >
@@ -1567,14 +1618,14 @@ function AddRelationshipModal({
         {mode === "parent" ? (
           <>
             <div>
-              <label htmlFor="rel-parent" className="mb-1 block text-sm font-semibold">
+              <label htmlFor="rel-parent" className="alpha-label">
                 父母人物
               </label>
               <select
                 id="rel-parent"
                 value={parentId}
                 onChange={(e) => setParentId(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border px-3"
+                className="alpha-input"
               >
                 {persons.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1584,14 +1635,14 @@ function AddRelationshipModal({
               </select>
             </div>
             <div>
-              <label htmlFor="rel-child" className="mb-1 block text-sm font-semibold">
+              <label htmlFor="rel-child" className="alpha-label">
                 子女人物
               </label>
               <select
                 id="rel-child"
                 value={childId}
                 onChange={(e) => setChildId(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border px-3"
+                className="alpha-input"
               >
                 {persons.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1601,14 +1652,14 @@ function AddRelationshipModal({
               </select>
             </div>
             <div>
-              <label htmlFor="rel-type" className="mb-1 block text-sm font-semibold">
+              <label htmlFor="rel-type" className="alpha-label">
                 关系类型
               </label>
               <select
                 id="rel-type"
                 value={parentType}
                 onChange={(e) => setParentType(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border px-3"
+                className="alpha-input"
               >
                 <option value="BIOLOGICAL_PARENT">亲生</option>
                 <option value="ADOPTIVE_PARENT">收养</option>
@@ -1619,14 +1670,14 @@ function AddRelationshipModal({
         ) : (
           <>
             <div>
-              <label htmlFor="rel-a" className="mb-1 block text-sm font-semibold">
+              <label htmlFor="rel-a" className="alpha-label">
                 成员一
               </label>
               <select
                 id="rel-a"
                 value={aId}
                 onChange={(e) => setAId(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border px-3"
+                className="alpha-input"
               >
                 {persons.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1636,14 +1687,14 @@ function AddRelationshipModal({
               </select>
             </div>
             <div>
-              <label htmlFor="rel-b" className="mb-1 block text-sm font-semibold">
+              <label htmlFor="rel-b" className="alpha-label">
                 成员二
               </label>
               <select
                 id="rel-b"
                 value={bId}
                 onChange={(e) => setBId(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border px-3"
+                className="alpha-input"
               >
                 {persons.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -1655,13 +1706,17 @@ function AddRelationshipModal({
           </>
         )}
         <div className="flex gap-2">
-          <button type="button" onClick={onClose} className="min-h-[44px] flex-1 rounded-xl border">
+          <button
+            type="button"
+            onClick={onClose}
+            className="alpha-btn alpha-btn-secondary flex-1"
+          >
             取消
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[44px] flex-1 rounded-xl bg-[color:var(--a-brand)] font-bold text-white"
+            className="alpha-btn alpha-btn-primary flex-1"
           >
             {busy ? "保存中…" : "保存"}
           </button>
@@ -1955,7 +2010,7 @@ function PersonDrawer({
             return (
               <section
                 key={type}
-                className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-white/70 p-3"
+                className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface)] p-3"
               >
                 <h4 className="font-bold text-[color:var(--a-ink)]">{label}</h4>
                 {conflicted.length >= 2 ? (
@@ -1990,7 +2045,7 @@ function PersonDrawer({
             );
           })}
           {rejectedClaims.length > 0 ? (
-            <details className="mt-2 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-white/50 p-3">
+            <details className="mt-2 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3">
               <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
                 查看不采用的记录（{rejectedClaims.length}）
               </summary>
@@ -2099,7 +2154,11 @@ function ModalShell({
           <h2 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
             {title}
           </h2>
-          <button type="button" onClick={onClose} className="min-h-[40px] px-2 text-sm font-semibold">
+          <button
+            type="button"
+            onClick={onClose}
+            className="min-h-[40px] px-2 text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
+          >
             关闭
           </button>
         </div>

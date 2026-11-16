@@ -48,7 +48,10 @@ export default function AlphaFamilyPage() {
 
   if (!ready) {
     return (
-      <p className="py-12 text-center text-[#8a6a4a]" role="status">
+      <p
+        className="py-12 text-center text-[color:var(--a-muted)]"
+        role="status"
+      >
         正在打开家族档案…
       </p>
     );
@@ -56,7 +59,10 @@ export default function AlphaFamilyPage() {
 
   if (error) {
     return (
-      <p className="py-12 text-center text-[#7a1f1f]" role="alert">
+      <p
+        className="py-12 text-center text-[color:var(--a-danger)]"
+        role="alert"
+      >
         {error}
       </p>
     );

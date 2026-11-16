@@ -9,3 +9,7 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# local offline push backup
+*.bundle
+
