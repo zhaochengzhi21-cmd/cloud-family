@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import {
@@ -204,6 +205,12 @@ export function FamilyWorkspace({
   return (
     <div className="alpha-fade-in py-2">
       <header className="mb-5">
+        <Link
+          href="/alpha/families"
+          className="mb-3 inline-flex min-h-[40px] items-center text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-brand)]"
+        >
+          ← 我的家族
+        </Link>
         <h1 className="alpha-font-display text-3xl font-bold text-[color:var(--a-ink)]">
           {familyName}
         </h1>
@@ -1110,7 +1117,7 @@ function MediaViewButton({
   return (
     <button
       type="button"
-      className="ml-2 underline"
+      className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
       onClick={async () => {
         try {
           const res = await v1api.mediaRead(familyId, mediaId);
@@ -1149,6 +1156,7 @@ function AddEvidenceForm({
   const [uploadState, setUploadState] = useState("");
   const [uploadPct, setUploadPct] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState("");
   const leaveWarn = useRef(false);
 
   useEffect(() => {
@@ -1170,6 +1178,7 @@ function AddEvidenceForm({
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setLocalError("");
     leaveWarn.current = true;
     let phase = "";
     try {
@@ -1177,19 +1186,21 @@ function AddEvidenceForm({
       if (file) {
         const mime = mimeFromFile(file);
         if (!mime) {
-          onError("不支持的文件类型。请选择图片、PDF、音频或视频。");
+          const msg = "不支持的文件类型。请选择图片、PDF、音频或视频。";
+          setLocalError(msg);
+          onError(msg);
           return;
         }
         const max = MEDIA_MAX_BYTES[mime] ?? 0;
         if (file.size > max) {
           const mb = Math.round(max / (1024 * 1024));
-          onError(
-            mime.startsWith("image/")
-              ? `图片最大 ${mb} MB。`
-              : mime === "application/pdf"
-                ? `PDF 最大 ${mb} MB。`
-                : `该类型文件最大 ${mb} MB。`
-          );
+          const msg = mime.startsWith("image/")
+            ? `图片最大 ${mb} MB。`
+            : mime === "application/pdf"
+              ? `PDF 最大 ${mb} MB。`
+              : `该类型文件最大 ${mb} MB。`;
+          setLocalError(msg);
+          onError(msg);
           return;
         }
         phase = "准备上传";
@@ -1239,7 +1250,9 @@ function AddEvidenceForm({
         }
         if (!mediaObjectId) {
           setPhase("上传超时", uploadPct);
-          onError("上传超时，请稍后重试。");
+          const msg = "上传超时，请稍后重试。";
+          setLocalError(msg);
+          onError(msg);
           return;
         }
       }
@@ -1262,11 +1275,11 @@ function AddEvidenceForm({
     } catch (err) {
       if (onAuthError(err)) return;
       setPhase(phase ? "上传失败" : "", phase ? Math.max(uploadPct, 8) : 0);
-      onError(
-        phase
-          ? "上传或保存失败，请检查文件后重试。"
-          : userMessageForApiError(err)
-      );
+      const msg = phase
+        ? "上传或保存失败，请检查文件后重试。"
+        : userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
     } finally {
       leaveWarn.current = false;
       setBusy(false);
@@ -1276,15 +1289,20 @@ function AddEvidenceForm({
   return (
     <div className="mt-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface-strong)] p-3">
       <form onSubmit={submit} className="space-y-3">
+        {localError ? (
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {localError}
+          </p>
+        ) : null}
         <div>
-          <label htmlFor="ev-type" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="ev-type" className="alpha-label">
             来源类型
           </label>
           <select
             id="ev-type"
             value={evidenceType}
             onChange={(e) => setEvidenceType(e.target.value)}
-            className="w-full min-h-[44px] rounded-lg border border-[color:var(--a-brand-line)] px-2"
+            className="alpha-input"
           >
             {Object.entries(EVIDENCE_TYPE_UI).map(([k, v]) => (
               <option key={k} value={k}>
@@ -1294,18 +1312,18 @@ function AddEvidenceForm({
           </select>
         </div>
         <div>
-          <label htmlFor="ev-title" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="ev-title" className="alpha-label">
             来源标题（可选）
           </label>
           <input
             id="ev-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full min-h-[44px] rounded-lg border border-[color:var(--a-brand-line)] px-2"
+            className="alpha-input"
           />
         </div>
         <div>
-          <label htmlFor="ev-loc" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="ev-loc" className="alpha-label">
             出处位置（可选）
           </label>
           <input
@@ -1313,11 +1331,11 @@ function AddEvidenceForm({
             value={sourceLocator}
             onChange={(e) => setSourceLocator(e.target.value)}
             placeholder="例如：第17页"
-            className="w-full min-h-[44px] rounded-lg border border-[color:var(--a-brand-line)] px-2"
+            className="alpha-input"
           />
         </div>
         <div>
-          <label htmlFor="ev-desc" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="ev-desc" className="alpha-label">
             来源说明（可选）
           </label>
           <textarea
@@ -1325,19 +1343,22 @@ function AddEvidenceForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            className="w-full rounded-lg border border-[color:var(--a-brand-line)] px-2 py-2"
+            className="alpha-input !min-h-[4.5rem] py-2"
           />
         </div>
         <div>
-          <label htmlFor="ev-file" className="mb-1 block text-sm font-semibold">
+          <label htmlFor="ev-file" className="alpha-label">
             附件（可选）
           </label>
           <input
             id="ev-file"
             type="file"
             accept={ALLOWED_EXT.join(",")}
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm"
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null);
+              setLocalError("");
+            }}
+            className="block w-full text-sm text-[color:var(--a-muted)]"
           />
           <p className="mt-1 text-xs text-[color:var(--a-muted)]">
             支持 JPG/PNG/WEBP/PDF 与常见音视频。图片最大 20 MB。仅家族成员可见。

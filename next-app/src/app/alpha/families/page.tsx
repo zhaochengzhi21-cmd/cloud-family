@@ -7,6 +7,17 @@ import { EMPTY_FAMILIES, PRODUCT, ROLE_LABEL } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
 
+function useEscapeClose(open: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+}
+
 type FamilyItem = {
   id: string;
   displayName: string;
@@ -24,6 +35,10 @@ export default function AlphaFamiliesPage() {
   const [surname, setSurname] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+
+  useEscapeClose(creating, () => {
+    if (!busy) setCreating(false);
+  });
 
   const filtered = useMemo(() => {
     if (!families) return [];
@@ -181,6 +196,9 @@ export default function AlphaFamiliesPage() {
           role="dialog"
           aria-modal="true"
           aria-labelledby="create-family-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !busy) setCreating(false);
+          }}
         >
           <form
             onSubmit={onCreate}

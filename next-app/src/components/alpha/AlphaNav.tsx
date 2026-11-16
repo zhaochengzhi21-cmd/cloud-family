@@ -33,7 +33,18 @@ export function AlphaNav() {
         <nav className="flex items-center gap-1 sm:gap-3">
           <Link
             href="/alpha/families"
-            className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-[color:var(--a-ink)] hover:text-[color:var(--a-brand)]"
+            aria-current={
+              pathname === "/alpha/families" ||
+              pathname.startsWith("/alpha/families/")
+                ? "page"
+                : undefined
+            }
+            className={`inline-flex min-h-[44px] items-center px-2 text-sm font-semibold hover:text-[color:var(--a-brand)] ${
+              pathname === "/alpha/families" ||
+              pathname.startsWith("/alpha/families/")
+                ? "text-[color:var(--a-brand)]"
+                : "text-[color:var(--a-ink)]"
+            }`}
           >
             我的家族
           </Link>
