@@ -181,6 +181,8 @@ export function FamilyWorkspace({
   }, [familyName]);
 
   useEffect(() => {
+    // Skip the first save after restore so default "members" cannot overwrite
+    // a previously saved tab (esp. under React Strict Mode remount).
     tabReady.current = false;
     try {
       const saved = sessionStorage.getItem(`alpha-tab:${familyId}`);
@@ -192,11 +194,13 @@ export function FamilyWorkspace({
     } catch {
       setTab("members");
     }
-    tabReady.current = true;
   }, [familyId]);
 
   useEffect(() => {
-    if (!tabReady.current) return;
+    if (!tabReady.current) {
+      tabReady.current = true;
+      return;
+    }
     try {
       sessionStorage.setItem(`alpha-tab:${familyId}`, tab);
     } catch {
@@ -324,14 +328,36 @@ export function FamilyWorkspace({
       </header>
 
       {flash ? (
-        <p className="mb-3 alpha-alert alpha-alert-ok" role="status">
-          {flash}
-        </p>
+        <div
+          className="mb-3 flex items-start justify-between gap-3 alpha-alert alpha-alert-ok"
+          role="status"
+        >
+          <p className="min-w-0 flex-1">{flash}</p>
+          <button
+            type="button"
+            className="shrink-0 text-sm font-semibold text-[color:var(--a-ok)] underline-offset-2 hover:underline"
+            onClick={() => setFlash("")}
+            aria-label="关闭提示"
+          >
+            关闭
+          </button>
+        </div>
       ) : null}
       {error && !flash ? (
-        <p className="mb-3 alpha-alert alpha-alert-error" role="alert">
-          {error}
-        </p>
+        <div
+          className="mb-3 flex items-start justify-between gap-3 alpha-alert alpha-alert-error"
+          role="alert"
+        >
+          <p className="min-w-0 flex-1">{error}</p>
+          <button
+            type="button"
+            className="shrink-0 text-sm font-semibold underline-offset-2 hover:underline"
+            onClick={() => setError("")}
+            aria-label="关闭错误提示"
+          >
+            关闭
+          </button>
+        </div>
       ) : null}
 
       <div
@@ -955,10 +981,11 @@ function RecordsTab({
   setFlash: (s: string) => void;
   setError: (s: string) => void;
 }) {
-  const [personId, setPersonId] = useState(persons[0]?.id ?? "");
+  const [personId, setPersonId] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [loading, setLoading] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
+  const personReady = useRef(false);
 
   const sortedPersons = useMemo(
     () =>
@@ -992,8 +1019,37 @@ function RecordsTab({
   }, [loadClaims]);
 
   useEffect(() => {
-    if (!personId && persons[0]) setPersonId(persons[0].id);
-  }, [persons, personId]);
+    personReady.current = false;
+    if (persons.length === 0) {
+      setPersonId("");
+      return;
+    }
+    setPersonId((current) => {
+      if (current && persons.some((p) => p.id === current)) return current;
+      let preferred = "";
+      try {
+        preferred =
+          sessionStorage.getItem(`alpha-records-person:${familyId}`) ?? "";
+      } catch {
+        preferred = "";
+      }
+      if (preferred && persons.some((p) => p.id === preferred)) return preferred;
+      return persons[0].id;
+    });
+  }, [familyId, persons]);
+
+  useEffect(() => {
+    if (!personId || !persons.some((p) => p.id === personId)) return;
+    if (!personReady.current) {
+      personReady.current = true;
+      return;
+    }
+    try {
+      sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
+    } catch {
+      /* private mode */
+    }
+  }, [familyId, personId, persons]);
 
   useEffect(() => {
     if (!personId) return;

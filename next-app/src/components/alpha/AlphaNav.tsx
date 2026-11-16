@@ -1,23 +1,41 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { PRODUCT } from "@/v1/ui/copy";
 import { v1api, V1ApiError } from "@/v1/client/api";
 
+function clearAlphaSessionStorage() {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k?.startsWith("alpha-")) keys.push(k);
+    }
+    for (const k of keys) sessionStorage.removeItem(k);
+  } catch {
+    /* private mode */
+  }
+}
+
 export function AlphaNav() {
   const pathname = usePathname() || "";
   const router = useRouter();
   const hideNav = pathname.startsWith("/alpha/login");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   if (hideNav) return null;
 
   async function onLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
     try {
       await v1api.logout();
     } catch {
       /* still leave */
     }
+    clearAlphaSessionStorage();
     router.replace("/alpha/login");
   }
 
@@ -50,10 +68,11 @@ export function AlphaNav() {
           </Link>
           <button
             type="button"
-            onClick={onLogout}
+            disabled={loggingOut}
+            onClick={() => void onLogout()}
             className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
           >
-            退出
+            {loggingOut ? "退出中…" : "退出"}
           </button>
         </nav>
       </div>

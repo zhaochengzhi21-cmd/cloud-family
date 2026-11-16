@@ -164,7 +164,7 @@ export default function AlphaFamiliesPage() {
 
       {families && families.length > 0 ? (
         <div>
-          {families.length >= 3 ? (
+          {families.length >= 2 ? (
             <input
               type="search"
               value={query}
@@ -175,9 +175,20 @@ export default function AlphaFamiliesPage() {
             />
           ) : null}
           {filtered.length === 0 ? (
-            <p className="mb-4 py-6 text-center text-sm text-[color:var(--a-muted)]">
-              没有匹配「{query.trim()}」的家族
-            </p>
+            <div className="mb-4 py-6 text-center">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                没有匹配「{query.trim()}」的家族
+              </p>
+              {query.trim() ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
+                  onClick={() => setQuery("")}
+                >
+                  清除筛选
+                </button>
+              ) : null}
+            </div>
           ) : (
             <ul className="space-y-3">
               {filtered.map((f) => (

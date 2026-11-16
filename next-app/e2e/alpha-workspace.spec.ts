@@ -260,6 +260,15 @@ async function runCoreJourney(
   await expect(page.getByText("测试合成照片")).toHaveCount(0);
   await expect(page.getByText(/测试族谱/)).toBeVisible();
 
+  // Persist records person + tab across reload
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
+  await page.reload();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
+  await expect(page.getByText(/测试族谱/)).toBeVisible();
+
   // list still shows family
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
