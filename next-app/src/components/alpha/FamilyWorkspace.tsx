@@ -737,6 +737,18 @@ function LineageTab({
     return m;
   }, [parentRels, personMap]);
 
+  const childrenOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const r of parentRels) {
+      // from=parent, to=child
+      const list = m.get(r.fromPersonId) ?? [];
+      const name = personMap.get(r.toPersonId)?.preferredName;
+      if (name && !list.includes(name)) list.push(name);
+      m.set(r.fromPersonId, list);
+    }
+    return m;
+  }, [parentRels, personMap]);
+
   useEffect(() => {
     if (!focusPersonId) return;
     const el = document.querySelector(
@@ -811,6 +823,7 @@ function LineageTab({
                       >
                         {cluster.map((p, pi) => {
                           const parentNames = parentsOf.get(p.id) ?? [];
+                          const childNames = childrenOf.get(p.id) ?? [];
                           const showSpouseLine =
                             !isCouple &&
                             spouses.some(
@@ -834,6 +847,10 @@ function LineageTab({
                                 })
                                 .filter(Boolean)
                             : [];
+                          const hasMeta =
+                            parentNames.length > 0 ||
+                            spouseNames.length > 0 ||
+                            childNames.length > 0;
                           return (
                             <div key={p.id} className="flex items-center gap-1">
                               {isCouple && pi === 1 ? (
@@ -848,6 +865,7 @@ function LineageTab({
                                 type="button"
                                 data-lineage-person={p.id}
                                 onClick={() => onOpen(p.id)}
+                                aria-label={p.preferredName}
                                 className={`alpha-panel alpha-panel-interactive min-w-[6.75rem] px-2.5 py-1.5 text-left ${
                                   focusPersonId === p.id
                                     ? "ring-2 ring-[color:var(--a-brand)] ring-offset-1"
@@ -867,9 +885,12 @@ function LineageTab({
                                     配偶：{spouseNames.join("、")}
                                   </p>
                                 ) : null}
-                                {!parentNames.length &&
-                                !spouseNames.length &&
-                                !isCouple ? (
+                                {childNames.length ? (
+                                  <p className="text-[11px] leading-snug text-[color:var(--a-muted)]">
+                                    子女：{childNames.join("、")}
+                                  </p>
+                                ) : null}
+                                {!hasMeta && !isCouple ? (
                                   <p className="text-[11px] text-[color:var(--a-brand)]">
                                     查看详情
                                   </p>

@@ -122,6 +122,8 @@ async function runCoreJourney(
   await expect(page.getByRole("heading", { name: /第一代/ })).toBeVisible();
   await expect(page.getByText("赵甲").first()).toBeVisible();
   await expect(page.getByText("赵乙").first()).toBeVisible();
+  await expect(page.getByText("子女：赵乙")).toBeVisible();
+  await expect(page.getByText("父母：赵甲")).toBeVisible();
 
   // Flow 04b — remove relationship from drawer, then restore for later flows
   await page.getByRole("button", { name: "赵乙" }).first().click();
@@ -290,6 +292,8 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
       page.getByRole("heading", { name: /第二代/ })
     ).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("heading", { name: /第一代/ })).toBeVisible();
+    await expect(page.getByText("子女：赵乙")).toBeVisible();
+    await expect(page.getByText("父母：赵甲")).toBeVisible();
 
     // Drawer: living status edit
     await page.getByRole("tab", { name: "成员" }).click();
