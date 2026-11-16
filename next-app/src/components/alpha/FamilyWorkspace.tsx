@@ -389,7 +389,7 @@ function MembersTab({
           还没有家族成员
         </p>
         <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-          先添加你熟悉的一两位家人即可。
+          先添加你熟悉的一两位家人即可，资料以后可以慢慢补。
         </p>
         {canEdit ? (
           <button
@@ -406,6 +406,11 @@ function MembersTab({
 
   return (
     <div>
+      {canEdit && persons.length === 1 ? (
+        <p className="mb-3 text-sm text-[color:var(--a-muted)]">
+          再添加一位家人后，可在「世系」里建立父母或配偶关系。
+        </p>
+      ) : null}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {canEdit ? (
           <button
@@ -524,6 +529,12 @@ function LineageTab({
         >
           + 添加家庭关系
         </button>
+      ) : null}
+
+      {persons.length >= 2 && relationships.length === 0 ? (
+        <p className="mb-3 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-2 text-sm text-[color:var(--a-brand)]">
+          已有成员，但还没有家庭关系。添加父母或配偶关系后，会按世代分层显示。
+        </p>
       ) : null}
 
       {componentCount > 1 ? (
@@ -1771,7 +1782,16 @@ function PersonDrawer({
     setLiving(person.livingStatus);
     setGender(person.gender);
     setRevision(person.revisionNo);
+    setConfirmDelete(false);
+    setLocalError("");
+    setLocalFlash("");
   }, [person.id, person.preferredName, person.livingStatus, person.gender, person.revisionNo]);
+
+  useEffect(() => {
+    if (!localFlash) return;
+    const t = window.setTimeout(() => setLocalFlash(""), 4000);
+    return () => window.clearTimeout(t);
+  }, [localFlash]);
 
   const loadClaims = useCallback(async () => {
     setClaimsLoading(true);
@@ -1789,11 +1809,16 @@ function PersonDrawer({
   useEffect(() => {
     closeBtn.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (confirmDelete) {
+        setConfirmDelete(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, confirmDelete]);
 
   useEffect(() => {
     void loadClaims();
@@ -1860,6 +1885,9 @@ function PersonDrawer({
       role="dialog"
       aria-modal="true"
       aria-labelledby="person-drawer-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="alpha-drawer-panel flex h-full w-full max-w-md flex-col bg-[color:var(--a-surface-strong)] shadow-[var(--a-shadow)]">
         <div className="flex items-center justify-between border-b border-[color:var(--a-brand-line)] px-4 py-3">
@@ -1873,7 +1901,7 @@ function PersonDrawer({
             ref={closeBtn}
             type="button"
             onClick={onClose}
-            className="min-h-[44px] min-w-[44px] rounded-lg text-sm font-semibold"
+            className="min-h-[44px] min-w-[44px] rounded-lg text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
           >
             关闭
           </button>
@@ -1885,7 +1913,7 @@ function PersonDrawer({
             </p>
           ) : null}
           {localFlash ? (
-            <p className="mb-3 rounded-xl bg-[color:var(--a-ok-soft)] px-3 py-2 text-sm text-[color:var(--a-ok)]" role="status">
+            <p className="mb-3 alpha-alert alpha-alert-ok" role="status">
               {localFlash}
             </p>
           ) : null}
@@ -1963,21 +1991,19 @@ function PersonDrawer({
               ))}
             </ul>
           ) : (
-            <div className="mt-2">
-              <p className="text-sm text-[color:var(--a-muted)]">
-                暂无关系。建立父母/配偶关系后，世系页会按代展示。
-              </p>
-              {canEdit ? (
-                <button
-                  type="button"
-                  className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
-                  onClick={onRequestAddRel}
-                >
-                  去添加家庭关系
-                </button>
-              ) : null}
-            </div>
+            <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+              暂无关系。建立父母/配偶关系后，世系页会按代展示。
+            </p>
           )}
+          {canEdit ? (
+            <button
+              type="button"
+              className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
+              onClick={onRequestAddRel}
+            >
+              {relLines.length ? "再添加一条关系" : "去添加家庭关系"}
+            </button>
+          ) : null}
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
           <p className="mt-1 mb-3 text-sm text-[color:var(--a-muted)]">
             记录我们知道的内容，以及资料从哪里来。
@@ -2148,6 +2174,9 @@ function ModalShell({
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]">
         <div className="mb-4 flex items-center justify-between">
