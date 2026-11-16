@@ -37,3 +37,9 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# local Alpha tooling / offline push backups (repo root)
+*.bundle
+push-retry.log
+alpha-ui-*.png
+.cursor/
