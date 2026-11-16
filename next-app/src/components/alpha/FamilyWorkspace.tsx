@@ -577,6 +577,19 @@ function LineageTab({
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
 }) {
+  const spouses = useMemo(
+    () => relationships.filter((r) => r.type === "SPOUSE"),
+    [relationships]
+  );
+  const parentRels = useMemo(
+    () =>
+      relationships.filter((r) =>
+        ["BIOLOGICAL_PARENT", "ADOPTIVE_PARENT", "STEP_PARENT"].includes(r.type)
+      ),
+    [relationships]
+  );
+
+  /** Per generation: clusters of 1–2 people (spouse pairs kept adjacent). */
   const byGen = useMemo(() => {
     const map = new Map<number, GraphPerson[]>();
     for (const p of persons) {
@@ -584,13 +597,38 @@ function LineageTab({
       if (!map.has(g)) map.set(g, []);
       map.get(g)!.push(p);
     }
-    return [...map.entries()].sort((a, b) => a[0] - b[0]);
-  }, [persons, generationByPerson]);
-
-  const spouses = relationships.filter((r) => r.type === "SPOUSE");
-  const parentRels = relationships.filter((r) =>
-    ["BIOLOGICAL_PARENT", "ADOPTIVE_PARENT", "STEP_PARENT"].includes(r.type)
-  );
+    const spouseOther = (id: string, pool: Set<string>) => {
+      for (const r of spouses) {
+        const other =
+          r.fromPersonId === id
+            ? r.toPersonId
+            : r.toPersonId === id
+              ? r.fromPersonId
+              : null;
+        if (other && pool.has(other)) return other;
+      }
+      return null;
+    };
+    return [...map.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([gen, list]) => {
+        const remaining = new Set(list.map((p) => p.id));
+        const byId = new Map(list.map((p) => [p.id, p]));
+        const clusters: GraphPerson[][] = [];
+        for (const p of list) {
+          if (!remaining.has(p.id)) continue;
+          remaining.delete(p.id);
+          const oid = spouseOther(p.id, remaining);
+          if (oid) {
+            remaining.delete(oid);
+            clusters.push([p, byId.get(oid)!]);
+          } else {
+            clusters.push([p]);
+          }
+        }
+        return [gen, clusters] as const;
+      });
+  }, [persons, generationByPerson, spouses]);
 
   const parentsOf = useMemo(() => {
     const m = new Map<string, string[]>();
@@ -634,7 +672,9 @@ function LineageTab({
         </p>
       ) : (
         <div className="alpha-lineage-rail space-y-2">
-          {byGen.map(([gen, list], idx) => (
+          {byGen.map(([gen, clusters], idx) => {
+            const genCount = clusters.reduce((n, c) => n + c.length, 0);
+            return (
             <div key={gen}>
               {idx > 0 ? (
                 <p
@@ -648,58 +688,93 @@ function LineageTab({
                 <h3 className="mb-2 text-sm font-bold tracking-wide text-[color:var(--a-brand)]">
                   {generationLabel(gen)}
                   <span className="ml-2 font-normal text-[color:var(--a-muted)]">
-                    {list.length} 人
+                    {genCount} 人
                   </span>
                 </h3>
                 <ul className="flex flex-wrap gap-2">
-                  {list.map((p) => {
-                    const spouseNames = spouses
-                      .filter(
-                        (r) =>
-                          r.fromPersonId === p.id || r.toPersonId === p.id
-                      )
-                      .map((r) => {
-                        const oid =
-                          r.fromPersonId === p.id
-                            ? r.toPersonId
-                            : r.fromPersonId;
-                        return personMap.get(oid)?.preferredName;
-                      })
-                      .filter(Boolean);
-                    const parentNames = parentsOf.get(p.id) ?? [];
+                  {clusters.map((cluster) => {
+                    const isCouple = cluster.length === 2;
                     return (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => onOpen(p.id)}
-                          className="alpha-panel alpha-panel-interactive min-w-[7.5rem] px-3 py-2 text-left"
-                        >
-                          <p className="font-bold text-[color:var(--a-ink)]">
-                            {p.preferredName}
-                          </p>
-                          {parentNames.length ? (
-                            <p className="mt-0.5 text-xs text-[color:var(--a-muted)]">
-                              父母：{parentNames.join("、")}
-                            </p>
-                          ) : null}
-                          {spouseNames.length ? (
-                            <p className="text-xs text-[color:var(--a-muted)]">
-                              配偶：{spouseNames.join("、")}
-                            </p>
-                          ) : null}
-                          {!parentNames.length && !spouseNames.length ? (
-                            <p className="text-xs text-[color:var(--a-brand)]">
-                              查看详情
-                            </p>
-                          ) : null}
-                        </button>
+                      <li
+                        key={cluster.map((p) => p.id).join("-")}
+                        className={
+                          isCouple
+                            ? "flex items-stretch gap-1 rounded-2xl border border-[color:var(--a-brand-line)]/40 bg-[color:var(--a-surface)]/60 p-1"
+                            : undefined
+                        }
+                      >
+                        {cluster.map((p, pi) => {
+                          const parentNames = parentsOf.get(p.id) ?? [];
+                          const showSpouseLine =
+                            !isCouple &&
+                            spouses.some(
+                              (r) =>
+                                r.fromPersonId === p.id ||
+                                r.toPersonId === p.id
+                            );
+                          const spouseNames = showSpouseLine
+                            ? spouses
+                                .filter(
+                                  (r) =>
+                                    r.fromPersonId === p.id ||
+                                    r.toPersonId === p.id
+                                )
+                                .map((r) => {
+                                  const oid =
+                                    r.fromPersonId === p.id
+                                      ? r.toPersonId
+                                      : r.fromPersonId;
+                                  return personMap.get(oid)?.preferredName;
+                                })
+                                .filter(Boolean)
+                            : [];
+                          return (
+                            <div key={p.id} className="flex items-center gap-1">
+                              {isCouple && pi === 1 ? (
+                                <span
+                                  className="px-0.5 text-sm font-semibold text-[color:var(--a-brand)]"
+                                  aria-hidden
+                                >
+                                  ·
+                                </span>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => onOpen(p.id)}
+                                className="alpha-panel alpha-panel-interactive min-w-[7.5rem] px-3 py-2 text-left"
+                              >
+                                <p className="font-bold text-[color:var(--a-ink)]">
+                                  {p.preferredName}
+                                </p>
+                                {parentNames.length ? (
+                                  <p className="mt-0.5 text-xs text-[color:var(--a-muted)]">
+                                    父母：{parentNames.join("、")}
+                                  </p>
+                                ) : null}
+                                {spouseNames.length ? (
+                                  <p className="text-xs text-[color:var(--a-muted)]">
+                                    配偶：{spouseNames.join("、")}
+                                  </p>
+                                ) : null}
+                                {!parentNames.length &&
+                                !spouseNames.length &&
+                                !isCouple ? (
+                                  <p className="text-xs text-[color:var(--a-brand)]">
+                                    查看详情
+                                  </p>
+                                ) : null}
+                              </button>
+                            </div>
+                          );
+                        })}
                       </li>
                     );
                   })}
                 </ul>
               </section>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
