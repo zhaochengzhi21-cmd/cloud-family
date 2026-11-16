@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ERROR_COPY, LOGIN_COPY, PRODUCT } from "@/v1/ui/copy";
 import { v1api, V1ApiError } from "@/v1/client/api";
@@ -20,6 +20,13 @@ export default function AlphaLoginPage() {
   );
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const otpRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (challengeId && challengeId !== "pending") {
+      otpRef.current?.focus();
+    }
+  }, [challengeId]);
 
   function startCooldown() {
     setCooldown(60);
@@ -193,6 +200,7 @@ export default function AlphaLoginPage() {
                 验证码
               </label>
               <input
+                ref={otpRef}
                 id="alpha-otp"
                 inputMode="numeric"
                 pattern="[0-9]*"

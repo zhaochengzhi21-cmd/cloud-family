@@ -231,6 +231,7 @@ export function FamilyWorkspace({
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
           {surname ? <span>{surname}</span> : null}
           <span className="alpha-chip">{persons.length} 位成员</span>
+          <span className="alpha-chip">{relationships.length} 条关系</span>
           <span className="alpha-chip">{PRODUCT.privacyFamilyOnly}</span>
           <span className="alpha-chip">
             我的权限：{ROLE_LABEL[role] ?? role}
