@@ -236,6 +236,14 @@ async function runCoreJourney(
   const mediaId = links.map((l) => l.evidence.mediaObjectId).find(Boolean);
   if (mediaId) trackMedia(familyId, mediaId, ownerId);
 
+  // Remove media evidence source (OWNER/ADMIN) — innermost li, not the claim card
+  const photoRow = page.locator("li").filter({ hasText: "测试合成照片" }).last();
+  await photoRow.getByRole("button", { name: "移除来源" }).click();
+  await photoRow.getByRole("button", { name: "确认移除" }).click();
+  await expect(page.getByText("已移除资料来源")).toBeVisible();
+  await expect(page.getByText("测试合成照片")).toHaveCount(0);
+  await expect(page.getByText(/测试族谱/)).toBeVisible();
+
   // list still shows family
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();

@@ -422,6 +422,12 @@ export const v1api = {
       }
     ),
 
+  deleteEvidence: (familyId: string, evidenceId: string) =>
+    v1Fetch<{ evidenceId: string; familyVersion: number }>(
+      `/api/v1/families/${familyId}/evidence/${evidenceId}`,
+      { method: "DELETE", body: {} }
+    ),
+
   linkEvidence: (
     familyId: string,
     claimId: string,

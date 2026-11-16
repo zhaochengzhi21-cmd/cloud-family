@@ -848,29 +848,29 @@ function LineageTab({
                                 type="button"
                                 data-lineage-person={p.id}
                                 onClick={() => onOpen(p.id)}
-                                className={`alpha-panel alpha-panel-interactive min-w-[7.5rem] px-3 py-2 text-left ${
+                                className={`alpha-panel alpha-panel-interactive min-w-[6.75rem] px-2.5 py-1.5 text-left ${
                                   focusPersonId === p.id
-                                    ? "ring-2 ring-[color:var(--a-brand)] ring-offset-2"
+                                    ? "ring-2 ring-[color:var(--a-brand)] ring-offset-1"
                                     : ""
                                 }`}
                               >
-                                <p className="font-bold text-[color:var(--a-ink)]">
+                                <p className="font-bold leading-snug text-[color:var(--a-ink)]">
                                   {p.preferredName}
                                 </p>
                                 {parentNames.length ? (
-                                  <p className="mt-0.5 text-xs text-[color:var(--a-muted)]">
+                                  <p className="mt-0.5 text-[11px] leading-snug text-[color:var(--a-muted)]">
                                     父母：{parentNames.join("、")}
                                   </p>
                                 ) : null}
                                 {spouseNames.length ? (
-                                  <p className="text-xs text-[color:var(--a-muted)]">
+                                  <p className="text-[11px] leading-snug text-[color:var(--a-muted)]">
                                     配偶：{spouseNames.join("、")}
                                   </p>
                                 ) : null}
                                 {!parentNames.length &&
                                 !spouseNames.length &&
                                 !isCouple ? (
-                                  <p className="text-xs text-[color:var(--a-brand)]">
+                                  <p className="text-[11px] text-[color:var(--a-brand)]">
                                     查看详情
                                   </p>
                                 ) : null}
@@ -1274,6 +1274,10 @@ function ClaimCard({
     ReturnType<typeof v1api.getClaim>
   > | null>(null);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [removingEvidenceId, setRemovingEvidenceId] = useState<string | null>(
+    null
+  );
+  const [removingBusy, setRemovingBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1372,21 +1376,78 @@ function ClaimCard({
       {bundle?.evidenceLinks?.length ? (
         <ul className="mt-3 space-y-2 border-t border-[color:var(--a-brand-line)] pt-2 text-sm">
           {bundle.evidenceLinks.map((l) => (
-            <li key={l.evidence.id} className="text-[color:var(--a-muted)]">
-              <span className="font-semibold">
-                {EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源"}
-              </span>
-              {l.evidence.title ? ` · ${l.evidence.title}` : ""}
-              {l.evidence.sourceLocator
-                ? ` · ${l.evidence.sourceLocator}`
-                : ""}
-              {l.evidence.mediaObjectId ? (
-                <MediaViewButton
-                  familyId={familyId}
-                  mediaId={l.evidence.mediaObjectId}
-                  onAuthError={onAuthError}
-                  onError={onError}
-                />
+            <li
+              key={l.evidence.id}
+              className="flex flex-wrap items-start justify-between gap-2 text-[color:var(--a-muted)]"
+            >
+              <div className="min-w-0 flex-1">
+                <span className="font-semibold text-[color:var(--a-ink)]">
+                  {EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源"}
+                </span>
+                {l.evidence.title ? ` · ${l.evidence.title}` : ""}
+                {l.evidence.sourceLocator
+                  ? ` · ${l.evidence.sourceLocator}`
+                  : ""}
+                {l.evidence.mediaObjectId ? (
+                  <MediaViewButton
+                    familyId={familyId}
+                    mediaId={l.evidence.mediaObjectId}
+                    onAuthError={onAuthError}
+                    onError={onError}
+                  />
+                ) : null}
+              </div>
+              {canReview ? (
+                removingEvidenceId === l.evidence.id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[color:var(--a-danger)]">
+                      确认移除？
+                    </span>
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
+                      disabled={removingBusy}
+                      onClick={() => setRemovingEvidenceId(null)}
+                    >
+                      取消
+                    </button>
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-danger)] hover:underline"
+                      disabled={removingBusy}
+                      onClick={async () => {
+                        setRemovingBusy(true);
+                        try {
+                          await v1api.deleteEvidence(
+                            familyId,
+                            l.evidence.id
+                          );
+                          onFlash("已移除资料来源");
+                          setRemovingEvidenceId(null);
+                          const b = await v1api.getClaim(familyId, claim.id);
+                          setBundle(b);
+                          await onChanged();
+                        } catch (e) {
+                          if (onAuthError(e)) return;
+                          onError(userMessageForApiError(e));
+                          setRemovingEvidenceId(null);
+                        } finally {
+                          setRemovingBusy(false);
+                        }
+                      }}
+                    >
+                      {removingBusy ? "移除中…" : "确认移除"}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="shrink-0 font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-danger)]"
+                    onClick={() => setRemovingEvidenceId(l.evidence.id)}
+                  >
+                    移除来源
+                  </button>
+                )
               ) : null}
             </li>
           ))}
