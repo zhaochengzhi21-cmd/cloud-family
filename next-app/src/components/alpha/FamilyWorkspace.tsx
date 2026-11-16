@@ -417,6 +417,7 @@ export function FamilyWorkspace({
       {showAddPerson ? (
         <AddPersonModal
           familyId={familyId}
+          existingNames={persons.map((p) => p.preferredName)}
           onClose={() => setShowAddPerson(false)}
           onDone={async () => {
             setShowAddPerson(false);
@@ -454,6 +455,7 @@ export function FamilyWorkspace({
         <PersonDrawer
           familyId={familyId}
           person={personMap.get(selectedPersonId)!}
+          generation={generationByPerson[selectedPersonId]}
           relationships={relationships}
           personMap={personMap}
           canEdit={canEdit}
@@ -562,7 +564,7 @@ function MembersTab({
             + 添加成员
           </button>
         ) : null}
-        {persons.length >= 4 ? (
+        {persons.length >= 3 ? (
           <input
             type="search"
             value={query}
@@ -573,7 +575,7 @@ function MembersTab({
           />
         ) : null}
       </div>
-      {persons.length >= 5 ? (
+      {persons.length >= 3 ? (
         <div
           className="mb-3 flex flex-wrap gap-2"
           role="group"
@@ -604,11 +606,25 @@ function MembersTab({
         </div>
       ) : null}
       {filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[color:var(--a-muted)]">
-          {query.trim()
-            ? `没有匹配「${query.trim()}」的成员`
-            : "没有符合当前筛选的成员"}
-        </p>
+        <div className="py-8 text-center">
+          <p className="text-sm text-[color:var(--a-muted)]">
+            {query.trim()
+              ? `没有匹配「${query.trim()}」的成员`
+              : "没有符合当前筛选的成员"}
+          </p>
+          {query.trim() || livingFilter !== "ALL" ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
+              onClick={() => {
+                setQuery("");
+                setLivingFilter("ALL");
+              }}
+            >
+              清除筛选
+            </button>
+          ) : null}
+        </div>
       ) : (
         <ul className="space-y-2">
           {filtered.map((p) => (
@@ -707,10 +723,15 @@ function LineageTab({
     return [...map.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([gen, list]) => {
-        const remaining = new Set(list.map((p) => p.id));
-        const byId = new Map(list.map((p) => [p.id, p]));
+        const sorted = list
+          .slice()
+          .sort((a, b) =>
+            a.preferredName.localeCompare(b.preferredName, "zh-CN")
+          );
+        const remaining = new Set(sorted.map((p) => p.id));
+        const byId = new Map(sorted.map((p) => [p.id, p]));
         const clusters: GraphPerson[][] = [];
-        for (const p of list) {
+        for (const p of sorted) {
           if (!remaining.has(p.id)) continue;
           remaining.delete(p.id);
           const oid = spouseOther(p.id, remaining);
@@ -1927,12 +1948,14 @@ function EditFamilyModal({
 
 function AddPersonModal({
   familyId,
+  existingNames,
   onClose,
   onDone,
   onError,
   onAuth,
 }: {
   familyId: string;
+  existingNames: string[];
   onClose: () => void;
   onDone: () => Promise<void>;
   onError: (s: string) => void;
@@ -1948,6 +1971,11 @@ function AddPersonModal({
   useEffect(() => {
     firstRef.current?.focus();
   }, []);
+
+  const trimmed = name.trim();
+  const duplicateName =
+    trimmed.length > 0 &&
+    existingNames.some((n) => n.trim().toLowerCase() === trimmed.toLowerCase());
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -1990,6 +2018,11 @@ function AddPersonModal({
             onChange={(e) => setName(e.target.value)}
             className="alpha-input"
           />
+          {duplicateName ? (
+            <p className="mt-1.5 text-sm text-[color:var(--a-brand)]" role="status">
+              已有同名成员。若是不同的人，可继续添加并用称呼区分。
+            </p>
+          ) : null}
         </div>
         <div>
           <label htmlFor="p-living" className="alpha-label">
@@ -2114,6 +2147,23 @@ function AddRelationshipModal({
     } finally {
       setBusy(false);
     }
+  }
+
+  if (persons.length < 2) {
+    return (
+      <ModalShell title="添加家庭关系" onClose={onClose}>
+        <p className="text-sm leading-relaxed text-[color:var(--a-muted)]">
+          至少需要两位成员，才能建立父母或配偶关系。请先再添加一位家人。
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="alpha-btn alpha-btn-primary mt-5 w-full"
+        >
+          知道了
+        </button>
+      </ModalShell>
+    );
   }
 
   return (
@@ -2269,6 +2319,7 @@ function AddRelationshipModal({
 function PersonDrawer({
   familyId,
   person,
+  generation,
   relationships,
   personMap,
   canEdit,
@@ -2284,6 +2335,7 @@ function PersonDrawer({
 }: {
   familyId: string;
   person: GraphPerson;
+  generation?: number;
   relationships: GraphRel[];
   personMap: Map<string, GraphPerson>;
   canEdit: boolean;
@@ -2435,12 +2487,19 @@ function PersonDrawer({
     >
       <div className="alpha-drawer-panel flex h-full w-full max-w-md flex-col bg-[color:var(--a-surface-strong)] shadow-[var(--a-shadow)]">
         <div className="flex items-center justify-between border-b border-[color:var(--a-brand-line)] px-4 py-3">
-          <h2
-            id="person-drawer-title"
-            className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
-          >
-            {person.preferredName}
-          </h2>
+          <div className="min-w-0">
+            <h2
+              id="person-drawer-title"
+              className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
+            >
+              {person.preferredName}
+            </h2>
+            {generation ? (
+              <p className="mt-0.5 text-sm text-[color:var(--a-muted)]">
+                {generationLabel(generation)}
+              </p>
+            ) : null}
+          </div>
           <button
             ref={closeBtn}
             type="button"

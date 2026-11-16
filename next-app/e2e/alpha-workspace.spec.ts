@@ -128,6 +128,20 @@ async function runCoreJourney(
   // Flow 04b — remove relationship from drawer, then restore for later flows
   await page.getByRole("button", { name: "赵乙" }).first().click();
   const drawer = page.getByRole("dialog");
+  await expect(drawer.getByText("第二代")).toBeVisible();
+  await expect(drawer.getByText("父母：赵甲")).toBeVisible();
+
+  // Soft duplicate-name hint when adding another 赵乙
+  await drawer.getByRole("button", { name: "关闭" }).click();
+  await page.getByRole("tab", { name: "成员" }).click();
+  await page.getByRole("button", { name: "+ 添加成员" }).click();
+  await page.getByLabel("姓名 / 常用称呼 *").fill("赵乙");
+  await expect(
+    page.getByText("已有同名成员。若是不同的人，可继续添加并用称呼区分。")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "取消" }).click();
+  await page.getByRole("tab", { name: "世系" }).click();
+  await page.getByRole("button", { name: "赵乙" }).first().click();
   await expect(drawer.getByText("父母：赵甲")).toBeVisible();
   await drawer.getByRole("button", { name: "移除", exact: true }).click();
   await drawer.getByRole("button", { name: "确认移除" }).click();
