@@ -803,6 +803,17 @@ function RecordsTab({
   const [personId, setPersonId] = useState(persons[0]?.id ?? "");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const topRef = useRef<HTMLDivElement>(null);
+
+  const sortedPersons = useMemo(
+    () =>
+      persons
+        .slice()
+        .sort((a, b) =>
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+        ),
+    [persons]
+  );
 
   const loadClaims = useCallback(async () => {
     if (!personId) {
@@ -828,6 +839,11 @@ function RecordsTab({
   useEffect(() => {
     if (!personId && persons[0]) setPersonId(persons[0].id);
   }, [persons, personId]);
+
+  useEffect(() => {
+    if (!personId) return;
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [personId]);
 
   const active = claims.filter((c) => c.status !== "REJECTED");
   const rejected = claims.filter((c) => c.status === "REJECTED");
@@ -855,7 +871,7 @@ function RecordsTab({
   }
 
   return (
-    <div>
+    <div ref={topRef}>
       <p className="mb-4 text-sm leading-relaxed text-[color:var(--a-muted)]">
         关于这个家族，我们知道些什么，以及这些信息从哪里来。
       </p>
@@ -868,7 +884,7 @@ function RecordsTab({
         onChange={(e) => setPersonId(e.target.value)}
         className="alpha-input mb-4"
       >
-        {persons.map((p) => (
+        {sortedPersons.map((p) => (
           <option key={p.id} value={p.id}>
             {p.preferredName}
           </option>
