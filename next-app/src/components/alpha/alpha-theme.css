@@ -281,7 +281,12 @@
   top: 0.35rem;
   bottom: 0.35rem;
   width: 2px;
-  background: linear-gradient(180deg, var(--a-brand), transparent);
-  opacity: 0.35;
+  background: linear-gradient(
+    180deg,
+    var(--a-brand) 0%,
+    rgba(26, 92, 82, 0.35) 55%,
+    transparent 100%
+  );
+  opacity: 0.55;
   border-radius: 999px;
 }

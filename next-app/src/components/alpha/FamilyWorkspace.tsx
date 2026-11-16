@@ -364,6 +364,13 @@ function MembersTab({
   onAdd: () => void;
   onOpen: (id: string) => void;
 }) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return persons;
+    return persons.filter((p) => p.preferredName.toLowerCase().includes(q));
+  }, [persons, query]);
+
   if (persons.length === 0) {
     return (
       <div className="alpha-panel border-dashed px-5 py-12 text-center">
@@ -388,46 +395,64 @@ function MembersTab({
 
   return (
     <div>
-      {canEdit ? (
-        <button
-          type="button"
-          onClick={onAdd}
-          className="alpha-btn alpha-btn-secondary mb-3 !min-h-[44px] !text-sm"
-        >
-          + 添加成员
-        </button>
-      ) : null}
-      <ul className="space-y-2">
-        {persons.map((p) => (
-          <li key={p.id}>
-            <button
-              type="button"
-              onClick={() => onOpen(p.id)}
-              className="alpha-panel alpha-panel-interactive flex w-full min-h-[60px] items-center justify-between px-4 text-left"
-            >
-              <div>
-                <p className="font-bold text-[color:var(--a-ink)]">
-                  {p.preferredName}
-                </p>
-                <p className="text-sm text-[color:var(--a-muted)]">
-                  {LIVING_STATUS_LABEL[
-                    p.livingStatus as keyof typeof LIVING_STATUS_LABEL
-                  ] ?? p.livingStatus}
-                  {p.gender !== "UNKNOWN"
-                    ? ` · ${
-                        GENDER_LABEL[p.gender as keyof typeof GENDER_LABEL] ??
-                        ""
-                      }`
-                    : ""}
-                </p>
-              </div>
-              <span className="text-sm font-semibold text-[color:var(--a-brand)]">
-                查看
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        {canEdit ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="alpha-btn alpha-btn-secondary !min-h-[44px] !text-sm"
+          >
+            + 添加成员
+          </button>
+        ) : null}
+        {persons.length >= 4 ? (
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="按姓名筛选"
+            aria-label="按姓名筛选成员"
+            className="alpha-input min-w-[10rem] flex-1 !min-h-[44px]"
+          />
+        ) : null}
+      </div>
+      {filtered.length === 0 ? (
+        <p className="py-8 text-center text-sm text-[color:var(--a-muted)]">
+          没有匹配「{query.trim()}」的成员
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {filtered.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => onOpen(p.id)}
+                className="alpha-panel alpha-panel-interactive flex w-full min-h-[60px] items-center justify-between px-4 text-left"
+              >
+                <div>
+                  <p className="font-bold text-[color:var(--a-ink)]">
+                    {p.preferredName}
+                  </p>
+                  <p className="text-sm text-[color:var(--a-muted)]">
+                    {LIVING_STATUS_LABEL[
+                      p.livingStatus as keyof typeof LIVING_STATUS_LABEL
+                    ] ?? p.livingStatus}
+                    {p.gender !== "UNKNOWN"
+                      ? ` · ${
+                          GENDER_LABEL[p.gender as keyof typeof GENDER_LABEL] ??
+                          ""
+                        }`
+                      : ""}
+                  </p>
+                </div>
+                <span className="text-sm font-semibold text-[color:var(--a-brand)]">
+                  查看
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -462,6 +487,21 @@ function LineageTab({
   }, [persons, generationByPerson]);
 
   const spouses = relationships.filter((r) => r.type === "SPOUSE");
+  const parentRels = relationships.filter((r) =>
+    ["BIOLOGICAL_PARENT", "ADOPTIVE_PARENT", "STEP_PARENT"].includes(r.type)
+  );
+
+  const parentsOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const r of parentRels) {
+      // from=parent, to=child
+      const list = m.get(r.toPersonId) ?? [];
+      const name = personMap.get(r.fromPersonId)?.preferredName;
+      if (name) list.push(name);
+      m.set(r.toPersonId, list);
+    }
+    return m;
+  }, [parentRels, personMap]);
 
   return (
     <div>
@@ -486,52 +526,72 @@ function LineageTab({
           添加成员并建立关系后，这里会按世代展示。
         </p>
       ) : (
-        <div className="alpha-lineage-rail space-y-6">
-          {byGen.map(([gen, list]) => (
-            <section key={gen}>
-              <h3 className="mb-2 text-sm font-bold tracking-wide text-[color:var(--a-brand)]">
-                {generationLabel(gen)}
-              </h3>
-              <ul className="flex flex-wrap gap-2">
-                {list.map((p) => {
-                  const spouseNames = spouses
-                    .filter(
-                      (r) =>
-                        r.fromPersonId === p.id || r.toPersonId === p.id
-                    )
-                    .map((r) => {
-                      const oid =
-                        r.fromPersonId === p.id
-                          ? r.toPersonId
-                          : r.fromPersonId;
-                      return personMap.get(oid)?.preferredName;
-                    })
-                    .filter(Boolean);
-                  return (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => onOpen(p.id)}
-                        className="alpha-panel alpha-panel-interactive px-3 py-2 text-left"
-                      >
-                        <p className="font-bold text-[color:var(--a-ink)]">
-                          {p.preferredName}
-                        </p>
-                        {spouseNames.length ? (
-                          <p className="text-xs text-[color:var(--a-muted)]">
-                            配偶：{spouseNames.join("、")}
+        <div className="alpha-lineage-rail space-y-2">
+          {byGen.map(([gen, list], idx) => (
+            <div key={gen}>
+              {idx > 0 ? (
+                <p
+                  className="mb-2 pl-1 text-xs font-semibold tracking-wide text-[color:var(--a-brand)]"
+                  aria-hidden
+                >
+                  ↓ 下一代
+                </p>
+              ) : null}
+              <section className="mb-4">
+                <h3 className="mb-2 text-sm font-bold tracking-wide text-[color:var(--a-brand)]">
+                  {generationLabel(gen)}
+                  <span className="ml-2 font-normal text-[color:var(--a-muted)]">
+                    {list.length} 人
+                  </span>
+                </h3>
+                <ul className="flex flex-wrap gap-2">
+                  {list.map((p) => {
+                    const spouseNames = spouses
+                      .filter(
+                        (r) =>
+                          r.fromPersonId === p.id || r.toPersonId === p.id
+                      )
+                      .map((r) => {
+                        const oid =
+                          r.fromPersonId === p.id
+                            ? r.toPersonId
+                            : r.fromPersonId;
+                        return personMap.get(oid)?.preferredName;
+                      })
+                      .filter(Boolean);
+                    const parentNames = parentsOf.get(p.id) ?? [];
+                    return (
+                      <li key={p.id}>
+                        <button
+                          type="button"
+                          onClick={() => onOpen(p.id)}
+                          className="alpha-panel alpha-panel-interactive min-w-[7.5rem] px-3 py-2 text-left"
+                        >
+                          <p className="font-bold text-[color:var(--a-ink)]">
+                            {p.preferredName}
                           </p>
-                        ) : (
-                          <p className="text-xs text-[color:var(--a-brand)]">
-                            查看详情
-                          </p>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
+                          {parentNames.length ? (
+                            <p className="mt-0.5 text-xs text-[color:var(--a-muted)]">
+                              父母：{parentNames.join("、")}
+                            </p>
+                          ) : null}
+                          {spouseNames.length ? (
+                            <p className="text-xs text-[color:var(--a-muted)]">
+                              配偶：{spouseNames.join("、")}
+                            </p>
+                          ) : null}
+                          {!parentNames.length && !spouseNames.length ? (
+                            <p className="text-xs text-[color:var(--a-brand)]">
+                              查看详情
+                            </p>
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            </div>
           ))}
         </div>
       )}
@@ -1065,6 +1125,7 @@ function AddEvidenceForm({
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState("");
+  const [uploadPct, setUploadPct] = useState(0);
   const [busy, setBusy] = useState(false);
   const leaveWarn = useRef(false);
 
@@ -1079,10 +1140,16 @@ function AddEvidenceForm({
     return () => window.removeEventListener("beforeunload", handler);
   }, []);
 
+  function setPhase(label: string, pct: number) {
+    setUploadState(label);
+    setUploadPct(pct);
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     leaveWarn.current = true;
+    let phase = "";
     try {
       let mediaObjectId: string | null = null;
       if (file) {
@@ -1103,13 +1170,15 @@ function AddEvidenceForm({
           );
           return;
         }
-        setUploadState("准备上传");
+        phase = "准备上传";
+        setPhase(phase, 12);
         const reserved = await v1api.reserveMedia(familyId, {
           originalFilename: file.name,
           mimeType: mime,
           byteSize: file.size,
         });
-        setUploadState("正在上传…");
+        phase = "正在上传文件…";
+        setPhase(phase, 45);
         const handleUploadUrl = reserved.upload.handleUploadUrl.startsWith(
           "http"
         )
@@ -1122,13 +1191,15 @@ function AddEvidenceForm({
           contentType: mime,
           multipart: reserved.upload.multipartRecommended,
         });
-        setUploadState("正在保存");
+        phase = "正在确认文件…";
+        setPhase(phase, 72);
         const deadline = Date.now() + 60_000;
         while (Date.now() < deadline) {
           const st = await v1api.mediaStatus(familyId, reserved.media.id);
           if (st.status === "ACTIVE") {
             mediaObjectId = reserved.media.id;
-            setUploadState("上传完成");
+            phase = "上传完成";
+            setPhase(phase, 100);
             break;
           }
           if (st.status === "FAILED") {
@@ -1145,11 +1216,14 @@ function AddEvidenceForm({
           await new Promise((r) => setTimeout(r, 400));
         }
         if (!mediaObjectId) {
+          setPhase("上传超时", uploadPct);
           onError("上传超时，请稍后重试。");
           return;
         }
       }
 
+      phase = file ? "正在保存来源…" : "";
+      if (phase) setPhase(phase, 92);
       const ev = await v1api.createEvidence(familyId, {
         evidenceType,
         title: title.trim() || null,
@@ -1161,12 +1235,14 @@ function AddEvidenceForm({
         evidenceId: ev.evidence.id,
         relation: "SUPPORTS",
       });
+      setPhase("", 0);
       await onDone();
     } catch (err) {
       if (onAuthError(err)) return;
+      setPhase(phase ? "上传失败" : "", phase ? Math.max(uploadPct, 8) : 0);
       onError(
-        uploadState
-          ? "上传失败，请检查文件后重试。"
+        phase
+          ? "上传或保存失败，请检查文件后重试。"
           : userMessageForApiError(err)
       );
     } finally {
@@ -1244,26 +1320,53 @@ function AddEvidenceForm({
           <p className="mt-1 text-xs text-[color:var(--a-muted)]">
             支持 JPG/PNG/WEBP/PDF 与常见音视频。图片最大 20 MB。仅家族成员可见。
           </p>
-          {uploadState ? (
-            <p className="mt-1 text-sm text-[color:var(--a-muted)]" role="status">
-              {uploadState}
+          {file ? (
+            <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+              已选择：{file.name}
+              {file.size > 0
+                ? `（${Math.max(1, Math.round(file.size / 1024))} KB）`
+                : ""}
             </p>
+          ) : null}
+          {uploadState ? (
+            <div className="mt-2" role="status" aria-live="polite">
+              <div className="h-1.5 overflow-hidden rounded-full bg-[color:var(--a-brand-soft)]">
+                <div
+                  className="h-full rounded-full bg-[color:var(--a-brand)] transition-[width] duration-300"
+                  style={{ width: `${Math.min(100, Math.max(0, uploadPct))}%` }}
+                />
+              </div>
+              <p
+                className={`mt-1 text-sm ${
+                  uploadState.includes("失败") || uploadState.includes("超时")
+                    ? "text-[color:var(--a-danger)]"
+                    : "text-[color:var(--a-muted)]"
+                }`}
+              >
+                {uploadState}
+              </p>
+            </div>
           ) : null}
         </div>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onClose}
-            className="min-h-[44px] flex-1 rounded-lg border border-[color:var(--a-brand-line)]"
+            disabled={busy}
+            className="alpha-btn alpha-btn-secondary flex-1 !min-h-[44px]"
           >
             取消
           </button>
           <button
             type="submit"
             disabled={busy}
-            className="min-h-[44px] flex-1 rounded-lg bg-[color:var(--a-brand)] font-bold text-white disabled:opacity-60"
+            className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
           >
-            {busy ? "保存中…" : "保存来源"}
+            {busy
+              ? uploadState && !uploadState.includes("失败")
+                ? uploadState
+                : "保存中…"
+              : "保存来源"}
           </button>
         </div>
       </form>

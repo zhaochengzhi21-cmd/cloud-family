@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EMPTY_FAMILIES, PRODUCT, ROLE_LABEL } from "@/v1/ui/copy";
@@ -23,6 +23,18 @@ export default function AlphaFamiliesPage() {
   const [displayName, setDisplayName] = useState("");
   const [surname, setSurname] = useState("");
   const [busy, setBusy] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!families) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return families;
+    return families.filter(
+      (f) =>
+        f.displayName.toLowerCase().includes(q) ||
+        (f.surname ?? "").toLowerCase().includes(q)
+    );
+  }, [families, query]);
 
   async function load() {
     setError("");
@@ -108,42 +120,59 @@ export default function AlphaFamiliesPage() {
       ) : null}
 
       {families && families.length > 0 ? (
-        <ul className="space-y-3">
-          {families.map((f) => (
-            <li key={f.id}>
-              <Link
-                href={`/alpha/families/${f.id}`}
-                className="alpha-panel alpha-panel-interactive flex min-h-[64px] items-center justify-between px-4 py-3"
-              >
-                <div>
-                  <p className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
-                    {f.displayName}
-                  </p>
-                  <p className="mt-0.5 text-sm text-[color:var(--a-muted)]">
-                    {[
-                      f.surname,
-                      ROLE_LABEL[f.role as keyof typeof ROLE_LABEL] || f.role,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-                <span className="text-sm font-semibold text-[color:var(--a-brand)]">
-                  打开
-                </span>
-              </Link>
-            </li>
-          ))}
-          <li className="pt-2">
-            <button
-              type="button"
-              onClick={() => setCreating(true)}
-              className="alpha-btn alpha-btn-ghost !justify-start !px-0"
-            >
-              + 创建家族档案
-            </button>
-          </li>
-        </ul>
+        <div>
+          {families.length >= 3 ? (
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="按名称或姓氏筛选"
+              aria-label="筛选家族档案"
+              className="alpha-input mb-4"
+            />
+          ) : null}
+          {filtered.length === 0 ? (
+            <p className="mb-4 py-6 text-center text-sm text-[color:var(--a-muted)]">
+              没有匹配「{query.trim()}」的家族
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {filtered.map((f) => (
+                <li key={f.id}>
+                  <Link
+                    href={`/alpha/families/${f.id}`}
+                    className="alpha-panel alpha-panel-interactive flex min-h-[64px] items-center justify-between px-4 py-3"
+                  >
+                    <div>
+                      <p className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
+                        {f.displayName}
+                      </p>
+                      <p className="mt-0.5 text-sm text-[color:var(--a-muted)]">
+                        {[
+                          f.surname,
+                          ROLE_LABEL[f.role as keyof typeof ROLE_LABEL] ||
+                            f.role,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    <span className="text-sm font-semibold text-[color:var(--a-brand)]">
+                      打开
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="alpha-btn alpha-btn-ghost mt-3 !justify-start !px-0"
+          >
+            + 创建家族档案
+          </button>
+        </div>
       ) : null}
 
       {creating ? (
