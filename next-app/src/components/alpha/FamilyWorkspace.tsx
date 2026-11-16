@@ -2073,6 +2073,8 @@ function PersonDrawer({
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmRelId, setConfirmRelId] = useState<string | null>(null);
+  const [removingRel, setRemovingRel] = useState(false);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const [localFlash, setLocalFlash] = useState("");
@@ -2085,6 +2087,7 @@ function PersonDrawer({
     setGender(person.gender);
     setRevision(person.revisionNo);
     setConfirmDelete(false);
+    setConfirmRelId(null);
     setLocalError("");
     setLocalFlash("");
   }, [person.id, person.preferredName, person.livingStatus, person.gender, person.revisionNo]);
@@ -2112,6 +2115,10 @@ function PersonDrawer({
     closeBtn.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (confirmRelId) {
+        setConfirmRelId(null);
+        return;
+      }
       if (confirmDelete) {
         setConfirmDelete(false);
         return;
@@ -2120,21 +2127,23 @@ function PersonDrawer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, confirmDelete]);
+  }, [onClose, confirmDelete, confirmRelId]);
 
   useEffect(() => {
     void loadClaims();
   }, [loadClaims]);
 
-  const relLines = relationships
+  const relRows = relationships
     .filter((r) => r.fromPersonId === person.id || r.toPersonId === person.id)
     .map((r) => {
       const other =
         r.fromPersonId === person.id ? r.toPersonId : r.fromPersonId;
       const otherName = personMap.get(other)?.preferredName ?? "成员";
-      if (r.type === "SPOUSE") return `配偶：${otherName}`;
-      if (r.fromPersonId === person.id) return `子女：${otherName}`;
-      return `父母：${otherName}`;
+      let label: string;
+      if (r.type === "SPOUSE") label = `配偶：${otherName}`;
+      else if (r.fromPersonId === person.id) label = `子女：${otherName}`;
+      else label = `父母：${otherName}`;
+      return { id: r.id, label };
     });
 
   const activeClaims = claims.filter((c) => c.status !== "REJECTED");
@@ -2188,7 +2197,9 @@ function PersonDrawer({
       aria-modal="true"
       aria-labelledby="person-drawer-title"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target !== e.currentTarget) return;
+        if (confirmDelete || confirmRelId) return;
+        onClose();
       }}
     >
       <div className="alpha-drawer-panel flex h-full w-full max-w-md flex-col bg-[color:var(--a-surface-strong)] shadow-[var(--a-shadow)]">
@@ -2286,10 +2297,62 @@ function PersonDrawer({
             </form>
           )}
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">家庭关系</h3>
-          {relLines.length ? (
-            <ul className="mt-2 space-y-1 text-sm text-[color:var(--a-muted)]">
-              {relLines.map((l, i) => (
-                <li key={i}>{l}</li>
+          {relRows.length ? (
+            <ul className="mt-2 space-y-2 text-sm text-[color:var(--a-muted)]">
+              {relRows.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-wrap items-center justify-between gap-2"
+                >
+                  <span>{row.label}</span>
+                  {canEdit ? (
+                    confirmRelId === row.id ? (
+                      <span className="flex gap-2">
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-[color:var(--a-muted)]"
+                          disabled={removingRel}
+                          onClick={() => setConfirmRelId(null)}
+                        >
+                          取消
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs font-semibold text-[color:var(--a-danger)]"
+                          disabled={removingRel}
+                          onClick={async () => {
+                            setRemovingRel(true);
+                            setLocalError("");
+                            try {
+                              await v1api.deleteRelationship(familyId, row.id);
+                              setConfirmRelId(null);
+                              setLocalFlash("已移除这条家庭关系");
+                              await onChanged();
+                            } catch (err) {
+                              if (onAuth(err)) return;
+                              const msg = userMessageForApiError(err);
+                              setLocalError(msg);
+                              onError(msg);
+                              setConfirmRelId(null);
+                            } finally {
+                              setRemovingRel(false);
+                            }
+                          }}
+                        >
+                          {removingRel ? "移除中…" : "确认移除"}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-[color:var(--a-brand)]"
+                        onClick={() => setConfirmRelId(row.id)}
+                      >
+                        移除
+                      </button>
+                    )
+                  ) : null}
+                </li>
               ))}
             </ul>
           ) : (
@@ -2303,7 +2366,7 @@ function PersonDrawer({
               className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
               onClick={onRequestAddRel}
             >
-              {relLines.length ? "再添加一条关系" : "去添加家庭关系"}
+              {relRows.length ? "再添加一条关系" : "去添加家庭关系"}
             </button>
           ) : null}
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>

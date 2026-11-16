@@ -226,13 +226,14 @@
   display: flex;
   gap: 0.25rem;
   border-radius: var(--a-radius);
-  background: rgba(26, 92, 82, 0.08);
+  background: rgba(243, 247, 248, 0.94);
   padding: 0.25rem;
   position: sticky;
   /* Sit just under .alpha-nav (h-14 = 3.5rem) */
   top: 3.5rem;
   z-index: 20;
   backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 var(--a-brand-line);
 }
 
 .alpha-tab {

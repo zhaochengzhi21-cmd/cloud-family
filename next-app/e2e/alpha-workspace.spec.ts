@@ -123,6 +123,24 @@ async function runCoreJourney(
   await expect(page.getByText("赵甲").first()).toBeVisible();
   await expect(page.getByText("赵乙").first()).toBeVisible();
 
+  // Flow 04b — remove relationship from drawer, then restore for later flows
+  await page.getByRole("button", { name: "赵乙" }).first().click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer.getByText("父母：赵甲")).toBeVisible();
+  await drawer.getByRole("button", { name: "移除", exact: true }).click();
+  await drawer.getByRole("button", { name: "确认移除" }).click();
+  await expect(drawer.getByText("已移除这条家庭关系")).toBeVisible();
+  await expect(drawer.getByText("暂无关系")).toBeVisible();
+  await drawer.getByRole("button", { name: "关闭" }).click();
+  await page.getByRole("button", { name: "+ 添加家庭关系" }).click();
+  await page.locator("#rel-parent").selectOption({ label: "赵甲" });
+  await page.locator("#rel-child").selectOption({ label: "赵乙" });
+  await page.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(page.getByText("已添加家庭关系")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /第二代/ })
+  ).toBeVisible({ timeout: 20_000 });
+
   // Flow 05–09 claims / evidence / conflict
   await page.getByRole("tab", { name: "资料" }).click();
   await page.locator("#records-person").selectOption({ label: "赵乙" });

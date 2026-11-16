@@ -318,6 +318,12 @@ export const v1api = {
       { method: "POST", body }
     ),
 
+  deleteRelationship: (familyId: string, relationshipId: string) =>
+    v1Fetch<{ relationshipId: string; familyVersion: number }>(
+      `/api/v1/families/${familyId}/relationships/${relationshipId}`,
+      { method: "DELETE", body: {} }
+    ),
+
   createClaim: (
     familyId: string,
     body: {
