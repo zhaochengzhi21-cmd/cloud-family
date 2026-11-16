@@ -2,6 +2,7 @@
 
 import {
   FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -95,6 +96,7 @@ export function FamilyWorkspace({
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("members");
+  const tabReady = useRef(false);
   const [familyName, setFamilyName] = useState("");
   const [surname, setSurname] = useState<string | null>(null);
   const [familyVersion, setFamilyVersion] = useState(1);
@@ -169,10 +171,67 @@ export function FamilyWorkspace({
   }, [load]);
 
   useEffect(() => {
+    tabReady.current = false;
+    try {
+      const saved = sessionStorage.getItem(`alpha-tab:${familyId}`);
+      if (saved === "members" || saved === "lineage" || saved === "records") {
+        setTab(saved);
+      } else {
+        setTab("members");
+      }
+    } catch {
+      setTab("members");
+    }
+    tabReady.current = true;
+  }, [familyId]);
+
+  useEffect(() => {
+    if (!tabReady.current) return;
+    try {
+      sessionStorage.setItem(`alpha-tab:${familyId}`, tab);
+    } catch {
+      /* private mode */
+    }
+  }, [familyId, tab]);
+
+  useEffect(() => {
     if (!flash) return;
     const t = window.setTimeout(() => setFlash(""), 4500);
     return () => window.clearTimeout(t);
   }, [flash]);
+
+  const tabsOrder = useMemo(
+    () =>
+      [
+        ["members", "成员"],
+        ["lineage", "世系"],
+        ["records", "资料"],
+      ] as const,
+    []
+  );
+
+  function onTabKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
+    const idx = tabsOrder.findIndex(([id]) => id === tab);
+    if (idx < 0) return;
+    let next = idx;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      next = (idx + 1) % tabsOrder.length;
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      next = (idx - 1 + tabsOrder.length) % tabsOrder.length;
+    } else if (e.key === "Home") {
+      next = 0;
+    } else if (e.key === "End") {
+      next = tabsOrder.length - 1;
+    } else {
+      return;
+    }
+    e.preventDefault();
+    setTab(tabsOrder[next][0]);
+    const buttons = e.currentTarget.querySelectorAll<HTMLButtonElement>(
+      '[role="tab"]'
+    );
+    buttons[next]?.focus();
+  }
 
   if (loading) {
     return (
@@ -259,19 +318,19 @@ export function FamilyWorkspace({
         </p>
       ) : null}
 
-      <div role="tablist" aria-label="家族视图" className="alpha-tabs mb-5">
-        {(
-          [
-            ["members", "成员"],
-            ["lineage", "世系"],
-            ["records", "资料"],
-          ] as const
-        ).map(([id, label]) => (
+      <div
+        role="tablist"
+        aria-label="家族视图"
+        className="alpha-tabs mb-5"
+        onKeyDown={onTabKeyDown}
+      >
+        {tabsOrder.map(([id, label]) => (
           <button
             key={id}
             type="button"
             role="tab"
             aria-selected={tab === id}
+            tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
             className="alpha-tab"
           >
@@ -283,6 +342,7 @@ export function FamilyWorkspace({
       {tab === "members" ? (
         <MembersTab
           persons={persons}
+          generationByPerson={generationByPerson}
           canEdit={canEdit}
           onAdd={() => setShowAddPerson(true)}
           onOpen={(id) => setSelectedPersonId(id)}
@@ -408,11 +468,13 @@ export function FamilyWorkspace({
 
 function MembersTab({
   persons,
+  generationByPerson,
   canEdit,
   onAdd,
   onOpen,
 }: {
   persons: GraphPerson[];
+  generationByPerson: Record<string, number>;
   canEdit: boolean;
   onAdd: () => void;
   onOpen: (id: string) => void;
@@ -537,15 +599,20 @@ function MembersTab({
                     {p.preferredName}
                   </p>
                   <p className="text-sm text-[color:var(--a-muted)]">
-                    {LIVING_STATUS_LABEL[
-                      p.livingStatus as keyof typeof LIVING_STATUS_LABEL
-                    ] ?? p.livingStatus}
-                    {p.gender !== "UNKNOWN"
-                      ? ` · ${
-                          GENDER_LABEL[p.gender as keyof typeof GENDER_LABEL] ??
+                    {[
+                      generationByPerson[p.id]
+                        ? generationLabel(generationByPerson[p.id])
+                        : null,
+                      LIVING_STATUS_LABEL[
+                        p.livingStatus as keyof typeof LIVING_STATUS_LABEL
+                      ] ?? p.livingStatus,
+                      p.gender !== "UNKNOWN"
+                        ? GENDER_LABEL[p.gender as keyof typeof GENDER_LABEL] ??
                           ""
-                        }`
-                      : ""}
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
                 <span className="text-sm font-semibold text-[color:var(--a-brand)]">

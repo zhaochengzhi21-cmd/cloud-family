@@ -48,12 +48,18 @@ export default function AlphaFamiliesPage() {
   const filtered = useMemo(() => {
     if (!families) return [];
     const q = query.trim().toLowerCase();
-    if (!q) return families;
-    return families.filter(
-      (f) =>
-        f.displayName.toLowerCase().includes(q) ||
-        (f.surname ?? "").toLowerCase().includes(q)
-    );
+    const list = q
+      ? families.filter(
+          (f) =>
+            f.displayName.toLowerCase().includes(q) ||
+            (f.surname ?? "").toLowerCase().includes(q)
+        )
+      : families;
+    return list
+      .slice()
+      .sort((a, b) =>
+        a.displayName.localeCompare(b.displayName, "zh-CN")
+      );
   }, [families, query]);
 
   async function load() {
@@ -113,9 +119,18 @@ export default function AlphaFamiliesPage() {
       </header>
 
       {error ? (
-        <p className="mb-4 alpha-alert alpha-alert-error" role="alert">
-          {error}
-        </p>
+        <div className="mb-4 space-y-3">
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {error}
+          </p>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            onClick={() => void load()}
+          >
+            重新加载
+          </button>
+        </div>
       ) : null}
 
       {families && families.length === 0 && !creating ? (
