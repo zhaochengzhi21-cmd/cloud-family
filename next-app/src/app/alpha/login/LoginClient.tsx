@@ -114,6 +114,7 @@ export default function AlphaLoginPage() {
                 id="alpha-email"
                 type="email"
                 required
+                autoFocus
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -157,7 +158,20 @@ export default function AlphaLoginPage() {
             )}
 
             {message ? (
-              <p className="text-sm text-[color:var(--a-muted)]" role="status">
+              <p
+                className={
+                  message === ERROR_COPY.unauthenticated ||
+                  message.includes("暂未开放")
+                    ? "alpha-alert alpha-alert-error"
+                    : "text-sm text-[color:var(--a-muted)]"
+                }
+                role={
+                  message === ERROR_COPY.unauthenticated ||
+                  message.includes("暂未开放")
+                    ? "alert"
+                    : "status"
+                }
+              >
                 {message}
               </p>
             ) : null}

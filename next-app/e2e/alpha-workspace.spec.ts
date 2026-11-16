@@ -100,7 +100,9 @@ async function runCoreJourney(
     `relationship create status body=${await relResp.text()}`
   ).toBe(201);
   await expect(page.getByText("已添加家庭关系")).toBeVisible();
-  await expect(page.getByText("第二代")).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("heading", { name: /第二代/ })
+  ).toBeVisible({ timeout: 20_000 });
 
   const graph = await apiJson(page, `/api/v1/families/${familyId}/graph`);
   expect(graph.status).toBe(200);
@@ -117,7 +119,7 @@ async function runCoreJourney(
   expect(g.generationByPerson[jia.id]).toBe(1);
   expect(g.generationByPerson[yi.id]).toBe(2);
 
-  await expect(page.getByText("第一代")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /第一代/ })).toBeVisible();
   await expect(page.getByText("赵甲").first()).toBeVisible();
   await expect(page.getByText("赵乙").first()).toBeVisible();
 
@@ -258,8 +260,10 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     );
     await page.getByRole("button", { name: "保存", exact: true }).click();
     expect((await relRespPromise).status()).toBe(201);
-    await expect(page.getByText("第二代")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText("第一代")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /第二代/ })
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("heading", { name: /第一代/ })).toBeVisible();
 
     // Drawer: living status edit
     await page.getByRole("tab", { name: "成员" }).click();
