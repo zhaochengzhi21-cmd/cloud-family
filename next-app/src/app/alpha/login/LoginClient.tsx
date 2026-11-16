@@ -21,6 +21,7 @@ export default function AlphaLoginPage() {
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const otpRef = useRef<HTMLInputElement>(null);
+  const autoSubmitRef = useRef(false);
 
   useEffect(() => {
     if (challengeId && challengeId !== "pending") {
@@ -44,6 +45,7 @@ export default function AlphaLoginPage() {
   async function requestCode() {
     setBusy(true);
     setMessage("");
+    autoSubmitRef.current = false;
     try {
       const body: { email: string; inviteToken?: string } = {
         email: email.trim(),
@@ -72,8 +74,7 @@ export default function AlphaLoginPage() {
     await requestCode();
   }
 
-  async function onVerify(e: FormEvent) {
-    e.preventDefault();
+  async function verifyCode(nextCode: string) {
     if (!challengeId || challengeId === "pending") {
       setMessage(ERROR_COPY.verifyFailed);
       return;
@@ -81,14 +82,32 @@ export default function AlphaLoginPage() {
     setBusy(true);
     setMessage("");
     try {
-      await v1api.verify({ challengeId, code: code.trim() });
+      await v1api.verify({ challengeId, code: nextCode.trim() });
       router.replace("/alpha/families");
     } catch {
       setMessage(ERROR_COPY.verifyFailed);
+      autoSubmitRef.current = false;
     } finally {
       setBusy(false);
     }
   }
+
+  async function onVerify(e: FormEvent) {
+    e.preventDefault();
+    await verifyCode(code);
+  }
+
+  useEffect(() => {
+    if (code.length !== 6) {
+      autoSubmitRef.current = false;
+      return;
+    }
+    if (!challengeId || challengeId === "pending" || busy) return;
+    if (autoSubmitRef.current) return;
+    autoSubmitRef.current = true;
+    void verifyCode(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- submit once when OTP reaches 6 digits
+  }, [code, challengeId, busy]);
 
   return (
     <div className="mx-auto max-w-md py-10 sm:py-16">

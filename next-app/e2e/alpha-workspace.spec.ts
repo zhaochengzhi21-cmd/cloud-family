@@ -131,8 +131,15 @@ async function runCoreJourney(
   await expect(drawer.getByText("第二代")).toBeVisible();
   await expect(drawer.getByText("父母：赵甲")).toBeVisible();
 
-  // Soft duplicate-name hint when adding another 赵乙
+  // Dirty-close guard
+  await drawer.locator("#edit-living").selectOption("DECEASED");
   await drawer.getByRole("button", { name: "关闭" }).click();
+  await expect(drawer.getByText("有未保存的修改，确定放弃？")).toBeVisible();
+  await drawer.getByRole("button", { name: "继续编辑" }).click();
+  await drawer.getByRole("button", { name: "关闭" }).click();
+  await drawer.getByRole("button", { name: "放弃修改" }).click();
+
+  // Soft duplicate-name hint when adding another 赵乙
   await page.getByRole("tab", { name: "成员" }).click();
   await page.getByRole("button", { name: "+ 添加成员" }).click();
   await page.getByLabel("姓名 / 常用称呼 *").fill("赵乙");
@@ -523,7 +530,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
       loginPage.getByText("如果该邮箱可以使用云族谱，我们已经发送了验证码。").first()
     ).toBeVisible();
     await loginPage.getByLabel(/验证码/).fill("123456");
-    await loginPage.getByRole("button", { name: /登录|验证/ }).click();
+    // OTP auto-submits at 6 digits
     await expect(
       loginPage.getByText("验证码无效或已过期，请重新获取。").first()
     ).toBeVisible();

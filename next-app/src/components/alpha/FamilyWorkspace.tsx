@@ -87,6 +87,16 @@ function mimeFromFile(file: File): string | null {
   return null;
 }
 
+function useLockBodyScroll() {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+}
+
 export function FamilyWorkspace({
   familyId,
   initialRole,
@@ -2411,6 +2421,7 @@ function PersonDrawer({
   const [gender, setGender] = useState(person.gender);
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmRelId, setConfirmRelId] = useState<string | null>(null);
   const [removingRel, setRemovingRel] = useState(false);
@@ -2420,12 +2431,15 @@ function PersonDrawer({
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
 
+  useLockBodyScroll();
+
   useEffect(() => {
     setName(person.preferredName);
     setLiving(person.livingStatus);
     setGender(person.gender);
     setRevision(person.revisionNo);
     setConfirmDelete(false);
+    setConfirmDiscard(false);
     setConfirmRelId(null);
     setLocalError("");
     setLocalFlash("");
@@ -2450,23 +2464,40 @@ function PersonDrawer({
     }
   }, [familyId, person.id, onAuth]);
 
+  const dirty =
+    canEdit &&
+    (name.trim() !== person.preferredName ||
+      living !== person.livingStatus ||
+      gender !== person.gender);
+
+  const requestClose = useCallback(() => {
+    if (confirmRelId) {
+      setConfirmRelId(null);
+      return;
+    }
+    if (confirmDelete) {
+      setConfirmDelete(false);
+      return;
+    }
+    if (confirmDiscard) {
+      setConfirmDiscard(false);
+      return;
+    }
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  }, [confirmRelId, confirmDelete, confirmDiscard, dirty, onClose]);
+
   useEffect(() => {
     closeBtn.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (confirmRelId) {
-        setConfirmRelId(null);
-        return;
-      }
-      if (confirmDelete) {
-        setConfirmDelete(false);
-        return;
-      }
-      onClose();
+      if (e.key === "Escape") requestClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, confirmDelete, confirmRelId]);
+  }, [requestClose]);
 
   useEffect(() => {
     void loadClaims();
@@ -2483,6 +2514,12 @@ function PersonDrawer({
       else if (r.fromPersonId === person.id) kind = "子女";
       else kind = "父母";
       return { id: r.id, kind, otherId, otherName };
+    })
+    .sort((a, b) => {
+      const order = { 父母: 0, 配偶: 1, 子女: 2 } as Record<string, number>;
+      const d = (order[a.kind] ?? 9) - (order[b.kind] ?? 9);
+      if (d !== 0) return d;
+      return a.otherName.localeCompare(b.otherName, "zh-CN");
     });
 
   const activeClaims = claims.filter((c) => c.status !== "REJECTED");
@@ -2498,9 +2535,10 @@ function PersonDrawer({
 
   async function saveBasics(e: FormEvent) {
     e.preventDefault();
-    if (!canEdit) return;
+    if (!canEdit || !dirty) return;
     setBusy(true);
     setLocalError("");
+    setConfirmDiscard(false);
     try {
       const res = await v1api.patchPerson(familyId, person.id, {
         expectedRevision: revision,
@@ -2509,6 +2547,7 @@ function PersonDrawer({
         gender,
       });
       setRevision(res.person.revisionNo);
+      setName(res.person.preferredName);
       setLiving(res.person.livingStatus);
       setGender(res.person.gender);
       setLocalFlash("已保存基本信息");
@@ -2538,7 +2577,7 @@ function PersonDrawer({
       onClick={(e) => {
         if (e.target !== e.currentTarget) return;
         if (confirmDelete || confirmRelId) return;
-        onClose();
+        requestClose();
       }}
     >
       <div className="alpha-drawer-panel flex h-full w-full max-w-md flex-col bg-[color:var(--a-surface-strong)] shadow-[var(--a-shadow)]">
@@ -2559,13 +2598,36 @@ function PersonDrawer({
           <button
             ref={closeBtn}
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className="min-h-[44px] min-w-[44px] rounded-lg text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
           >
             关闭
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4">
+          {confirmDiscard ? (
+            <div className="mb-3 space-y-3 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-3 ring-1 ring-[color:var(--a-brand-line)]">
+              <p className="text-sm font-semibold text-[color:var(--a-ink)]" role="alert">
+                有未保存的修改，确定放弃？
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary flex-1 !min-h-[40px] !text-sm"
+                  onClick={() => setConfirmDiscard(false)}
+                >
+                  继续编辑
+                </button>
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-danger flex-1 !min-h-[40px] !text-sm"
+                  onClick={onClose}
+                >
+                  放弃修改
+                </button>
+              </div>
+            </div>
+          ) : null}
           {localError ? (
             <p className="mb-3 alpha-alert alpha-alert-error" role="alert">
               {localError}
@@ -2635,10 +2697,10 @@ function PersonDrawer({
               </div>
               <button
                 type="submit"
-                disabled={busy}
+                disabled={busy || !dirty}
                 className="alpha-btn alpha-btn-primary w-full !min-h-[44px] !text-sm"
               >
-                {busy ? "保存中…" : "保存基本信息"}
+                {busy ? "保存中…" : dirty ? "保存基本信息" : "没有需要保存的修改"}
               </button>
             </form>
           )}
@@ -2896,6 +2958,8 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  useLockBodyScroll();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
