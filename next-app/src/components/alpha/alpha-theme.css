@@ -228,6 +228,11 @@
   border-radius: var(--a-radius);
   background: rgba(26, 92, 82, 0.08);
   padding: 0.25rem;
+  position: sticky;
+  /* Sit just under .alpha-nav (h-14 = 3.5rem) */
+  top: 3.5rem;
+  z-index: 20;
+  backdrop-filter: blur(10px);
 }
 
 .alpha-tab {

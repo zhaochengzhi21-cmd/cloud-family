@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EMPTY_FAMILIES, PRODUCT, ROLE_LABEL } from "@/v1/ui/copy";
@@ -35,10 +35,15 @@ export default function AlphaFamiliesPage() {
   const [surname, setSurname] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEscapeClose(creating, () => {
     if (!busy) setCreating(false);
   });
+
+  useEffect(() => {
+    if (creating) nameInputRef.current?.focus();
+  }, [creating]);
 
   const filtered = useMemo(() => {
     if (!families) return [];
@@ -219,6 +224,7 @@ export default function AlphaFamiliesPage() {
                   家族名称 *
                 </label>
                 <input
+                  ref={nameInputRef}
                   id="fam-name"
                   required
                   value={displayName}
