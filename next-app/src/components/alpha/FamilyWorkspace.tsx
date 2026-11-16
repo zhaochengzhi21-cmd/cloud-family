@@ -313,6 +313,7 @@ export function FamilyWorkspace({
           canReview={canReview}
           role={role}
           onAuthError={(e) => handleAuthRedirect(e, router)}
+          onOpenPerson={(id) => setSelectedPersonId(id)}
           setFlash={setFlash}
           setError={setError}
         />
@@ -789,6 +790,7 @@ function RecordsTab({
   canReview,
   role,
   onAuthError,
+  onOpenPerson,
   setFlash,
   setError,
 }: {
@@ -798,6 +800,7 @@ function RecordsTab({
   canReview: boolean;
   role: Role;
   onAuthError: (e: unknown) => boolean;
+  onOpenPerson: (id: string) => void;
   setFlash: (s: string) => void;
   setError: (s: string) => void;
 }) {
@@ -876,21 +879,34 @@ function RecordsTab({
       <p className="mb-4 text-sm leading-relaxed text-[color:var(--a-muted)]">
         关于这个家族，我们知道些什么，以及这些信息从哪里来。
       </p>
-      <label htmlFor="records-person" className="alpha-label">
-        选择成员
-      </label>
-      <select
-        id="records-person"
-        value={personId}
-        onChange={(e) => setPersonId(e.target.value)}
-        className="alpha-input mb-4"
-      >
-        {sortedPersons.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.preferredName}
-          </option>
-        ))}
-      </select>
+      <div className="mb-4 flex flex-wrap items-end gap-2">
+        <div className="min-w-[12rem] flex-1">
+          <label htmlFor="records-person" className="alpha-label">
+            选择成员
+          </label>
+          <select
+            id="records-person"
+            value={personId}
+            onChange={(e) => setPersonId(e.target.value)}
+            className="alpha-input"
+          >
+            {sortedPersons.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.preferredName}
+              </option>
+            ))}
+          </select>
+        </div>
+        {personId ? (
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary !min-h-[44px] !text-sm"
+            onClick={() => onOpenPerson(personId)}
+          >
+            打开此人
+          </button>
+        ) : null}
+      </div>
 
       {canEdit && personId ? (
         <AddClaimForm
