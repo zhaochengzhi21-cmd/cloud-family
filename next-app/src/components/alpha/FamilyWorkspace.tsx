@@ -172,6 +172,15 @@ export function FamilyWorkspace({
   }, [load]);
 
   useEffect(() => {
+    if (!familyName) return;
+    const prev = document.title;
+    document.title = `${familyName} · ${PRODUCT.brand}`;
+    return () => {
+      document.title = prev;
+    };
+  }, [familyName]);
+
+  useEffect(() => {
     tabReady.current = false;
     try {
       const saved = sessionStorage.getItem(`alpha-tab:${familyId}`);
@@ -466,6 +475,7 @@ export function FamilyWorkspace({
             setTab("lineage");
             setLineageFocusId(pid);
           }}
+          onOpenPerson={(id) => setSelectedPersonId(id)}
           onDeleted={async () => {
             setSelectedPersonId(null);
             setError("");
@@ -2167,6 +2177,7 @@ function PersonDrawer({
   onDeleted,
   onRequestAddRel,
   onShowInLineage,
+  onOpenPerson,
   onError,
   onAuth,
 }: {
@@ -2181,6 +2192,7 @@ function PersonDrawer({
   onDeleted: () => Promise<void>;
   onRequestAddRel: () => void;
   onShowInLineage: () => void;
+  onOpenPerson: (id: string) => void;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -2254,14 +2266,14 @@ function PersonDrawer({
   const relRows = relationships
     .filter((r) => r.fromPersonId === person.id || r.toPersonId === person.id)
     .map((r) => {
-      const other =
+      const otherId =
         r.fromPersonId === person.id ? r.toPersonId : r.fromPersonId;
-      const otherName = personMap.get(other)?.preferredName ?? "成员";
-      let label: string;
-      if (r.type === "SPOUSE") label = `配偶：${otherName}`;
-      else if (r.fromPersonId === person.id) label = `子女：${otherName}`;
-      else label = `父母：${otherName}`;
-      return { id: r.id, label };
+      const otherName = personMap.get(otherId)?.preferredName ?? "成员";
+      let kind: string;
+      if (r.type === "SPOUSE") kind = "配偶";
+      else if (r.fromPersonId === person.id) kind = "子女";
+      else kind = "父母";
+      return { id: r.id, kind, otherId, otherName };
     });
 
   const activeClaims = claims.filter((c) => c.status !== "REJECTED");
@@ -2422,7 +2434,23 @@ function PersonDrawer({
                   key={row.id}
                   className="flex flex-wrap items-center justify-between gap-2"
                 >
-                  <span>{row.label}</span>
+                  <span>
+                    {row.kind}：
+                    {personMap.has(row.otherId) ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={() => {
+                          setConfirmRelId(null);
+                          onOpenPerson(row.otherId);
+                        }}
+                      >
+                        {row.otherName}
+                      </button>
+                    ) : (
+                      row.otherName
+                    )}
+                  </span>
                   {canEdit ? (
                     confirmRelId === row.id ? (
                       <span className="flex gap-2">
@@ -2662,7 +2690,7 @@ function ModalShell({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-[color:var(--a-ink)]/35 p-4 sm:items-center"
+      className="fixed inset-0 z-40 overflow-y-auto bg-[color:var(--a-ink)]/35 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -2670,20 +2698,25 @@ function ModalShell({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-[40px] px-2 text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
-          >
-            关闭
-          </button>
+      <div className="flex min-h-full items-center justify-center py-6">
+        <div
+          className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-h-[40px] px-2 text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
+            >
+              关闭
+            </button>
+          </div>
+          {children}
         </div>
-        {children}
       </div>
     </div>
   );
