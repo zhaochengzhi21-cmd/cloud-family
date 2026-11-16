@@ -194,6 +194,30 @@ export const v1api = {
       };
     }>(`/api/v1/families/${familyId}`),
 
+  patchFamily: (
+    familyId: string,
+    body: {
+      expectedVersion: number;
+      displayName?: string;
+      surname?: string | null;
+    }
+  ) =>
+    v1Fetch<{
+      family: {
+        id: string;
+        displayName: string;
+        surname: string | null;
+        visibility: string;
+        discoveryEnabled: boolean;
+        currentVersionNo: number;
+      };
+      familyVersion: number;
+      status: string;
+    }>(`/api/v1/families/${familyId}`, {
+      method: "PATCH",
+      body,
+    }),
+
   getGraph: (familyId: string) =>
     v1Fetch<{
       graph: {

@@ -97,6 +97,7 @@ export function FamilyWorkspace({
   const [tab, setTab] = useState<Tab>("members");
   const [familyName, setFamilyName] = useState("");
   const [surname, setSurname] = useState<string | null>(null);
+  const [familyVersion, setFamilyVersion] = useState(1);
   const [role, setRole] = useState<Role>(initialRole ?? "VIEWER");
   const [persons, setPersons] = useState<GraphPerson[]>([]);
   const [relationships, setRelationships] = useState<GraphRel[]>([]);
@@ -111,6 +112,7 @@ export function FamilyWorkspace({
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddRel, setShowAddRel] = useState(false);
+  const [showEditFamily, setShowEditFamily] = useState(false);
   const [relFocusPersonId, setRelFocusPersonId] = useState<string | null>(null);
 
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "EDITOR";
@@ -132,6 +134,7 @@ export function FamilyWorkspace({
       ]);
       setFamilyName(fam.family.displayName);
       setSurname(fam.family.surname);
+      setFamilyVersion(fam.family.currentVersionNo);
       const mine = list.families.find((f) => f.id === familyId);
       if (mine?.role) setRole(mine.role);
       setPersons(graph.graph.persons);
@@ -211,9 +214,20 @@ export function FamilyWorkspace({
         >
           ← 我的家族
         </Link>
-        <h1 className="alpha-font-display text-3xl font-bold text-[color:var(--a-ink)]">
-          {familyName}
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="alpha-font-display text-3xl font-bold text-[color:var(--a-ink)]">
+            {familyName}
+          </h1>
+          {canReview ? (
+            <button
+              type="button"
+              onClick={() => setShowEditFamily(true)}
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+            >
+              编辑档案
+            </button>
+          ) : null}
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
           {surname ? <span>{surname}</span> : null}
           <span className="alpha-chip">{persons.length} 位成员</span>
@@ -300,6 +314,24 @@ export function FamilyWorkspace({
           onAuthError={(e) => handleAuthRedirect(e, router)}
           setFlash={setFlash}
           setError={setError}
+        />
+      ) : null}
+
+      {showEditFamily ? (
+        <EditFamilyModal
+          familyId={familyId}
+          displayName={familyName}
+          surname={surname}
+          expectedVersion={familyVersion}
+          onClose={() => setShowEditFamily(false)}
+          onDone={async () => {
+            setShowEditFamily(false);
+            setError("");
+            setFlash("已更新家族档案");
+            await load();
+          }}
+          onError={(msg) => setError(msg)}
+          onAuth={(e) => handleAuthRedirect(e, router)}
         />
       ) : null}
 
@@ -1455,6 +1487,112 @@ function AddEvidenceForm({
         </div>
       </form>
     </div>
+  );
+}
+
+function EditFamilyModal({
+  familyId,
+  displayName,
+  surname,
+  expectedVersion,
+  onClose,
+  onDone,
+  onError,
+  onAuth,
+}: {
+  familyId: string;
+  displayName: string;
+  surname: string | null;
+  expectedVersion: number;
+  onClose: () => void;
+  onDone: () => Promise<void>;
+  onError: (s: string) => void;
+  onAuth: (e: unknown) => boolean;
+}) {
+  const [name, setName] = useState(displayName);
+  const [sur, setSur] = useState(surname ?? "");
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const firstRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    firstRef.current?.focus();
+  }, []);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setLocalError("");
+    try {
+      await v1api.patchFamily(familyId, {
+        expectedVersion,
+        displayName: name.trim(),
+        surname: sur.trim() ? sur.trim() : null,
+      });
+      await onDone();
+    } catch (err) {
+      if (onAuth(err)) return;
+      const msg = userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <ModalShell title="编辑家族档案" onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        {localError ? (
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {localError}
+          </p>
+        ) : null}
+        <div>
+          <label htmlFor="edit-fam-name" className="alpha-label">
+            家族名称 *
+          </label>
+          <input
+            ref={firstRef}
+            id="edit-fam-name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="alpha-input"
+          />
+        </div>
+        <div>
+          <label htmlFor="edit-fam-surname" className="alpha-label">
+            姓氏（可选）
+          </label>
+          <input
+            id="edit-fam-surname"
+            value={sur}
+            onChange={(e) => setSur(e.target.value)}
+            className="alpha-input"
+          />
+        </div>
+        <p className="text-xs text-[color:var(--a-muted)]">
+          可见性仍为「仅家族成员可见」。邀请家人加入的能力将在后续版本开放。
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="alpha-btn alpha-btn-secondary flex-1"
+          >
+            取消
+          </button>
+          <button
+            type="submit"
+            disabled={busy}
+            className="alpha-btn alpha-btn-primary flex-1"
+          >
+            {busy ? "保存中…" : "保存"}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 
