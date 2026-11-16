@@ -216,6 +216,7 @@ export function FamilyWorkspace({
         </h1>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
           {surname ? <span>{surname}</span> : null}
+          <span className="alpha-chip">{persons.length} 位成员</span>
           <span className="alpha-chip">{PRODUCT.privacyFamilyOnly}</span>
           <span className="alpha-chip">
             我的权限：{ROLE_LABEL[role] ?? role}
@@ -383,11 +384,19 @@ function MembersTab({
   onOpen: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [livingFilter, setLivingFilter] = useState<
+    "ALL" | "LIVING" | "DECEASED" | "UNKNOWN"
+  >("ALL");
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return persons;
-    return persons.filter((p) => p.preferredName.toLowerCase().includes(q));
-  }, [persons, query]);
+    return persons.filter((p) => {
+      if (livingFilter !== "ALL" && p.livingStatus !== livingFilter) {
+        return false;
+      }
+      if (!q) return true;
+      return p.preferredName.toLowerCase().includes(q);
+    });
+  }, [persons, query, livingFilter]);
 
   if (persons.length === 0) {
     return (
@@ -439,9 +448,41 @@ function MembersTab({
           />
         ) : null}
       </div>
+      {persons.length >= 5 ? (
+        <div
+          className="mb-3 flex flex-wrap gap-2"
+          role="group"
+          aria-label="按在世状态筛选"
+        >
+          {(
+            [
+              ["ALL", "全部"],
+              ["LIVING", "在世"],
+              ["DECEASED", "已故"],
+              ["UNKNOWN", "不确定"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={livingFilter === id}
+              onClick={() => setLivingFilter(id)}
+              className={`alpha-btn !min-h-[36px] !px-3 !text-xs ${
+                livingFilter === id
+                  ? "alpha-btn-primary"
+                  : "alpha-btn-secondary"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {filtered.length === 0 ? (
         <p className="py-8 text-center text-sm text-[color:var(--a-muted)]">
-          没有匹配「{query.trim()}」的成员
+          {query.trim()
+            ? `没有匹配「${query.trim()}」的成员`
+            : "没有符合当前筛选的成员"}
         </p>
       ) : (
         <ul className="space-y-2">
