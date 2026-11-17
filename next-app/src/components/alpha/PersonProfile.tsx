@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CLAIM_STATUS_LABEL,
   CLAIM_TYPE_UI,
   ERROR_COPY,
+  EVIDENCE_TYPE_UI,
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
@@ -24,6 +25,10 @@ type Rel = Awaited<
 type Claim = Awaited<
   ReturnType<typeof v1api.listPersonClaims>
 >["claims"][number];
+type EvidenceLink = Awaited<
+  ReturnType<typeof v1api.getClaim>
+>["evidenceLinks"][number];
+type SourcesByClaim = Record<string, EvidenceLink[]>;
 
 const PARENT_TYPES = new Set([
   "BIOLOGICAL_PARENT",
@@ -77,10 +82,15 @@ export function PersonProfile({
     Record<string, number>
   >({});
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [sources, setSources] = useState<SourcesByClaim>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const loadSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
+    setSources({});
     setError("");
     setLoading(true);
     try {
@@ -97,6 +107,19 @@ export function PersonProfile({
       setRelationships(graph.graph.relationships);
       setGenerationByPerson(graph.graph.generationByPerson);
       setClaims(claimRes.claims);
+      const visible = claimRes.claims.filter((c) => c.status !== "REJECTED");
+      void Promise.allSettled(
+        visible.map((c) => v1api.getClaim(familyId, c.id))
+      ).then((details) => {
+        if (loadSeq.current !== seq) return;
+        const next: SourcesByClaim = {};
+        details.forEach((d, i) => {
+          if (d.status === "fulfilled" && d.value.evidenceLinks.length) {
+            next[visible[i].id] = d.value.evidenceLinks;
+          }
+        });
+        setSources(next);
+      });
     } catch (e) {
       if (handleAuthRedirect(e, router)) return;
       if (e instanceof V1ApiError && e.status === 404) {
@@ -287,6 +310,7 @@ export function PersonProfile({
               { label: "时间", claims: birthDate },
               { label: "地点", claims: birthPlace },
             ]}
+            sources={sources}
           />
           {showDeath ? (
             <TimelineEvent
@@ -295,6 +319,7 @@ export function PersonProfile({
                 { label: "时间", claims: deathDate },
                 { label: "安葬", claims: burial },
               ]}
+              sources={sources}
             />
           ) : null}
         </ol>
@@ -314,7 +339,7 @@ export function PersonProfile({
                 {CLAIM_TYPE_UI[t]?.label ?? t}
               </dt>
               <dd className="min-w-0 flex-1">
-                <ClaimValues claims={pickShown(claims, t)} />
+                <ClaimValues claims={pickShown(claims, t)} sources={sources} />
               </dd>
             </div>
           ))}
@@ -382,9 +407,11 @@ export function PersonProfile({
 function TimelineEvent({
   title,
   rows,
+  sources,
 }: {
   title: string;
   rows: { label: string; claims: Claim[] }[];
+  sources: SourcesByClaim;
 }) {
   return (
     <li className="relative">
@@ -401,8 +428,8 @@ function TimelineEvent({
             <dt className="w-10 shrink-0 text-sm text-[color:var(--a-muted)]">
               {r.label}
             </dt>
-            <dd className="min-w-0 flex-1">
-              <ClaimValues claims={r.claims} />
+              <dd className="min-w-0 flex-1">
+              <ClaimValues claims={r.claims} sources={sources} />
             </dd>
           </div>
         ))}
@@ -411,7 +438,24 @@ function TimelineEvent({
   );
 }
 
-function ClaimValues({ claims }: { claims: Claim[] }) {
+function sourceText(l: EvidenceLink): string {
+  return [
+    EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源",
+    l.evidence.title,
+    l.evidence.sourceLocator,
+    l.evidence.sourceDateText,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function ClaimValues({
+  claims,
+  sources,
+}: {
+  claims: Claim[];
+  sources: SourcesByClaim;
+}) {
   if (claims.length === 0) {
     return <span className="text-sm text-[color:var(--a-muted)]">未记录</span>;
   }
@@ -440,6 +484,11 @@ function ClaimValues({ claims }: { claims: Claim[] }) {
                 {CLAIM_STATUS_LABEL[
                   c.status as keyof typeof CLAIM_STATUS_LABEL
                 ] ?? c.status}
+              </span>
+            ) : null}
+            {sources[c.id]?.length ? (
+              <span className="w-full text-xs text-[color:var(--a-muted)]">
+                来源：{sources[c.id].map(sourceText).join("；")}
               </span>
             ) : null}
           </li>

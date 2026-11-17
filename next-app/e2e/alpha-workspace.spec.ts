@@ -349,6 +349,8 @@ async function runCoreJourney(
   const life = page.getByRole("region", { name: "生平" });
   await expect(life.getByText("民国十三年")).toBeVisible();
   await expect(life.getByText("民国十四年")).toHaveCount(0);
+  await expect(life.getByText(/^来源：.*族谱 · 测试族谱 · 第17页/)).toBeVisible();
+  await expect(life.getByText(/测试合成照片/)).toHaveCount(0);
   const kin = page.getByRole("region", { name: "家人" });
   await kin.getByRole("link", { name: "赵甲" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "赵甲" })).toBeVisible();
