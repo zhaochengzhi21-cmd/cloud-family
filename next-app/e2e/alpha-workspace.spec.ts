@@ -71,8 +71,10 @@ async function runCoreJourney(
   const familyUrl = page.url();
   const familyId = familyUrl.split("/").pop()!;
 
-  // Flow 03 — persons (keep modal open to add consecutively)
-  await page.getByRole("button", { name: "添加成员" }).click();
+  // Flow 03 — overview is the family home; persons (keep modal open to add consecutively)
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("概览");
+  await expect(page.getByText("添加第一位家人")).toBeVisible();
+  await page.getByRole("button", { name: "添加成员", exact: true }).click();
   await page.getByLabel("姓名 / 常用称呼 *").fill("赵甲");
   await expect(page.locator("#p-living")).toHaveValue("UNKNOWN");
   await page.getByRole("button", { name: "添加", exact: true }).click();
@@ -86,8 +88,13 @@ async function runCoreJourney(
   ).toBeVisible();
   await page.getByRole("button", { name: "完成" }).click();
   await expect(page.getByText("已添加 2 位家族成员")).toBeVisible();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("成员");
   await expect(page.getByText("赵甲")).toBeVisible();
   await expect(page.getByText("赵乙")).toBeVisible();
+
+  // Overview now asks for relationships
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(page.getByText("为 2 位成员建立关系")).toBeVisible();
 
   // Flow 04 — relationship + generation from server
   await page.getByRole("tab", { name: "世系" }).click();
@@ -191,6 +198,21 @@ async function runCoreJourney(
   await page.locator("#claim-text").fill("民国十三年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("待确认").first()).toBeVisible();
+  await expect(page.getByText("民国十三年")).toBeVisible();
+
+  // Overview: progress + next steps + pending queue jumps to the person's records
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(page.getByText("处理 1 条待确认资料")).toBeVisible();
+  await expect(page.getByText("补充 1 位成员的出生信息")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "为赵甲补充出生信息" })
+  ).toBeVisible();
+  await page
+    .getByRole("region", { name: /待确认资料/ })
+    .getByRole("button", { name: /赵乙/ })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料");
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
   await expect(page.getByText("民国十三年")).toBeVisible();
 
   // Status filter
@@ -449,6 +471,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     await expect(
       editorPage.getByRole("heading", { name: "测试赵氏家庭" })
     ).toBeVisible({ timeout: 60_000 });
+    await editorPage.getByRole("tab", { name: "成员" }).click();
     await expect(
       editorPage.getByRole("button", { name: "+ 添加成员" })
     ).toBeVisible();
@@ -513,6 +536,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     await loginAs(p2, ownerId, baseURL!);
     await p2.goto(`/alpha/families/${familyId}`);
     await expect(p2.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible();
+    await p2.getByRole("tab", { name: "成员" }).click();
     await p2.getByRole("button", { name: /^赵乙/ }).click();
     await expect(p2.locator("#edit-name")).toBeVisible();
     const uiRev = Number(

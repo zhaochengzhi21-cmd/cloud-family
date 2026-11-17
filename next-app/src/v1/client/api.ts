@@ -243,6 +243,30 @@ export const v1api = {
       };
     }>(`/api/v1/families/${familyId}/graph`),
 
+  getOverview: (familyId: string) =>
+    v1Fetch<{
+      overview: {
+        personStats: Record<
+          string,
+          {
+            proposed: number;
+            accepted: number;
+            conflicted: number;
+            claimTypes: string[];
+          }
+        >;
+        pendingTotal: number;
+        pending: Array<{
+          claimId: string;
+          personId: string;
+          claimType: string;
+          status: string;
+          text: string | null;
+          createdAt: string;
+        }>;
+      };
+    }>(`/api/v1/families/${familyId}/overview`),
+
   createPerson: (
     familyId: string,
     body: {

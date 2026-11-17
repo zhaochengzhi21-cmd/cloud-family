@@ -30,6 +30,7 @@ import {
 } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
 import { useFocusTrap } from "@/components/alpha/useFocusTrap";
+import { OverviewTab } from "@/components/alpha/OverviewTab";
 import { MEDIA_MAX_BYTES } from "@/v1/domain/media/types";
 
 type Role = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
@@ -56,7 +57,9 @@ type ClaimRow = {
   status: string;
 };
 
-type Tab = "members" | "lineage" | "records";
+type Tab = "overview" | "members" | "lineage" | "records";
+
+const TAB_IDS: readonly Tab[] = ["overview", "members", "lineage", "records"];
 
 const ALLOWED_EXT = [
   ".jpg",
@@ -119,7 +122,8 @@ export function FamilyWorkspace({
   initialRole?: Role;
 }) {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("members");
+  const [tab, setTab] = useState<Tab>("overview");
+  const [dataVersion, setDataVersion] = useState(0);
   const tabReady = useRef(false);
   const [familyName, setFamilyName] = useState("");
   const [surname, setSurname] = useState<string | null>(null);
@@ -169,6 +173,7 @@ export function FamilyWorkspace({
       setRelationships(graph.graph.relationships);
       setGenerationByPerson(graph.graph.generationByPerson);
       setComponentCount(graph.graph.componentCount);
+      setDataVersion((v) => v + 1);
       setError("");
     };
     try {
@@ -206,20 +211,37 @@ export function FamilyWorkspace({
   }, [familyName]);
 
   useEffect(() => {
-    // Skip the first save after restore so default "members" cannot overwrite
+    // Skip the first save after restore so the default tab cannot overwrite
     // a previously saved tab (esp. under React Strict Mode remount).
     tabReady.current = false;
     try {
       const saved = sessionStorage.getItem(`alpha-tab:${familyId}`);
-      if (saved === "members" || saved === "lineage" || saved === "records") {
-        setTab(saved);
-      } else {
-        setTab("members");
-      }
+      setTab(
+        saved && (TAB_IDS as readonly string[]).includes(saved)
+          ? (saved as Tab)
+          : "overview"
+      );
     } catch {
-      setTab("members");
+      setTab("overview");
     }
   }, [familyId]);
+
+  const openRecordsFor = useCallback(
+    (personId: string) => {
+      try {
+        sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
+      } catch {
+        /* private mode */
+      }
+      setTab("records");
+    },
+    [familyId]
+  );
+
+  const authRedirect = useCallback(
+    (e: unknown) => handleAuthRedirect(e, router),
+    [router]
+  );
 
   useEffect(() => {
     if (!tabReady.current) {
@@ -248,6 +270,7 @@ export function FamilyWorkspace({
   const tabsOrder = useMemo(
     () =>
       [
+        ["overview", "概览"],
         ["members", "成员"],
         ["lineage", "世系"],
         ["records", "资料"],
@@ -430,6 +453,31 @@ export function FamilyWorkspace({
         ))}
       </div>
 
+      {tab === "overview" ? (
+        <div
+          id="alpha-panel-overview"
+          role="tabpanel"
+          aria-labelledby="alpha-tab-overview"
+        >
+          <OverviewTab
+            familyId={familyId}
+            persons={persons}
+            relationships={relationships}
+            componentCount={componentCount}
+            dataVersion={dataVersion}
+            canEdit={canEdit}
+            canReview={canReview}
+            onAddPerson={() => setShowAddPerson(true)}
+            onAddRel={() => {
+              setRelFocusPersonId(null);
+              setShowAddRel(true);
+            }}
+            onOpenRecords={openRecordsFor}
+            onAuthError={authRedirect}
+          />
+        </div>
+      ) : null}
+
       {tab === "members" ? (
         <div
           id="alpha-panel-members"
@@ -516,6 +564,7 @@ export function FamilyWorkspace({
           onFinished={(count) => {
             setShowAddPerson(false);
             if (count > 0) {
+              if (tab === "overview") setTab("members");
               setError("");
               setFlash(
                 count === 1
