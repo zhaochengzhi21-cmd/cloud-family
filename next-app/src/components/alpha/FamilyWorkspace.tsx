@@ -413,6 +413,7 @@ export function FamilyWorkspace({
             setRelFocusPersonId(null);
             setShowAddRel(true);
           }}
+          onGoMembers={() => setTab("members")}
           onOpen={(id) => setSelectedPersonId(id)}
           personMap={personMap}
         />
@@ -455,11 +456,18 @@ export function FamilyWorkspace({
         <AddPersonModal
           familyId={familyId}
           existingNames={persons.map((p) => p.preferredName)}
-          onClose={() => setShowAddPerson(false)}
-          onDone={async () => {
+          onFinished={(count) => {
             setShowAddPerson(false);
-            setError("");
-            setFlash("已添加家族成员");
+            if (count > 0) {
+              setError("");
+              setFlash(
+                count === 1
+                  ? "已添加家族成员"
+                  : `已添加 ${count} 位家族成员`
+              );
+            }
+          }}
+          onAdded={async () => {
             await load();
           }}
           onError={(msg) => setError(msg)}
@@ -713,6 +721,7 @@ function LineageTab({
   canEdit,
   focusPersonId,
   onAddRel,
+  onGoMembers,
   onOpen,
   personMap,
 }: {
@@ -723,6 +732,7 @@ function LineageTab({
   canEdit: boolean;
   focusPersonId?: string | null;
   onAddRel: () => void;
+  onGoMembers: () => void;
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
 }) {
@@ -832,9 +842,18 @@ function LineageTab({
       ) : null}
 
       {persons.length >= 2 && relationships.length === 0 ? (
-        <p className="mb-3 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-2 text-sm text-[color:var(--a-brand)]">
-          已有成员，但还没有家庭关系。添加父母或配偶关系后，会按世代分层显示。
-        </p>
+        <div className="mb-3 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-3 text-sm text-[color:var(--a-brand)]">
+          <p>已有成员，但还没有家庭关系。添加父母或配偶关系后，会按世代分层显示。</p>
+          {canEdit ? (
+            <button
+              type="button"
+              className="mt-2 font-semibold underline-offset-2 hover:underline"
+              onClick={onAddRel}
+            >
+              现在添加关系
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {componentCount > 1 ? (
@@ -844,9 +863,22 @@ function LineageTab({
       ) : null}
 
       {byGen.length === 0 ? (
-        <p className="alpha-panel border-dashed px-4 py-10 text-center text-[color:var(--a-muted)]">
-          添加成员并建立关系后，这里会按世代展示。
-        </p>
+        <div className="alpha-panel border-dashed px-4 py-10 text-center">
+          <p className="text-[color:var(--a-muted)]">
+            {persons.length === 0
+              ? "先添加家人，再回来建立关系、按世代查看。"
+              : "添加成员并建立关系后，这里会按世代展示。"}
+          </p>
+          {canEdit ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-primary mt-5"
+              onClick={persons.length === 0 ? onGoMembers : onAddRel}
+            >
+              {persons.length === 0 ? "去添加成员" : "添加家庭关系"}
+            </button>
+          ) : null}
+        </div>
       ) : (
         <div className="alpha-lineage-rail space-y-2">
           {byGen.map(([gen, clusters], idx) => {
@@ -2058,15 +2090,15 @@ function EditFamilyModal({
 function AddPersonModal({
   familyId,
   existingNames,
-  onClose,
-  onDone,
+  onFinished,
+  onAdded,
   onError,
   onAuth,
 }: {
   familyId: string;
   existingNames: string[];
-  onClose: () => void;
-  onDone: () => Promise<void>;
+  onFinished: (addedCount: number) => void;
+  onAdded: () => Promise<void>;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -2075,6 +2107,7 @@ function AddPersonModal({
   const [gender, setGender] = useState("UNKNOWN");
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [addedNames, setAddedNames] = useState<string[]>([]);
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -2082,21 +2115,29 @@ function AddPersonModal({
   }, []);
 
   const trimmed = name.trim();
+  const knownNames = [...existingNames, ...addedNames];
   const duplicateName =
     trimmed.length > 0 &&
-    existingNames.some((n) => n.trim().toLowerCase() === trimmed.toLowerCase());
+    knownNames.some((n) => n.trim().toLowerCase() === trimmed.toLowerCase());
+  const lastAdded = addedNames[addedNames.length - 1] ?? "";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setLocalError("");
+    const preferredName = name.trim();
     try {
       await v1api.createPerson(familyId, {
-        preferredName: name.trim(),
+        preferredName,
         livingStatus: living,
         gender,
       });
-      await onDone();
+      setAddedNames((prev) => [...prev, preferredName]);
+      setName("");
+      setLiving("UNKNOWN");
+      setGender("UNKNOWN");
+      await onAdded();
+      requestAnimationFrame(() => firstRef.current?.focus());
     } catch (err) {
       if (onAuth(err)) return;
       const msg = userMessageForApiError(err);
@@ -2108,8 +2149,13 @@ function AddPersonModal({
   }
 
   return (
-    <ModalShell title="添加成员" onClose={onClose}>
+    <ModalShell title="添加成员" onClose={() => onFinished(addedNames.length)}>
       <form onSubmit={submit} className="space-y-4">
+        {lastAdded ? (
+          <p className="alpha-alert alpha-alert-ok" role="status">
+            已添加「{lastAdded}」。可继续添加下一位，或点完成。
+          </p>
+        ) : null}
         {localError ? (
           <p className="alpha-alert alpha-alert-error" role="alert">
             {localError}
@@ -2167,17 +2213,17 @@ function AddPersonModal({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onFinished(addedNames.length)}
             className="alpha-btn alpha-btn-secondary flex-1"
           >
-            取消
+            {addedNames.length > 0 ? "完成" : "取消"}
           </button>
           <button
             type="submit"
             disabled={busy}
             className="alpha-btn alpha-btn-primary flex-1"
           >
-            {busy ? "添加中…" : "添加"}
+            {busy ? "添加中…" : addedNames.length > 0 ? "继续添加" : "添加"}
           </button>
         </div>
       </form>
@@ -2220,6 +2266,33 @@ function AddRelationshipModal({
   const [bId, setBId] = useState(focus ? other : fallbackB);
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
+
+  const sortedPersons = useMemo(
+    () =>
+      persons
+        .slice()
+        .sort((a, b) =>
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+        ),
+    [persons]
+  );
+
+  const preview = useMemo(() => {
+    const nameOf = (id: string) =>
+      persons.find((p) => p.id === id)?.preferredName ?? "成员";
+    if (mode === "parent") {
+      if (!parentId || !childId || parentId === childId) return "";
+      const kind =
+        parentType === "ADOPTIVE_PARENT"
+          ? "养父母"
+          : parentType === "STEP_PARENT"
+            ? "继父母"
+            : "父母";
+      return `将记录：${nameOf(parentId)} 是 ${nameOf(childId)} 的${kind}`;
+    }
+    if (!aId || !bId || aId === bId) return "";
+    return `将记录：${nameOf(aId)} 与 ${nameOf(bId)} 为配偶`;
+  }, [mode, parentId, childId, parentType, aId, bId, persons]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -2326,7 +2399,7 @@ function AddRelationshipModal({
                 onChange={(e) => setParentId(e.target.value)}
                 className="alpha-input"
               >
-                {persons.map((p) => (
+                {sortedPersons.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.preferredName}
                   </option>
@@ -2343,7 +2416,7 @@ function AddRelationshipModal({
                 onChange={(e) => setChildId(e.target.value)}
                 className="alpha-input"
               >
-                {persons.map((p) => (
+                {sortedPersons.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.preferredName}
                   </option>
@@ -2378,7 +2451,7 @@ function AddRelationshipModal({
                 onChange={(e) => setAId(e.target.value)}
                 className="alpha-input"
               >
-                {persons.map((p) => (
+                {sortedPersons.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.preferredName}
                   </option>
@@ -2395,7 +2468,7 @@ function AddRelationshipModal({
                 onChange={(e) => setBId(e.target.value)}
                 className="alpha-input"
               >
-                {persons.map((p) => (
+                {sortedPersons.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.preferredName}
                   </option>
@@ -2404,6 +2477,11 @@ function AddRelationshipModal({
             </div>
           </>
         )}
+        {preview ? (
+          <p className="text-sm text-[color:var(--a-brand)]" role="status">
+            {preview}
+          </p>
+        ) : null}
         <div className="flex gap-2">
           <button
             type="button"
@@ -2414,7 +2492,7 @@ function AddRelationshipModal({
           </button>
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !preview}
             className="alpha-btn alpha-btn-primary flex-1"
           >
             {busy ? "保存中…" : "保存"}

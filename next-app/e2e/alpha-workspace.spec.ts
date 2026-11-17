@@ -69,16 +69,22 @@ async function runCoreJourney(
   const familyUrl = page.url();
   const familyId = familyUrl.split("/").pop()!;
 
-  // Flow 03 — persons
+  // Flow 03 — persons (keep modal open to add consecutively)
   await page.getByRole("button", { name: "添加成员" }).click();
   await page.getByLabel("姓名 / 常用称呼 *").fill("赵甲");
   await expect(page.locator("#p-living")).toHaveValue("UNKNOWN");
   await page.getByRole("button", { name: "添加", exact: true }).click();
-  await expect(page.getByText("赵甲")).toBeVisible();
-
-  await page.getByRole("button", { name: "+ 添加成员" }).click();
+  await expect(
+    page.getByRole("dialog").getByText("已添加「赵甲」。可继续添加下一位，或点完成。")
+  ).toBeVisible();
   await page.getByLabel("姓名 / 常用称呼 *").fill("赵乙");
-  await page.getByRole("button", { name: "添加", exact: true }).click();
+  await page.getByRole("button", { name: "继续添加" }).click();
+  await expect(
+    page.getByRole("dialog").getByText("已添加「赵乙」。可继续添加下一位，或点完成。")
+  ).toBeVisible();
+  await page.getByRole("button", { name: "完成" }).click();
+  await expect(page.getByText("已添加 2 位家族成员")).toBeVisible();
+  await expect(page.getByText("赵甲")).toBeVisible();
   await expect(page.getByText("赵乙")).toBeVisible();
 
   // Flow 04 — relationship + generation from server
@@ -87,6 +93,9 @@ async function runCoreJourney(
   await page.locator("#rel-parent").selectOption({ label: "赵甲" });
   await page.locator("#rel-child").selectOption({ label: "赵乙" });
   await page.locator("#rel-type").selectOption("BIOLOGICAL_PARENT");
+  await expect(
+    page.getByText("将记录：赵甲 是 赵乙 的父母")
+  ).toBeVisible();
   const relRespPromise = page.waitForResponse(
     (r) =>
       r.url().includes("/relationships") &&
@@ -311,14 +320,24 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     await page.getByRole("button", { name: "添加成员" }).click();
     await page.getByLabel("姓名 / 常用称呼 *").fill("赵甲");
     await page.getByRole("button", { name: "添加", exact: true }).click();
-    await page.getByRole("button", { name: "+ 添加成员" }).click();
+    await expect(
+      page.getByRole("dialog").getByText("已添加「赵甲」。可继续添加下一位，或点完成。")
+    ).toBeVisible();
     await page.getByLabel("姓名 / 常用称呼 *").fill("赵乙");
-    await page.getByRole("button", { name: "添加", exact: true }).click();
+    await page.getByRole("button", { name: "继续添加" }).click();
+    await expect(
+      page.getByRole("dialog").getByText("已添加「赵乙」。可继续添加下一位，或点完成。")
+    ).toBeVisible();
+    await page.getByRole("button", { name: "完成" }).click();
+    await expect(page.getByText("已添加 2 位家族成员")).toBeVisible();
 
     await page.getByRole("tab", { name: "世系" }).click();
     await page.getByRole("button", { name: "+ 添加家庭关系" }).click();
     await page.locator("#rel-parent").selectOption({ label: "赵甲" });
     await page.locator("#rel-child").selectOption({ label: "赵乙" });
+    await expect(
+      page.getByText("将记录：赵甲 是 赵乙 的父母")
+    ).toBeVisible();
     const relRespPromise = page.waitForResponse(
       (r) =>
         r.url().includes("/relationships") && r.request().method() === "POST"
