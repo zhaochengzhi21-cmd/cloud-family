@@ -29,6 +29,7 @@ import {
   V1ApiError,
 } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
+import { useFocusTrap } from "@/components/alpha/useFocusTrap";
 import { MEDIA_MAX_BYTES } from "@/v1/domain/media/types";
 
 type Role = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
@@ -2749,14 +2750,8 @@ function PersonDrawer({
     onClose();
   }, [confirmRelId, confirmDelete, confirmDiscard, dirty, onClose]);
 
-  useEffect(() => {
-    closeBtn.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") requestClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [requestClose]);
+  const drawerRootRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(drawerRootRef, requestClose, closeBtn);
 
   useEffect(() => {
     void loadClaims();
@@ -2829,6 +2824,7 @@ function PersonDrawer({
 
   return (
     <div
+      ref={drawerRootRef}
       className="fixed inset-0 z-40 flex justify-end bg-[color:var(--a-ink)]/35"
       role="dialog"
       aria-modal="true"
@@ -3246,48 +3242,13 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   useLockBodyScroll();
-
-  useEffect(() => {
-    const root = panelRef.current;
-    if (!root) return;
-
-    const focusables = () =>
-      Array.from(
-        root.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        )
-      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
-
-    const initial = focusables();
-    (initial.find((el) => el.tagName === "INPUT" || el.tagName === "SELECT") ??
-      initial[0])?.focus();
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const items = focusables();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  useFocusTrap(rootRef, onClose);
 
   return (
     <div
+      ref={rootRef}
       className="fixed inset-0 z-40 overflow-y-auto bg-[color:var(--a-ink)]/35 p-4"
       role="dialog"
       aria-modal="true"
@@ -3298,7 +3259,6 @@ function ModalShell({
     >
       <div className="flex min-h-full items-center justify-center py-6">
         <div
-          ref={panelRef}
           className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]"
           onClick={(e) => e.stopPropagation()}
         >

@@ -311,6 +311,12 @@ async function runCoreJourney(
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
   await expect(page.getByText("最近打开")).toBeVisible();
 
+  // offline banner
+  await page.context().setOffline(true);
+  await expect(page.getByRole("status").getByText(/网络已断开/)).toBeVisible();
+  await page.context().setOffline(false);
+  await expect(page.getByText(/网络已断开/)).toHaveCount(0);
+
   return { ownerId, familyId, jiaId: jia.id, yiId: yi.id };
 }
 

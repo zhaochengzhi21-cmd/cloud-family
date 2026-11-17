@@ -1,22 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { EMPTY_FAMILIES, PRODUCT, ROLE_LABEL } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
-
-function useEscapeClose(open: boolean, onClose: () => void) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-}
+import { useFocusTrap } from "@/components/alpha/useFocusTrap";
 
 type FamilyItem = {
   id: string;
@@ -38,14 +28,13 @@ export default function AlphaFamiliesPage() {
   const [surnameTouched, setSurnameTouched] = useState(false);
   const [lastFamilyId, setLastFamilyId] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const createDialogRef = useRef<HTMLDivElement>(null);
 
-  useEscapeClose(creating, () => {
+  const closeCreate = useCallback(() => {
     if (!busy) setCreating(false);
-  });
+  }, [busy]);
 
-  useEffect(() => {
-    if (creating) nameInputRef.current?.focus();
-  }, [creating]);
+  useFocusTrap(createDialogRef, closeCreate, nameInputRef, creating);
 
   useEffect(() => {
     if (!creating) return;
@@ -259,6 +248,7 @@ export default function AlphaFamiliesPage() {
 
       {creating ? (
         <div
+          ref={createDialogRef}
           className="fixed inset-0 z-40 overflow-y-auto bg-[color:var(--a-ink)]/35 p-4"
           role="dialog"
           aria-modal="true"

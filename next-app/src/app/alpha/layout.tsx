@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Noto_Sans_SC, Noto_Serif_SC } from "next/font/google";
 import { isV1AlphaUiEnabled } from "@/v1/http/featureGate";
 import { AlphaNav } from "@/components/alpha/AlphaNav";
+import { AlphaConnectivityBanner } from "@/components/alpha/AlphaConnectivityBanner";
 import "@/components/alpha/alpha-theme.css";
 
 const display = Noto_Serif_SC({
@@ -34,6 +35,7 @@ export default function AlphaLayout({
       className={`alpha-shell alpha-font-body ${display.variable} ${body.variable}`}
     >
       <AlphaNav />
+      <AlphaConnectivityBanner />
       <main className="mx-auto w-full max-w-3xl px-4 pb-20 pt-5 sm:px-6">
         {children}
       </main>

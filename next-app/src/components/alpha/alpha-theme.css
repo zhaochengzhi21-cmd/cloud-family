@@ -296,3 +296,18 @@
   opacity: 0.55;
   border-radius: 999px;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .alpha-fade-in,
+  .alpha-fade-in-delay,
+  .alpha-drawer-panel {
+    animation: none !important;
+  }
+
+  .alpha-btn,
+  .alpha-panel-interactive,
+  .alpha-tab,
+  .alpha-input {
+    transition: none !important;
+  }
+}
