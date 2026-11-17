@@ -427,6 +427,7 @@ export function FamilyWorkspace({
           role={role}
           onAuthError={(e) => handleAuthRedirect(e, router)}
           onOpenPerson={(id) => setSelectedPersonId(id)}
+          onGoMembers={() => setTab("members")}
           setFlash={setFlash}
           setError={setError}
         />
@@ -491,6 +492,7 @@ export function FamilyWorkspace({
         <PersonDrawer
           familyId={familyId}
           person={personMap.get(selectedPersonId)!}
+          persons={persons}
           generation={generationByPerson[selectedPersonId]}
           relationships={relationships}
           personMap={personMap}
@@ -978,6 +980,7 @@ function RecordsTab({
   role,
   onAuthError,
   onOpenPerson,
+  onGoMembers,
   setFlash,
   setError,
 }: {
@@ -988,6 +991,7 @@ function RecordsTab({
   role: Role;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
+  onGoMembers: () => void;
   setFlash: (s: string) => void;
   setError: (s: string) => void;
 }) {
@@ -1078,6 +1082,14 @@ function RecordsTab({
     return m;
   }, [active]);
 
+  const personIndex = sortedPersons.findIndex((p) => p.id === personId);
+  const prevPerson =
+    personIndex > 0 ? sortedPersons[personIndex - 1] : null;
+  const nextPerson =
+    personIndex >= 0 && personIndex < sortedPersons.length - 1
+      ? sortedPersons[personIndex + 1]
+      : null;
+
   if (persons.length === 0) {
     return (
       <div className="alpha-panel border-dashed px-5 py-12 text-center">
@@ -1087,6 +1099,13 @@ function RecordsTab({
         <p className="mt-2 text-sm text-[color:var(--a-muted)]">
           先在「成员」里添加家人，再回来写下我们知道的事。
         </p>
+        <button
+          type="button"
+          className="alpha-btn alpha-btn-primary mt-6"
+          onClick={onGoMembers}
+        >
+          去添加成员
+        </button>
       </div>
     );
   }
@@ -1114,15 +1133,39 @@ function RecordsTab({
             ))}
           </select>
         </div>
-        {personId ? (
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="alpha-btn alpha-btn-secondary !min-h-[44px] !text-sm"
-            onClick={() => onOpenPerson(personId)}
+            className="alpha-btn alpha-btn-secondary !min-h-[44px] !px-3 !text-sm"
+            disabled={!prevPerson}
+            onClick={() => prevPerson && setPersonId(prevPerson.id)}
+            aria-label={
+              prevPerson ? `上一位：${prevPerson.preferredName}` : "没有上一位"
+            }
           >
-            打开此人
+            上一位
           </button>
-        ) : null}
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary !min-h-[44px] !px-3 !text-sm"
+            disabled={!nextPerson}
+            onClick={() => nextPerson && setPersonId(nextPerson.id)}
+            aria-label={
+              nextPerson ? `下一位：${nextPerson.preferredName}` : "没有下一位"
+            }
+          >
+            下一位
+          </button>
+          {personId ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[44px] !text-sm"
+              onClick={() => onOpenPerson(personId)}
+            >
+              打开此人
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {canEdit && personId ? (
@@ -2385,6 +2428,7 @@ function AddRelationshipModal({
 function PersonDrawer({
   familyId,
   person,
+  persons,
   generation,
   relationships,
   personMap,
@@ -2401,6 +2445,7 @@ function PersonDrawer({
 }: {
   familyId: string;
   person: GraphPerson;
+  persons: GraphPerson[];
   generation?: number;
   relationships: GraphRel[];
   personMap: Map<string, GraphPerson>;
@@ -2422,6 +2467,7 @@ function PersonDrawer({
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [pendingPersonId, setPendingPersonId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmRelId, setConfirmRelId] = useState<string | null>(null);
   const [removingRel, setRemovingRel] = useState(false);
@@ -2433,6 +2479,23 @@ function PersonDrawer({
 
   useLockBodyScroll();
 
+  const orderedPersons = useMemo(
+    () =>
+      persons
+        .slice()
+        .sort((a, b) =>
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+        ),
+    [persons]
+  );
+  const personIndex = orderedPersons.findIndex((p) => p.id === person.id);
+  const prevPerson =
+    personIndex > 0 ? orderedPersons[personIndex - 1] : null;
+  const nextPerson =
+    personIndex >= 0 && personIndex < orderedPersons.length - 1
+      ? orderedPersons[personIndex + 1]
+      : null;
+
   useEffect(() => {
     setName(person.preferredName);
     setLiving(person.livingStatus);
@@ -2440,6 +2503,7 @@ function PersonDrawer({
     setRevision(person.revisionNo);
     setConfirmDelete(false);
     setConfirmDiscard(false);
+    setPendingPersonId(null);
     setConfirmRelId(null);
     setLocalError("");
     setLocalFlash("");
@@ -2470,6 +2534,27 @@ function PersonDrawer({
       living !== person.livingStatus ||
       gender !== person.gender);
 
+  const discardPending = useCallback(() => {
+    const nextId = pendingPersonId;
+    setPendingPersonId(null);
+    setConfirmDiscard(false);
+    if (nextId) onOpenPerson(nextId);
+    else onClose();
+  }, [pendingPersonId, onOpenPerson, onClose]);
+
+  const goToPerson = useCallback(
+    (id: string) => {
+      if (id === person.id) return;
+      if (dirty) {
+        setPendingPersonId(id);
+        setConfirmDiscard(true);
+        return;
+      }
+      onOpenPerson(id);
+    },
+    [person.id, dirty, onOpenPerson]
+  );
+
   const requestClose = useCallback(() => {
     if (confirmRelId) {
       setConfirmRelId(null);
@@ -2481,9 +2566,11 @@ function PersonDrawer({
     }
     if (confirmDiscard) {
       setConfirmDiscard(false);
+      setPendingPersonId(null);
       return;
     }
     if (dirty) {
+      setPendingPersonId(null);
       setConfirmDiscard(true);
       return;
     }
@@ -2581,8 +2668,8 @@ function PersonDrawer({
       }}
     >
       <div className="alpha-drawer-panel flex h-full w-full max-w-md flex-col bg-[color:var(--a-surface-strong)] shadow-[var(--a-shadow)]">
-        <div className="flex items-center justify-between border-b border-[color:var(--a-brand-line)] px-4 py-3">
-          <div className="min-w-0">
+        <div className="flex items-center justify-between gap-2 border-b border-[color:var(--a-brand-line)] px-4 py-3">
+          <div className="min-w-0 flex-1">
             <h2
               id="person-drawer-title"
               className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]"
@@ -2595,33 +2682,62 @@ function PersonDrawer({
               </p>
             ) : null}
           </div>
-          <button
-            ref={closeBtn}
-            type="button"
-            onClick={requestClose}
-            className="min-h-[44px] min-w-[44px] rounded-lg text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
-          >
-            关闭
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              disabled={!prevPerson}
+              onClick={() => prevPerson && goToPerson(prevPerson.id)}
+              className="min-h-[40px] rounded-lg px-2 text-sm font-semibold text-[color:var(--a-brand)] disabled:opacity-40"
+              aria-label={
+                prevPerson ? `上一位：${prevPerson.preferredName}` : "没有上一位"
+              }
+            >
+              上一位
+            </button>
+            <button
+              type="button"
+              disabled={!nextPerson}
+              onClick={() => nextPerson && goToPerson(nextPerson.id)}
+              className="min-h-[40px] rounded-lg px-2 text-sm font-semibold text-[color:var(--a-brand)] disabled:opacity-40"
+              aria-label={
+                nextPerson ? `下一位：${nextPerson.preferredName}` : "没有下一位"
+              }
+            >
+              下一位
+            </button>
+            <button
+              ref={closeBtn}
+              type="button"
+              onClick={requestClose}
+              className="min-h-[44px] min-w-[44px] rounded-lg text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
+            >
+              关闭
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {confirmDiscard ? (
             <div className="mb-3 space-y-3 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-3 ring-1 ring-[color:var(--a-brand-line)]">
               <p className="text-sm font-semibold text-[color:var(--a-ink)]" role="alert">
-                有未保存的修改，确定放弃？
+                {pendingPersonId
+                  ? "有未保存的修改，切换成员前要放弃吗？"
+                  : "有未保存的修改，确定放弃？"}
               </p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   className="alpha-btn alpha-btn-secondary flex-1 !min-h-[40px] !text-sm"
-                  onClick={() => setConfirmDiscard(false)}
+                  onClick={() => {
+                    setConfirmDiscard(false);
+                    setPendingPersonId(null);
+                  }}
                 >
                   继续编辑
                 </button>
                 <button
                   type="button"
                   className="alpha-btn alpha-btn-danger flex-1 !min-h-[40px] !text-sm"
-                  onClick={onClose}
+                  onClick={discardPending}
                 >
                   放弃修改
                 </button>

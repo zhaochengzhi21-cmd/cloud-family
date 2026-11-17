@@ -45,6 +45,15 @@ export default function AlphaFamiliesPage() {
     if (creating) nameInputRef.current?.focus();
   }, [creating]);
 
+  useEffect(() => {
+    if (!creating) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [creating]);
+
   const filtered = useMemo(() => {
     if (!families) return [];
     const q = query.trim().toLowerCase();

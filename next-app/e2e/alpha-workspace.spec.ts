@@ -131,13 +131,20 @@ async function runCoreJourney(
   await expect(drawer.getByText("第二代")).toBeVisible();
   await expect(drawer.getByText("父母：赵甲")).toBeVisible();
 
-  // Dirty-close guard
+  // Dirty-close guard + sibling navigation (姓名序：赵甲 → 赵乙)
   await drawer.locator("#edit-living").selectOption("DECEASED");
   await drawer.getByRole("button", { name: "关闭" }).click();
   await expect(drawer.getByText("有未保存的修改，确定放弃？")).toBeVisible();
   await drawer.getByRole("button", { name: "继续编辑" }).click();
-  await drawer.getByRole("button", { name: "关闭" }).click();
+  await drawer.getByRole("button", { name: /上一位/ }).click();
+  await expect(
+    drawer.getByText("有未保存的修改，切换成员前要放弃吗？")
+  ).toBeVisible();
   await drawer.getByRole("button", { name: "放弃修改" }).click();
+  await expect(drawer.getByRole("heading", { name: "赵甲" })).toBeVisible();
+  await drawer.getByRole("button", { name: /下一位/ }).click();
+  await expect(drawer.getByRole("heading", { name: "赵乙" })).toBeVisible();
+  await drawer.getByRole("button", { name: "关闭" }).click();
 
   // Soft duplicate-name hint when adding another 赵乙
   await page.getByRole("tab", { name: "成员" }).click();
