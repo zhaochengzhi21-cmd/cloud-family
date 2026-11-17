@@ -187,6 +187,21 @@ export default function AlphaFamiliesPage() {
               className="alpha-input mb-4"
             />
           ) : null}
+          {query.trim() && filtered.length > 0 ? (
+            <p
+              className="mb-3 text-sm text-[color:var(--a-muted)]"
+              aria-live="polite"
+            >
+              显示 {filtered.length} / {families.length} 个家族
+              <button
+                type="button"
+                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => setQuery("")}
+              >
+                清除筛选
+              </button>
+            </p>
+          ) : null}
           {filtered.length === 0 ? (
             <div className="mb-4 py-6 text-center">
               <p className="text-sm text-[color:var(--a-muted)]">

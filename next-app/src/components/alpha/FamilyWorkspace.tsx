@@ -548,10 +548,10 @@ export function FamilyWorkspace({
             setLineageFocusId(pid);
           }}
           onOpenPerson={(id) => setSelectedPersonId(id)}
-          onDeleted={async () => {
+          onDeleted={async (name) => {
             setSelectedPersonId(null);
             setError("");
-            setFlash("已移除该成员");
+            setFlash(`已移除「${name}」`);
             await load();
           }}
           onError={(msg) => setError(msg)}
@@ -2654,7 +2654,7 @@ function PersonDrawer({
   canReview: boolean;
   onClose: () => void;
   onChanged: () => Promise<void>;
-  onDeleted: () => Promise<void>;
+  onDeleted: (name: string) => Promise<void>;
   onRequestAddRel: () => void;
   onShowInLineage: () => void;
   onOpenPerson: (id: string) => void;
@@ -3216,7 +3216,7 @@ function PersonDrawer({
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-[color:var(--a-danger)]" role="alert">
-                    确认移除「{person.preferredName}」？相关家庭关系也会一并取消，此操作用于整理档案，请谨慎。
+                    确认移除「{person.preferredName}」？相关家庭关系也会一并取消。移除后不会出现在成员与世系中，请谨慎操作。
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -3234,9 +3234,10 @@ function PersonDrawer({
                       onClick={async () => {
                         setDeleting(true);
                         setLocalError("");
+                        const removedName = person.preferredName;
                         try {
                           await v1api.deletePerson(familyId, person.id);
-                          await onDeleted();
+                          await onDeleted(removedName);
                         } catch (err) {
                           if (onAuth(err)) return;
                           const msg = userMessageForApiError(err);
