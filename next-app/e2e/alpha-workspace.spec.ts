@@ -139,10 +139,29 @@ async function runCoreJourney(
   expect(g.generationByPerson[yi.id]).toBe(2);
 
   await expect(page.getByRole("heading", { name: /第一代/ })).toBeVisible();
-  await expect(page.getByText("赵甲").first()).toBeVisible();
-  await expect(page.getByText("赵乙").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^赵甲/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^赵乙/ })).toBeVisible();
   await expect(page.getByText("子女：赵乙")).toBeVisible();
   await expect(page.getByText("父母：赵甲")).toBeVisible();
+
+  // Lineage tools — search/jump, fold a generation, branch view
+  const tools = page.getByRole("search", { name: "世系工具" });
+  await expect(tools).toContainText("共 2 代 2 人");
+  await tools.getByPlaceholder("在世系中查找姓名").fill("乙");
+  await expect(tools).toContainText("找到 1 位");
+  await tools.getByRole("button", { name: "赵乙 · 第二代" }).click();
+  await expect(page.locator(`[data-lineage-person="${yi.id}"]`)).toBeFocused();
+  await tools.getByPlaceholder("在世系中查找姓名").fill("");
+  const gen2Toggle = page.getByRole("button", { name: /^第二代/ });
+  await gen2Toggle.click();
+  await expect(gen2Toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("button", { name: /^赵乙/ })).toBeHidden();
+  await gen2Toggle.click();
+  await expect(page.getByRole("button", { name: /^赵乙/ })).toBeVisible();
+  await tools.locator("select").selectOption({ label: "赵甲（第一代）一支" });
+  await expect(tools).toContainText("正在查看赵甲一支，共 2 人");
+  await tools.locator("select").selectOption("");
+  await expect(tools).toContainText("共 2 代 2 人");
 
   // Flow 04b — remove relationship from drawer, then restore for later flows
   // Prefer /^赵乙/ — accessible name now includes 「父母：赵甲」, so plain "赵乙" also hits 赵甲

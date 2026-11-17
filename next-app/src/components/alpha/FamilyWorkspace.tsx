@@ -847,6 +847,10 @@ function MembersTab({
   );
 }
 
+/** Above this many members, the lineage opens with only the first generations unfolded. */
+const LINEAGE_FOLD_THRESHOLD = 80;
+const LINEAGE_OPEN_GENERATIONS = 3;
+
 function LineageTab({
   persons,
   relationships,
@@ -882,10 +886,88 @@ function LineageTab({
     [relationships]
   );
 
+  const [query, setQuery] = useState("");
+  const [branchRoot, setBranchRoot] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<number>>(() => {
+    if (persons.length <= LINEAGE_FOLD_THRESHOLD) return new Set();
+    const gens = new Set(Object.values(generationByPerson));
+    return new Set([...gens].filter((g) => g > LINEAGE_OPEN_GENERATIONS));
+  });
+  const [jumpId, setJumpId] = useState<string | null>(null);
+
+  const branchOptions = useMemo(() => {
+    const hasChildren = new Set(parentRels.map((r) => r.fromPersonId));
+    return persons
+      .filter((p) => hasChildren.has(p.id))
+      .sort(
+        (a, b) =>
+          (generationByPerson[a.id] ?? 1) - (generationByPerson[b.id] ?? 1) ||
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+      );
+  }, [persons, parentRels, generationByPerson]);
+
+  /** The chosen ancestor, every descendant, and their spouses. */
+  const scopedPersons = useMemo(() => {
+    if (!branchRoot || !personMap.has(branchRoot)) return persons;
+    const keep = new Set<string>([branchRoot]);
+    const queue = [branchRoot];
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const r of parentRels) {
+        if (r.fromPersonId === id && !keep.has(r.toPersonId)) {
+          keep.add(r.toPersonId);
+          queue.push(r.toPersonId);
+        }
+      }
+    }
+    for (const r of spouses) {
+      if (keep.has(r.fromPersonId)) keep.add(r.toPersonId);
+      else if (keep.has(r.toPersonId)) keep.add(r.fromPersonId);
+    }
+    return persons.filter((p) => keep.has(p.id));
+  }, [branchRoot, persons, parentRels, spouses, personMap]);
+
+  const q = query.trim();
+  const matches = useMemo(
+    () =>
+      q
+        ? scopedPersons
+            .filter((p) => p.preferredName.includes(q))
+            .sort(
+              (a, b) =>
+                (generationByPerson[a.id] ?? 1) -
+                  (generationByPerson[b.id] ?? 1) ||
+                a.preferredName.localeCompare(b.preferredName, "zh-CN")
+            )
+        : [],
+    [q, scopedPersons, generationByPerson]
+  );
+  const matchIds = useMemo(() => new Set(matches.map((p) => p.id)), [matches]);
+
+  function jumpTo(id: string) {
+    const g = generationByPerson[id] ?? 1;
+    setCollapsed((prev) => {
+      if (!prev.has(g)) return prev;
+      const next = new Set(prev);
+      next.delete(g);
+      return next;
+    });
+    setJumpId(id);
+  }
+
+  function toggleGen(g: number) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+  }
+
   /** Per generation: clusters of 1–2 people (spouse pairs kept adjacent). */
   const byGen = useMemo(() => {
     const map = new Map<number, GraphPerson[]>();
-    for (const p of persons) {
+    for (const p of scopedPersons) {
       const g = generationByPerson[p.id] ?? 1;
       if (!map.has(g)) map.set(g, []);
       map.get(g)!.push(p);
@@ -926,7 +1008,7 @@ function LineageTab({
         }
         return [gen, clusters] as const;
       });
-  }, [persons, generationByPerson, spouses]);
+  }, [scopedPersons, generationByPerson, spouses]);
 
   const parentsOf = useMemo(() => {
     const m = new Map<string, string[]>();
@@ -963,6 +1045,20 @@ function LineageTab({
     }
   }, [focusPersonId, byGen]);
 
+  useEffect(() => {
+    if (!jumpId) return;
+    const el = document.querySelector(`[data-lineage-person="${jumpId}"]`);
+    if (el instanceof HTMLElement) {
+      scrollIntoViewSafe(el, { block: "center" });
+      el.focus();
+    }
+  }, [jumpId, collapsed, byGen]);
+
+  const allGens = byGen.map(([g]) => g);
+  const allCollapsed =
+    allGens.length > 0 && allGens.every((g) => collapsed.has(g));
+  const highlightId = jumpId ?? focusPersonId;
+
   return (
     <div>
       {canEdit ? (
@@ -994,6 +1090,102 @@ function LineageTab({
         <p className="mb-3 text-sm text-[color:var(--a-muted)]">
           当前档案中有 {componentCount} 个尚未连接的家族分支。
         </p>
+      ) : null}
+
+      {relationships.length > 0 && persons.length >= 2 ? (
+        <div
+          role="search"
+          aria-label="世系工具"
+          className="alpha-panel mb-4 space-y-3 px-3 py-3"
+        >
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label className="min-w-0 flex-1">
+              <span className="sr-only">在世系中查找</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && matches[0]) {
+                    e.preventDefault();
+                    jumpTo(matches[0].id);
+                  }
+                }}
+                placeholder="在世系中查找姓名"
+                className="alpha-input !min-h-[40px] w-full !text-sm"
+              />
+            </label>
+            {branchOptions.length > 0 ? (
+              <label className="sm:w-56">
+                <span className="sr-only">查看分支</span>
+                <select
+                  value={branchRoot ?? ""}
+                  onChange={(e) => {
+                    setBranchRoot(e.target.value || null);
+                    setJumpId(null);
+                  }}
+                  className="alpha-input !min-h-[40px] w-full !text-sm"
+                >
+                  <option value="">查看全部世系</option>
+                  {branchOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.preferredName}
+                      {generationByPerson[p.id]
+                        ? `（${generationLabel(generationByPerson[p.id])}）`
+                        : ""}
+                      一支
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p className="text-[color:var(--a-muted)]" aria-live="polite">
+              {q
+                ? matches.length
+                  ? `找到 ${matches.length} 位`
+                  : "没有找到这个名字"
+                : branchRoot
+                  ? `正在查看${personMap.get(branchRoot)?.preferredName ?? ""}一支，共 ${scopedPersons.length} 人`
+                  : `共 ${byGen.length} 代 ${persons.length} 人`}
+            </p>
+            {allGens.length > 1 ? (
+              <button
+                type="button"
+                className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() =>
+                  setCollapsed(allCollapsed ? new Set() : new Set(allGens))
+                }
+              >
+                {allCollapsed ? "全部展开" : "全部收起"}
+              </button>
+            ) : null}
+          </div>
+          {matches.length > 0 ? (
+            <ul className="flex flex-wrap gap-2" aria-label="查找结果">
+              {matches.slice(0, 12).map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => jumpTo(p.id)}
+                    className="alpha-chip !min-h-[32px] font-semibold"
+                  >
+                    {p.preferredName}
+                    {generationByPerson[p.id]
+                      ? ` · ${generationLabel(generationByPerson[p.id])}`
+                      : ""}
+                  </button>
+                </li>
+              ))}
+              {matches.length > 12 ? (
+                <li className="self-center text-xs text-[color:var(--a-muted)]">
+                  还有 {matches.length - 12} 位，请输入更完整的名字
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       {byGen.length === 0 ? (
@@ -1029,12 +1221,29 @@ function LineageTab({
               ) : null}
               <section className="mb-4">
                 <h3 className="mb-2 text-sm font-bold tracking-wide text-[color:var(--a-brand)]">
-                  {generationLabel(gen)}
-                  <span className="ml-2 font-normal text-[color:var(--a-muted)]">
-                    {genCount} 人
-                  </span>
+                  <button
+                    type="button"
+                    aria-expanded={!collapsed.has(gen)}
+                    aria-controls={`lineage-gen-${gen}`}
+                    onClick={() => toggleGen(gen)}
+                    className="inline-flex items-center gap-1.5 rounded-md hover:underline underline-offset-2"
+                  >
+                    <span aria-hidden className="inline-block w-3 text-xs">
+                      {collapsed.has(gen) ? "▸" : "▾"}
+                    </span>
+                    {generationLabel(gen)}
+                    <span className="font-normal text-[color:var(--a-muted)]">
+                      {genCount} 人
+                    </span>
+                  </button>
                 </h3>
-                <ul className="flex flex-wrap gap-2">
+                <ul
+                  id={`lineage-gen-${gen}`}
+                  hidden={collapsed.has(gen)}
+                  className={
+                    collapsed.has(gen) ? "hidden" : "flex flex-wrap gap-2"
+                  }
+                >
                   {clusters.map((cluster) => {
                     const isCouple = cluster.length === 2;
                     return (
@@ -1091,8 +1300,12 @@ function LineageTab({
                                 data-lineage-person={p.id}
                                 onClick={() => onOpen(p.id)}
                                 className={`alpha-panel alpha-panel-interactive min-w-[6.75rem] px-2.5 py-1.5 text-left ${
-                                  focusPersonId === p.id
+                                  highlightId === p.id
                                     ? "ring-2 ring-[color:var(--a-brand)] ring-offset-1"
+                                    : ""
+                                } ${
+                                  matchIds.has(p.id)
+                                    ? "!bg-[color:var(--a-brand-soft)]"
                                     : ""
                                 }`}
                               >
