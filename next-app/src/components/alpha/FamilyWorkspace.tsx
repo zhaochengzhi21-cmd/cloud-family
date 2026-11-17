@@ -98,6 +98,19 @@ function useLockBodyScroll() {
   }, []);
 }
 
+function scrollIntoViewSafe(
+  el: HTMLElement,
+  options: ScrollIntoViewOptions = {}
+) {
+  const reduce =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({
+    ...options,
+    behavior: reduce ? "auto" : options.behavior ?? "smooth",
+  });
+}
+
 export function FamilyWorkspace({
   familyId,
   initialRole,
@@ -403,9 +416,11 @@ export function FamilyWorkspace({
         {tabsOrder.map(([id, label]) => (
           <button
             key={id}
+            id={`alpha-tab-${id}`}
             type="button"
             role="tab"
             aria-selected={tab === id}
+            aria-controls={`alpha-panel-${id}`}
             tabIndex={tab === id ? 0 : -1}
             onClick={() => setTab(id)}
             className="alpha-tab"
@@ -416,46 +431,64 @@ export function FamilyWorkspace({
       </div>
 
       {tab === "members" ? (
-        <MembersTab
-          persons={persons}
-          generationByPerson={generationByPerson}
-          canEdit={canEdit}
-          onAdd={() => setShowAddPerson(true)}
-          onOpen={(id) => setSelectedPersonId(id)}
-        />
+        <div
+          id="alpha-panel-members"
+          role="tabpanel"
+          aria-labelledby="alpha-tab-members"
+        >
+          <MembersTab
+            persons={persons}
+            generationByPerson={generationByPerson}
+            canEdit={canEdit}
+            onAdd={() => setShowAddPerson(true)}
+            onOpen={(id) => setSelectedPersonId(id)}
+          />
+        </div>
       ) : null}
 
       {tab === "lineage" ? (
-        <LineageTab
-          persons={persons}
-          relationships={relationships}
-          generationByPerson={generationByPerson}
-          componentCount={componentCount}
-          canEdit={canEdit}
-          focusPersonId={lineageFocusId}
-          onAddRel={() => {
-            setRelFocusPersonId(null);
-            setShowAddRel(true);
-          }}
-          onGoMembers={() => setTab("members")}
-          onOpen={(id) => setSelectedPersonId(id)}
-          personMap={personMap}
-        />
+        <div
+          id="alpha-panel-lineage"
+          role="tabpanel"
+          aria-labelledby="alpha-tab-lineage"
+        >
+          <LineageTab
+            persons={persons}
+            relationships={relationships}
+            generationByPerson={generationByPerson}
+            componentCount={componentCount}
+            canEdit={canEdit}
+            focusPersonId={lineageFocusId}
+            onAddRel={() => {
+              setRelFocusPersonId(null);
+              setShowAddRel(true);
+            }}
+            onGoMembers={() => setTab("members")}
+            onOpen={(id) => setSelectedPersonId(id)}
+            personMap={personMap}
+          />
+        </div>
       ) : null}
 
       {tab === "records" ? (
-        <RecordsTab
-          familyId={familyId}
-          persons={persons}
-          canEdit={canEdit}
-          canReview={canReview}
-          role={role}
-          onAuthError={(e) => handleAuthRedirect(e, router)}
-          onOpenPerson={(id) => setSelectedPersonId(id)}
-          onGoMembers={() => setTab("members")}
-          setFlash={setFlash}
-          setError={setError}
-        />
+        <div
+          id="alpha-panel-records"
+          role="tabpanel"
+          aria-labelledby="alpha-tab-records"
+        >
+          <RecordsTab
+            familyId={familyId}
+            persons={persons}
+            canEdit={canEdit}
+            canReview={canReview}
+            role={role}
+            onAuthError={(e) => handleAuthRedirect(e, router)}
+            onOpenPerson={(id) => setSelectedPersonId(id)}
+            onGoMembers={() => setTab("members")}
+            setFlash={setFlash}
+            setError={setError}
+          />
+        </div>
       ) : null}
 
       {showEditFamily ? (
@@ -876,7 +909,7 @@ function LineageTab({
       `[data-lineage-person="${focusPersonId}"]`
     );
     if (el instanceof HTMLElement) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollIntoViewSafe(el, { block: "center" });
       el.focus();
     }
   }, [focusPersonId, byGen]);
@@ -1152,8 +1185,8 @@ function RecordsTab({
   }, [familyId, personId, persons]);
 
   useEffect(() => {
-    if (!personId) return;
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!personId || !topRef.current) return;
+    scrollIntoViewSafe(topRef.current, { block: "nearest" });
   }, [personId]);
 
   useEffect(() => {
@@ -1313,6 +1346,19 @@ function RecordsTab({
             </button>
           ))}
         </div>
+      ) : null}
+
+      {statusFilter !== "ALL" && filteredActive.length > 0 ? (
+        <p className="mb-3 text-sm text-[color:var(--a-muted)]" aria-live="polite">
+          显示 {filteredActive.length} / {active.length} 条资料
+          <button
+            type="button"
+            className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setStatusFilter("ALL")}
+          >
+            清除筛选
+          </button>
+        </p>
       ) : null}
 
       {loading ? (

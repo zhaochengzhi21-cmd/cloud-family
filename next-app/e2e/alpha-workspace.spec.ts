@@ -185,6 +185,7 @@ async function runCoreJourney(
 
   // Flow 05–09 claims / evidence / conflict
   await page.getByRole("tab", { name: "资料" }).click();
+  await expect(page.getByRole("tabpanel")).toBeVisible();
   await page.locator("#records-person").selectOption({ label: "赵乙" });
   await page.getByRole("button", { name: "+ 添加人物资料" }).click();
   await page.locator("#claim-text").fill("民国十三年");
@@ -194,6 +195,7 @@ async function runCoreJourney(
 
   // Status filter
   await page.getByRole("button", { name: /^待确认/ }).click();
+  await expect(page.getByText(/显示 1 \/ 1 条资料/)).toBeVisible();
   await expect(page.getByText("民国十三年")).toBeVisible();
   await page.getByRole("button", { name: /^已确认/ }).click();
   await expect(page.getByText("没有符合当前筛选的资料")).toBeVisible();
@@ -573,6 +575,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
       });
     });
     await loginPage.goto("/alpha/login");
+    await expect(loginPage).toHaveTitle(/登录 · 云族谱/);
     await expect(
       loginPage.getByRole("heading", { name: "云族谱" })
     ).toBeVisible();

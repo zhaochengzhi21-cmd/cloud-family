@@ -46,6 +46,14 @@ export default function AlphaLoginPage() {
   }, []);
 
   useEffect(() => {
+    const prev = document.title;
+    document.title = `登录 · ${PRODUCT.brand}`;
+    return () => {
+      document.title = prev;
+    };
+  }, []);
+
+  useEffect(() => {
     if (challengeId && challengeId !== "pending") {
       otpRef.current?.focus();
     }
