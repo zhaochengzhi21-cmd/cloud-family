@@ -118,6 +118,7 @@ export function FamilyWorkspace({
   >({});
   const [componentCount, setComponentCount] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
 
@@ -310,13 +311,23 @@ export function FamilyWorkspace({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              disabled={refreshing}
+              aria-busy={refreshing}
               onClick={() => {
-                setLoading(true);
-                void load();
+                if (refreshing) return;
+                setRefreshing(true);
+                void (async () => {
+                  try {
+                    await load();
+                    setFlash("已刷新");
+                  } finally {
+                    setRefreshing(false);
+                  }
+                })();
               }}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
             >
-              刷新
+              {refreshing ? "刷新中…" : "刷新"}
             </button>
             {canReview ? (
               <button
@@ -3235,11 +3246,41 @@ function ModalShell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
   useLockBodyScroll();
 
   useEffect(() => {
+    const root = panelRef.current;
+    if (!root) return;
+
+    const focusables = () =>
+      Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null || el === document.activeElement);
+
+    const initial = focusables();
+    (initial.find((el) => el.tagName === "INPUT" || el.tagName === "SELECT") ??
+      initial[0])?.focus();
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -3257,6 +3298,7 @@ function ModalShell({
     >
       <div className="flex min-h-full items-center justify-center py-6">
         <div
+          ref={panelRef}
           className="alpha-fade-in w-full max-w-md rounded-2xl bg-[color:var(--a-surface-strong)] p-5 shadow-[var(--a-shadow)]"
           onClick={(e) => e.stopPropagation()}
         >

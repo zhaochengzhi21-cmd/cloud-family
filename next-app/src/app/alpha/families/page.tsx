@@ -35,6 +35,8 @@ export default function AlphaFamiliesPage() {
   const [surname, setSurname] = useState("");
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
+  const [surnameTouched, setSurnameTouched] = useState(false);
+  const [lastFamilyId, setLastFamilyId] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEscapeClose(creating, () => {
@@ -54,6 +56,14 @@ export default function AlphaFamiliesPage() {
     };
   }, [creating]);
 
+  useEffect(() => {
+    try {
+      setLastFamilyId(sessionStorage.getItem("alpha-last-family") ?? "");
+    } catch {
+      setLastFamilyId("");
+    }
+  }, [families]);
+
   const filtered = useMemo(() => {
     if (!families) return [];
     const q = query.trim().toLowerCase();
@@ -64,12 +74,14 @@ export default function AlphaFamiliesPage() {
             (f.surname ?? "").toLowerCase().includes(q)
         )
       : families;
-    return list
-      .slice()
-      .sort((a, b) =>
-        a.displayName.localeCompare(b.displayName, "zh-CN")
-      );
-  }, [families, query]);
+    return list.slice().sort((a, b) => {
+      if (lastFamilyId) {
+        if (a.id === lastFamilyId) return -1;
+        if (b.id === lastFamilyId) return 1;
+      }
+      return a.displayName.localeCompare(b.displayName, "zh-CN");
+    });
+  }, [families, query, lastFamilyId]);
 
   async function load() {
     setError("");
@@ -163,7 +175,10 @@ export default function AlphaFamiliesPage() {
           </p>
           <button
             type="button"
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setSurnameTouched(false);
+              setCreating(true);
+            }}
             className="alpha-btn alpha-btn-primary mt-8"
           >
             {EMPTY_FAMILIES.cta}
@@ -212,6 +227,7 @@ export default function AlphaFamiliesPage() {
                       </p>
                       <p className="mt-0.5 text-sm text-[color:var(--a-muted)]">
                         {[
+                          f.id === lastFamilyId ? "最近打开" : null,
                           f.surname,
                           ROLE_LABEL[f.role as keyof typeof ROLE_LABEL] ||
                             f.role,
@@ -230,7 +246,10 @@ export default function AlphaFamiliesPage() {
           )}
           <button
             type="button"
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setSurnameTouched(false);
+              setCreating(true);
+            }}
             className="alpha-btn alpha-btn-ghost mt-3 !justify-start !px-0"
           >
             + 创建家族档案
@@ -278,7 +297,14 @@ export default function AlphaFamiliesPage() {
                     id="fam-name"
                     required
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setDisplayName(next);
+                      if (!surnameTouched) {
+                        const t = next.trim();
+                        setSurname(t ? t.charAt(0) : "");
+                      }
+                    }}
                     placeholder="例如：赵氏家庭"
                     className="alpha-input"
                   />
@@ -290,10 +316,18 @@ export default function AlphaFamiliesPage() {
                   <input
                     id="fam-surname"
                     value={surname}
-                    onChange={(e) => setSurname(e.target.value)}
+                    onChange={(e) => {
+                      setSurnameTouched(true);
+                      setSurname(e.target.value);
+                    }}
                     placeholder="例如：赵"
                     className="alpha-input"
                   />
+                  {!surnameTouched && surname ? (
+                    <p className="mt-1.5 text-xs text-[color:var(--a-muted)]">
+                      已根据家族名称预填姓氏，可直接修改。
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-6 flex gap-3">

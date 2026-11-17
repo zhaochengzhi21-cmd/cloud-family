@@ -61,6 +61,8 @@ async function runCoreJourney(
   // Flow 02 — create family
   await page.getByRole("button", { name: "创建第一个家族档案" }).click();
   await page.getByLabel("家族名称 *").fill("测试赵氏家庭");
+  await expect(page.getByLabel("姓氏（可选）")).toHaveValue("测");
+  await expect(page.getByText("已根据家族名称预填姓氏")).toBeVisible();
   await page.getByLabel("姓氏（可选）").fill("赵");
   await page.getByRole("button", { name: "创建" }).click();
   await expect(page).toHaveURL(/\/alpha\/families\/[0-9a-f-]{36}/i);
@@ -197,7 +199,9 @@ async function runCoreJourney(
   await page.getByRole("button", { name: "查看全部" }).click();
   await expect(page.getByText("民国十三年")).toBeVisible();
   await page.getByRole("button", { name: "刷新" }).click();
+  await expect(page.getByText("已刷新")).toBeVisible();
   await expect(page.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible();
+  await expect(page.getByText("民国十三年")).toBeVisible();
 
   await page.getByRole("button", { name: "添加资料来源" }).click();
   await page.locator("#ev-type").selectOption("GENEALOGY_PAGE");
@@ -302,9 +306,10 @@ async function runCoreJourney(
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
   await expect(page.getByText(/测试族谱/)).toBeVisible();
 
-  // list still shows family
+  // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
+  await expect(page.getByText("最近打开")).toBeVisible();
 
   return { ownerId, familyId, jiaId: jia.id, yiId: yi.id };
 }

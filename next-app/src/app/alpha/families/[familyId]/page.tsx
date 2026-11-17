@@ -30,6 +30,11 @@ export default function AlphaFamilyPage() {
           return;
         }
         setRole(mine.role);
+        try {
+          sessionStorage.setItem("alpha-last-family", familyId);
+        } catch {
+          /* private mode */
+        }
         setReady(true);
       } catch (e) {
         if (handleAuthRedirect(e, router)) return;
