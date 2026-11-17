@@ -189,6 +189,16 @@ async function runCoreJourney(
   await expect(page.getByText("待确认").first()).toBeVisible();
   await expect(page.getByText("民国十三年")).toBeVisible();
 
+  // Status filter
+  await page.getByRole("button", { name: /^待确认/ }).click();
+  await expect(page.getByText("民国十三年")).toBeVisible();
+  await page.getByRole("button", { name: /^已确认/ }).click();
+  await expect(page.getByText("没有符合当前筛选的资料")).toBeVisible();
+  await page.getByRole("button", { name: "查看全部" }).click();
+  await expect(page.getByText("民国十三年")).toBeVisible();
+  await page.getByRole("button", { name: "刷新" }).click();
+  await expect(page.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible();
+
   await page.getByRole("button", { name: "添加资料来源" }).click();
   await page.locator("#ev-type").selectOption("GENEALOGY_PAGE");
   await page.getByLabel("来源标题（可选）").fill("测试族谱");

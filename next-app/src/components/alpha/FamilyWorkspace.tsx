@@ -307,15 +307,27 @@ export function FamilyWorkspace({
           <h1 className="alpha-font-display text-3xl font-bold text-[color:var(--a-ink)]">
             {familyName}
           </h1>
-          {canReview ? (
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setShowEditFamily(true)}
+              onClick={() => {
+                setLoading(true);
+                void load();
+              }}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
             >
-              编辑档案
+              刷新
             </button>
-          ) : null}
+            {canReview ? (
+              <button
+                type="button"
+                onClick={() => setShowEditFamily(true)}
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+              >
+                编辑档案
+              </button>
+            ) : null}
+          </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
           {surname ? <span>{surname}</span> : null}
@@ -1030,6 +1042,9 @@ function RecordsTab({
   const [personId, setPersonId] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | "PROPOSED" | "ACCEPTED" | "CONFLICTED"
+  >("ALL");
   const topRef = useRef<HTMLDivElement>(null);
   const personReady = useRef(false);
 
@@ -1102,17 +1117,30 @@ function RecordsTab({
     topRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [personId]);
 
+  useEffect(() => {
+    setStatusFilter("ALL");
+  }, [personId]);
+
   const active = claims.filter((c) => c.status !== "REJECTED");
   const rejected = claims.filter((c) => c.status === "REJECTED");
+  const proposedCount = active.filter((c) => c.status === "PROPOSED").length;
+  const acceptedCount = active.filter((c) => c.status === "ACCEPTED").length;
+  const conflictedCount = active.filter(
+    (c) => c.status === "CONFLICTED"
+  ).length;
+  const filteredActive = useMemo(() => {
+    if (statusFilter === "ALL") return active;
+    return active.filter((c) => c.status === statusFilter);
+  }, [active, statusFilter]);
 
   const grouped = useMemo(() => {
     const m = new Map<string, ClaimRow[]>();
-    for (const c of active) {
+    for (const c of filteredActive) {
       if (!m.has(c.claimType)) m.set(c.claimType, []);
       m.get(c.claimType)!.push(c);
     }
     return m;
-  }, [active]);
+  }, [filteredActive]);
 
   const personIndex = sortedPersons.findIndex((p) => p.id === personId);
   const prevPerson =
@@ -1209,10 +1237,43 @@ function RecordsTab({
           onAuthError={onAuthError}
           onDone={async () => {
             setFlash("已添加人物资料");
+            setStatusFilter("ALL");
             await loadClaims();
           }}
           onError={setError}
         />
+      ) : null}
+
+      {active.length > 0 ? (
+        <div
+          className="mb-4 flex flex-wrap gap-2"
+          role="group"
+          aria-label="按资料状态筛选"
+        >
+          {(
+            [
+              ["ALL", "全部", active.length],
+              ["PROPOSED", "待确认", proposedCount],
+              ["ACCEPTED", "已确认", acceptedCount],
+              ["CONFLICTED", "不同说法", conflictedCount],
+            ] as const
+          ).map(([id, label, count]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={statusFilter === id}
+              onClick={() => setStatusFilter(id)}
+              className={`alpha-btn !min-h-[36px] !px-3 !text-xs ${
+                statusFilter === id
+                  ? "alpha-btn-primary"
+                  : "alpha-btn-secondary"
+              }`}
+            >
+              {label}
+              {` ${count}`}
+            </button>
+          ))}
+        </div>
       ) : null}
 
       {loading ? (
@@ -1283,6 +1344,23 @@ function RecordsTab({
               ? "有编辑权限的家人补充后，会显示在这里。"
               : "可以从出生信息、祖籍等开始记录，以后再补来源。"}
           </p>
+        </div>
+      ) : null}
+
+      {!loading &&
+      active.length > 0 &&
+      filteredActive.length === 0 ? (
+        <div className="py-8 text-center">
+          <p className="text-sm text-[color:var(--a-muted)]">
+            没有符合当前筛选的资料
+          </p>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
+            onClick={() => setStatusFilter("ALL")}
+          >
+            查看全部
+          </button>
         </div>
       ) : null}
     </div>
@@ -2010,8 +2088,13 @@ function EditFamilyModal({
     firstRef.current?.focus();
   }, []);
 
+  const dirty =
+    name.trim() !== displayName ||
+    (sur.trim() || "") !== (surname ?? "");
+
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (!dirty || !name.trim()) return;
     setBusy(true);
     setLocalError("");
     try {
@@ -2076,10 +2159,10 @@ function EditFamilyModal({
           </button>
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !dirty || !name.trim()}
             className="alpha-btn alpha-btn-primary flex-1"
           >
-            {busy ? "保存中…" : "保存"}
+            {busy ? "保存中…" : dirty ? "保存" : "没有需要保存的修改"}
           </button>
         </div>
       </form>
