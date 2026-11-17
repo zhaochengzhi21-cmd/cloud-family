@@ -317,6 +317,13 @@ async function runCoreJourney(
   await page.context().setOffline(false);
   await expect(page.getByText(/网络已断开/)).toHaveCount(0);
 
+  // skip link targets main landmark
+  await expect(page.locator("#alpha-main")).toBeAttached();
+  await expect(page.getByRole("link", { name: "跳到主要内容" })).toHaveAttribute(
+    "href",
+    "#alpha-main"
+  );
+
   return { ownerId, familyId, jiaId: jia.id, yiId: yi.id };
 }
 

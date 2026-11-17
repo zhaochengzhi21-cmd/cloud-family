@@ -595,6 +595,18 @@ function MembersTab({
       );
   }, [persons, query, livingFilter]);
 
+  const livingCounts = useMemo(() => {
+    const c = { ALL: persons.length, LIVING: 0, DECEASED: 0, UNKNOWN: 0 };
+    for (const p of persons) {
+      if (p.livingStatus === "LIVING") c.LIVING += 1;
+      else if (p.livingStatus === "DECEASED") c.DECEASED += 1;
+      else c.UNKNOWN += 1;
+    }
+    return c;
+  }, [persons]);
+
+  const filterActive = Boolean(query.trim()) || livingFilter !== "ALL";
+
   if (persons.length === 0) {
     return (
       <div className="alpha-panel border-dashed px-5 py-12 text-center">
@@ -671,9 +683,25 @@ function MembersTab({
               }`}
             >
               {label}
+              <span className="ml-1 opacity-80">{livingCounts[id]}</span>
             </button>
           ))}
         </div>
+      ) : null}
+      {filterActive && filtered.length > 0 ? (
+        <p className="mb-2 text-sm text-[color:var(--a-muted)]" aria-live="polite">
+          显示 {filtered.length} / {persons.length} 位成员
+          <button
+            type="button"
+            className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              setQuery("");
+              setLivingFilter("ALL");
+            }}
+          >
+            清除筛选
+          </button>
+        </p>
       ) : null}
       {filtered.length === 0 ? (
         <div className="py-8 text-center">
@@ -682,7 +710,7 @@ function MembersTab({
               ? `没有匹配「${query.trim()}」的成员`
               : "没有符合当前筛选的成员"}
           </p>
-          {query.trim() || livingFilter !== "ALL" ? (
+          {filterActive ? (
             <button
               type="button"
               className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"

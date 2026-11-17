@@ -34,9 +34,16 @@ export default function AlphaLayout({
     <div
       className={`alpha-shell alpha-font-body ${display.variable} ${body.variable}`}
     >
+      <a href="#alpha-main" className="alpha-skip-link">
+        跳到主要内容
+      </a>
       <AlphaNav />
       <AlphaConnectivityBanner />
-      <main className="mx-auto w-full max-w-3xl px-4 pb-20 pt-5 sm:px-6">
+      <main
+        id="alpha-main"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-3xl px-4 pb-20 pt-5 sm:px-6 outline-none"
+      >
         {children}
       </main>
     </div>
