@@ -1008,7 +1008,6 @@ function LineageTab({
                                 type="button"
                                 data-lineage-person={p.id}
                                 onClick={() => onOpen(p.id)}
-                                aria-label={p.preferredName}
                                 className={`alpha-panel alpha-panel-interactive min-w-[6.75rem] px-2.5 py-1.5 text-left ${
                                   focusPersonId === p.id
                                     ? "ring-2 ring-[color:var(--a-brand)] ring-offset-1"
@@ -2122,6 +2121,7 @@ function EditFamilyModal({
   const [sur, setSur] = useState(surname ?? "");
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -2132,11 +2132,25 @@ function EditFamilyModal({
     name.trim() !== displayName ||
     (sur.trim() || "") !== (surname ?? "");
 
+  const requestClose = useCallback(() => {
+    if (busy) return;
+    if (confirmDiscard) {
+      setConfirmDiscard(false);
+      return;
+    }
+    if (dirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  }, [busy, confirmDiscard, dirty, onClose]);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!dirty || !name.trim()) return;
     setBusy(true);
     setLocalError("");
+    setConfirmDiscard(false);
     try {
       await v1api.patchFamily(familyId, {
         expectedVersion,
@@ -2155,7 +2169,11 @@ function EditFamilyModal({
   }
 
   return (
-    <ModalShell title="编辑家族档案" onClose={onClose}>
+    <ModalShell
+      title="编辑家族档案"
+      onClose={requestClose}
+      allowClose={!busy}
+    >
       <form onSubmit={submit} className="space-y-4">
         {localError ? (
           <p className="alpha-alert alpha-alert-error" role="alert">
@@ -2189,22 +2207,47 @@ function EditFamilyModal({
         <p className="text-xs text-[color:var(--a-muted)]">
           可见性仍为「仅家族成员可见」。邀请家人加入的能力将在后续版本开放。
         </p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="alpha-btn alpha-btn-secondary flex-1"
-          >
-            取消
-          </button>
-          <button
-            type="submit"
-            disabled={busy || !dirty || !name.trim()}
-            className="alpha-btn alpha-btn-primary flex-1"
-          >
-            {busy ? "保存中…" : dirty ? "保存" : "没有需要保存的修改"}
-          </button>
-        </div>
+        {confirmDiscard ? (
+          <div className="space-y-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-warn-soft)] p-3">
+            <p className="text-sm text-[color:var(--a-ink)]" role="alert">
+              有未保存的修改，确定放弃？
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary flex-1"
+                onClick={() => setConfirmDiscard(false)}
+              >
+                继续编辑
+              </button>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-danger flex-1"
+                onClick={onClose}
+              >
+                放弃修改
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={requestClose}
+              disabled={busy}
+              className="alpha-btn alpha-btn-secondary flex-1"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              disabled={busy || !dirty || !name.trim()}
+              className="alpha-btn alpha-btn-primary flex-1"
+            >
+              {busy ? "保存中…" : dirty ? "保存" : "没有需要保存的修改"}
+            </button>
+          </div>
+        )}
       </form>
     </ModalShell>
   );
@@ -2272,7 +2315,11 @@ function AddPersonModal({
   }
 
   return (
-    <ModalShell title="添加成员" onClose={() => onFinished(addedNames.length)}>
+    <ModalShell
+      title="添加成员"
+      onClose={() => onFinished(addedNames.length)}
+      allowClose={!busy}
+    >
       <form onSubmit={submit} className="space-y-4">
         {lastAdded ? (
           <p className="alpha-alert alpha-alert-ok" role="status">
@@ -2337,6 +2384,7 @@ function AddPersonModal({
           <button
             type="button"
             onClick={() => onFinished(addedNames.length)}
+            disabled={busy}
             className="alpha-btn alpha-btn-secondary flex-1"
           >
             {addedNames.length > 0 ? "完成" : "取消"}
@@ -2472,7 +2520,7 @@ function AddRelationshipModal({
   }
 
   return (
-    <ModalShell title="添加家庭关系" onClose={onClose}>
+    <ModalShell title="添加家庭关系" onClose={onClose} allowClose={!busy}>
       <form onSubmit={submit} className="space-y-4">
         {focus ? (
           <p className="text-sm text-[color:var(--a-muted)]">
@@ -2609,6 +2657,7 @@ function AddRelationshipModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={busy}
             className="alpha-btn alpha-btn-secondary flex-1"
           >
             取消
@@ -3265,15 +3314,21 @@ function PersonDrawer({
 function ModalShell({
   title,
   onClose,
+  allowClose = true,
   children,
 }: {
   title: string;
   onClose: () => void;
+  allowClose?: boolean;
   children: React.ReactNode;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const requestClose = useCallback(() => {
+    if (!allowClose) return;
+    onClose();
+  }, [allowClose, onClose]);
   useLockBodyScroll();
-  useFocusTrap(rootRef, onClose);
+  useFocusTrap(rootRef, requestClose);
 
   return (
     <div
@@ -3283,7 +3338,7 @@ function ModalShell({
       aria-modal="true"
       aria-label={title}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) requestClose();
       }}
     >
       <div className="flex min-h-full items-center justify-center py-6">
@@ -3297,8 +3352,9 @@ function ModalShell({
             </h2>
             <button
               type="button"
-              onClick={onClose}
-              className="min-h-[40px] px-2 text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
+              onClick={requestClose}
+              disabled={!allowClose}
+              className="min-h-[40px] px-2 text-sm font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)] disabled:opacity-40"
             >
               关闭
             </button>

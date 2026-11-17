@@ -5,6 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ERROR_COPY, LOGIN_COPY, PRODUCT } from "@/v1/ui/copy";
 import { v1api, V1ApiError } from "@/v1/client/api";
 
+const EMAIL_KEY = "alpha-last-email";
+
+function maskEmail(raw: string): string {
+  const email = raw.trim();
+  const at = email.indexOf("@");
+  if (at <= 0) return email;
+  const local = email.slice(0, at);
+  const domain = email.slice(at);
+  if (local.length <= 2) return `${local[0] ?? ""}*${domain}`;
+  return `${local.slice(0, 2)}··${domain}`;
+}
+
 export default function AlphaLoginPage() {
   const router = useRouter();
   const search = useSearchParams();
@@ -22,6 +34,16 @@ export default function AlphaLoginPage() {
   const [cooldown, setCooldown] = useState(0);
   const otpRef = useRef<HTMLInputElement>(null);
   const autoSubmitRef = useRef(false);
+  const cooldownTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(EMAIL_KEY);
+      if (saved) setEmail(saved);
+    } catch {
+      /* private mode */
+    }
+  }, []);
 
   useEffect(() => {
     if (challengeId && challengeId !== "pending") {
@@ -29,12 +51,26 @@ export default function AlphaLoginPage() {
     }
   }, [challengeId]);
 
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current != null) {
+        window.clearInterval(cooldownTimerRef.current);
+      }
+    };
+  }, []);
+
   function startCooldown() {
+    if (cooldownTimerRef.current != null) {
+      window.clearInterval(cooldownTimerRef.current);
+    }
     setCooldown(60);
-    const t = window.setInterval(() => {
+    cooldownTimerRef.current = window.setInterval(() => {
       setCooldown((c) => {
         if (c <= 1) {
-          window.clearInterval(t);
+          if (cooldownTimerRef.current != null) {
+            window.clearInterval(cooldownTimerRef.current);
+            cooldownTimerRef.current = null;
+          }
           return 0;
         }
         return c - 1;
@@ -47,13 +83,19 @@ export default function AlphaLoginPage() {
     setMessage("");
     autoSubmitRef.current = false;
     try {
+      const trimmed = email.trim();
       const body: { email: string; inviteToken?: string } = {
-        email: email.trim(),
+        email: trimmed,
       };
       if (showInvite && inviteToken.trim()) {
         body.inviteToken = inviteToken.trim();
       }
       const res = await v1api.requestCode(body);
+      try {
+        localStorage.setItem(EMAIL_KEY, trimmed);
+      } catch {
+        /* private mode */
+      }
       setChallengeId(res.challengeId ?? "pending");
       setMessage(ERROR_COPY.requestCodeGeneric);
       startCooldown();
@@ -87,6 +129,11 @@ export default function AlphaLoginPage() {
     } catch {
       setMessage(ERROR_COPY.verifyFailed);
       autoSubmitRef.current = false;
+      setCode("");
+      requestAnimationFrame(() => {
+        otpRef.current?.focus();
+        otpRef.current?.select();
+      });
     } finally {
       setBusy(false);
     }
@@ -211,9 +258,16 @@ export default function AlphaLoginPage() {
           </form>
         ) : (
           <form onSubmit={onVerify} className="space-y-5">
-            <p className="text-sm text-[color:var(--a-muted)]" role="status">
-              {ERROR_COPY.requestCodeGeneric}
-            </p>
+            <div className="space-y-1.5" role="status">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                {ERROR_COPY.requestCodeGeneric}
+              </p>
+              {email.trim() ? (
+                <p className="text-sm font-semibold text-[color:var(--a-ink)]">
+                  验证码已发往 {maskEmail(email)}
+                </p>
+              ) : null}
+            </div>
             <div>
               <label htmlFor="alpha-otp" className="alpha-label">
                 验证码

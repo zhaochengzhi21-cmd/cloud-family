@@ -34,6 +34,14 @@ export default function AlphaFamiliesPage() {
     if (!busy) setCreating(false);
   }, [busy]);
 
+  const openCreate = useCallback(() => {
+    setDisplayName("");
+    setSurname("");
+    setSurnameTouched(false);
+    setError("");
+    setCreating(true);
+  }, []);
+
   useFocusTrap(createDialogRef, closeCreate, nameInputRef, creating);
 
   useEffect(() => {
@@ -164,10 +172,7 @@ export default function AlphaFamiliesPage() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              setSurnameTouched(false);
-              setCreating(true);
-            }}
+            onClick={openCreate}
             className="alpha-btn alpha-btn-primary mt-8"
           >
             {EMPTY_FAMILIES.cta}
@@ -250,10 +255,7 @@ export default function AlphaFamiliesPage() {
           )}
           <button
             type="button"
-            onClick={() => {
-              setSurnameTouched(false);
-              setCreating(true);
-            }}
+            onClick={openCreate}
             className="alpha-btn alpha-btn-ghost mt-3 !justify-start !px-0"
           >
             + 创建家族档案
@@ -338,7 +340,8 @@ export default function AlphaFamiliesPage() {
               <div className="mt-6 flex gap-3">
                 <button
                   type="button"
-                  onClick={() => setCreating(false)}
+                  onClick={closeCreate}
+                  disabled={busy}
                   className="alpha-btn alpha-btn-secondary flex-1"
                 >
                   取消

@@ -137,7 +137,8 @@ async function runCoreJourney(
   await expect(page.getByText("父母：赵甲")).toBeVisible();
 
   // Flow 04b — remove relationship from drawer, then restore for later flows
-  await page.getByRole("button", { name: "赵乙" }).first().click();
+  // Prefer /^赵乙/ — accessible name now includes 「父母：赵甲」, so plain "赵乙" also hits 赵甲
+  await page.getByRole("button", { name: /^赵乙/ }).click();
   const drawer = page.getByRole("dialog");
   await expect(drawer.getByText("第二代")).toBeVisible();
   await expect(drawer.getByText("父母：赵甲")).toBeVisible();
@@ -166,7 +167,7 @@ async function runCoreJourney(
   ).toBeVisible();
   await page.getByRole("button", { name: "取消" }).click();
   await page.getByRole("tab", { name: "世系" }).click();
-  await page.getByRole("button", { name: "赵乙" }).first().click();
+  await page.getByRole("button", { name: /^赵乙/ }).click();
   await expect(drawer.getByText("父母：赵甲")).toBeVisible();
   await drawer.getByRole("button", { name: "移除", exact: true }).click();
   await drawer.getByRole("button", { name: "确认移除" }).click();
@@ -381,7 +382,7 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
 
     // Drawer: living status edit
     await page.getByRole("tab", { name: "成员" }).click();
-    await page.getByRole("button", { name: "赵甲" }).click();
+    await page.getByRole("button", { name: /^赵甲/ }).click();
     await page.locator("#edit-living").selectOption("LIVING");
     await page.getByRole("button", { name: "保存基本信息" }).click();
     await expect(page.getByText("已保存基本信息")).toBeVisible();
@@ -510,7 +511,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     await loginAs(p2, ownerId, baseURL!);
     await p2.goto(`/alpha/families/${familyId}`);
     await expect(p2.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible();
-    await p2.getByRole("button", { name: /赵乙/ }).first().click();
+    await p2.getByRole("button", { name: /^赵乙/ }).click();
     await expect(p2.locator("#edit-name")).toBeVisible();
     const uiRev = Number(
       await p2.locator("form[data-revision]").getAttribute("data-revision")
@@ -583,11 +584,15 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     await expect(
       loginPage.getByText("如果该邮箱可以使用云族谱，我们已经发送了验证码。").first()
     ).toBeVisible();
+    await expect(
+      loginPage.getByText(/验证码已发往 te··@example\.com/)
+    ).toBeVisible();
     await loginPage.getByLabel(/验证码/).fill("123456");
     // OTP auto-submits at 6 digits
     await expect(
       loginPage.getByText("验证码无效或已过期，请重新获取。").first()
     ).toBeVisible();
+    await expect(loginPage.getByLabel(/验证码/)).toHaveValue("");
     await loginCtx.close();
 
     // Gate unit — fail closed when unset
