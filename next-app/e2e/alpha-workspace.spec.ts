@@ -331,6 +331,28 @@ async function runCoreJourney(
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
   await expect(page.getByText(/测试族谱/)).toBeVisible();
 
+  // Person page — life timeline, kin links, back to records
+  await page.getByRole("button", { name: "打开此人" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "查看人物页" }).click();
+  await expect(page).toHaveURL(new RegExp(`/people/${yi.id}$`));
+  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByText("第二代")).toBeVisible();
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByText("民国十三年")).toBeVisible();
+  await expect(life.getByText("民国十四年")).toHaveCount(0);
+  const kin = page.getByRole("region", { name: "家人" });
+  await kin.getByRole("link", { name: "赵甲" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "赵甲" })).toBeVisible();
+  await page.getByRole("region", { name: "家人" }).getByRole("link", { name: "赵乙" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible();
+  await page.getByRole("button", { name: "补充或修改资料" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
+
   // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();

@@ -2813,6 +2813,9 @@ function PersonDrawer({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [pendingPersonId, setPendingPersonId] = useState<string | null>(null);
+  const [pendingProfile, setPendingProfile] = useState(false);
+  const drawerRouter = useRouter();
+  const profileHref = `/alpha/families/${familyId}/people/${person.id}`;
   const [deleting, setDeleting] = useState(false);
   const [confirmRelId, setConfirmRelId] = useState<string | null>(null);
   const [removingRel, setRemovingRel] = useState(false);
@@ -2881,11 +2884,24 @@ function PersonDrawer({
 
   const discardPending = useCallback(() => {
     const nextId = pendingPersonId;
+    const toProfile = pendingProfile;
     setPendingPersonId(null);
+    setPendingProfile(false);
     setConfirmDiscard(false);
-    if (nextId) onOpenPerson(nextId);
+    if (toProfile) drawerRouter.push(profileHref);
+    else if (nextId) onOpenPerson(nextId);
     else onClose();
-  }, [pendingPersonId, onOpenPerson, onClose]);
+  }, [pendingPersonId, pendingProfile, drawerRouter, profileHref, onOpenPerson, onClose]);
+
+  const openProfile = useCallback(() => {
+    if (dirty) {
+      setPendingPersonId(null);
+      setPendingProfile(true);
+      setConfirmDiscard(true);
+      return;
+    }
+    drawerRouter.push(profileHref);
+  }, [dirty, drawerRouter, profileHref]);
 
   const goToPerson = useCallback(
     (id: string) => {
@@ -2912,6 +2928,7 @@ function PersonDrawer({
     if (confirmDiscard) {
       setConfirmDiscard(false);
       setPendingPersonId(null);
+      setPendingProfile(false);
       return;
     }
     if (dirty) {
@@ -3061,7 +3078,9 @@ function PersonDrawer({
               <p className="text-sm font-semibold text-[color:var(--a-ink)]" role="alert">
                 {pendingPersonId
                   ? "有未保存的修改，切换成员前要放弃吗？"
-                  : "有未保存的修改，确定放弃？"}
+                  : pendingProfile
+                    ? "有未保存的修改，打开人物页前要放弃吗？"
+                    : "有未保存的修改，确定放弃？"}
               </p>
               <div className="flex gap-2">
                 <button
@@ -3070,6 +3089,7 @@ function PersonDrawer({
                   onClick={() => {
                     setConfirmDiscard(false);
                     setPendingPersonId(null);
+                    setPendingProfile(false);
                   }}
                 >
                   继续编辑
@@ -3256,6 +3276,13 @@ function PersonDrawer({
               onClick={onShowInLineage}
             >
               在世系中查看
+            </button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)]"
+              onClick={openProfile}
+            >
+              查看人物页
             </button>
           </div>
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
