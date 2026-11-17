@@ -267,6 +267,23 @@ export const v1api = {
       };
     }>(`/api/v1/families/${familyId}/overview`),
 
+  getActivity: (familyId: string, limit = 15) =>
+    v1Fetch<{
+      activity: Array<{
+        id: string;
+        at: string;
+        eventType: string;
+        actor: { isYou: boolean; role: string | null };
+        personId?: string;
+        personName?: string;
+        otherPersonId?: string;
+        otherPersonName?: string;
+        claimType?: string;
+        relationshipType?: string;
+        evidenceType?: string;
+      }>;
+    }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
+
   createPerson: (
     familyId: string,
     body: {

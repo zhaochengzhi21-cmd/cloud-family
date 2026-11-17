@@ -207,6 +207,13 @@ async function runCoreJourney(
   await expect(
     page.getByRole("button", { name: "为赵甲补充出生信息" })
   ).toBeVisible();
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await expect(feed).toContainText("你 为「赵乙」添加了出生信息");
+  await expect(feed).toContainText("你 创建了家族档案");
+  await expect(feed.getByRole("link", { name: "赵乙" }).first()).toHaveAttribute(
+    "href",
+    `/alpha/families/${familyId}/people/${yi.id}`
+  );
   await page
     .getByRole("region", { name: /待确认资料/ })
     .getByRole("button", { name: /赵乙/ })
@@ -528,6 +535,19 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     const privId = (
       privCreate.body as { person: { id: string } }
     ).person.id;
+    type FeedItem = { personId?: string; otherPersonId?: string; personName?: string };
+    const ownerFeed = await apiJson(
+      ownerPage2,
+      `/api/v1/families/${familyId}/activity`,
+      undefined,
+      baseURL
+    );
+    expect(ownerFeed.status).toBe(200);
+    expect(
+      (ownerFeed.body as { activity: FeedItem[] }).activity.some(
+        (i) => i.personId === privId
+      )
+    ).toBe(true);
     await ownerCtx2.close();
 
     const editorCtx2 = await browser.newContext({
@@ -547,6 +567,18 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
       baseURL
     );
     expect([403, 404]).toContain(privGet.status);
+    // Activity feed must not reveal the private person to the editor
+    const editorFeed = await apiJson(
+      editorPage2,
+      `/api/v1/families/${familyId}/activity`,
+      undefined,
+      baseURL
+    );
+    expect(editorFeed.status).toBe(200);
+    const editorItems = (editorFeed.body as { activity: FeedItem[] }).activity;
+    expect(editorItems.length).toBeGreaterThan(0);
+    expect(JSON.stringify(editorItems)).not.toContain(privId);
+    expect(JSON.stringify(editorItems)).not.toContain("私密测试员");
     await editorCtx2.close();
 
     // Flow 13 — concurrency (stale revision in UI drawer)

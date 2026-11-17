@@ -103,6 +103,25 @@ export const EMPTY_FAMILIES = {
   cta: "创建第一个家族档案",
 } as const;
 
+/** "刚刚 / 5 分钟前 / 3 小时前 / 昨天 / 11月3日" — feed timestamps. */
+export function relativeTimeLabel(iso: string, now: Date = new Date()): string {
+  const t = new Date(iso);
+  const diffMs = now.getTime() - t.getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "刚刚";
+  if (min < 60) return `${min} 分钟前`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const dayMs = 86400000;
+  if (t.getTime() >= startOfToday.getTime() - dayMs) return "昨天";
+  if (t.getFullYear() === now.getFullYear()) {
+    return `${t.getMonth() + 1}月${t.getDate()}日`;
+  }
+  return `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日`;
+}
+
 export function generationLabel(gen: number): string {
   const cn = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   if (gen >= 1 && gen <= 10) return `第${cn[gen]}代`;

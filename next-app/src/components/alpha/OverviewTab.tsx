@@ -1,13 +1,93 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CLAIM_STATUS_LABEL, CLAIM_TYPE_UI } from "@/v1/ui/copy";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  CLAIM_STATUS_LABEL,
+  CLAIM_TYPE_UI,
+  EVIDENCE_TYPE_UI,
+  ROLE_LABEL,
+  relativeTimeLabel,
+} from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 
 type Person = { id: string; preferredName: string };
 type Rel = { fromPersonId: string; toPersonId: string };
 
 type Overview = Awaited<ReturnType<typeof v1api.getOverview>>["overview"];
+type ActivityItem = Awaited<
+  ReturnType<typeof v1api.getActivity>
+>["activity"][number];
+
+/** Sentence pieces: plain text or a person reference rendered as a link. */
+type Piece = string | { personId: string; name: string };
+
+const PARENT_KIND: Record<string, string> = {
+  BIOLOGICAL_PARENT: "父母",
+  ADOPTIVE_PARENT: "养父母",
+  STEP_PARENT: "继父母",
+};
+
+function actorLabel(a: ActivityItem["actor"]): string {
+  if (a.isYou) return "你";
+  if (a.role && a.role in ROLE_LABEL) {
+    return ROLE_LABEL[a.role as keyof typeof ROLE_LABEL];
+  }
+  return "家人";
+}
+
+function activityPieces(item: ActivityItem): Piece[] | null {
+  const p: Piece | null =
+    item.personId && item.personName
+      ? { personId: item.personId, name: item.personName }
+      : null;
+  const o: Piece | null =
+    item.otherPersonId && item.otherPersonName
+      ? { personId: item.otherPersonId, name: item.otherPersonName }
+      : null;
+  const claimLabel = item.claimType
+    ? CLAIM_TYPE_UI[item.claimType]?.label ?? "资料"
+    : "资料";
+  switch (item.eventType) {
+    case "FAMILY_CREATED":
+      return ["创建了家族档案"];
+    case "FAMILY_IDENTITY_UPDATED":
+      return ["更新了家族档案信息"];
+    case "PERSON_CREATED":
+      return p ? ["添加了成员「", p, "」"] : null;
+    case "PERSON_UPDATED":
+      return p ? ["更新了「", p, "」的基本信息"] : null;
+    case "PERSON_DELETED":
+      return ["移除了一位成员"];
+    case "RELATIONSHIP_CREATED":
+      if (!p || !o) return null;
+      return item.relationshipType === "SPOUSE"
+        ? ["记录了「", p, "」与「", o, "」为配偶"]
+        : [
+            "记录了「",
+            p,
+            `」是「`,
+            o,
+            `」的${PARENT_KIND[item.relationshipType ?? ""] ?? "父母"}`,
+          ];
+    case "RELATIONSHIP_DELETED":
+      return p && o ? ["取消了「", p, "」与「", o, "」的家庭关系"] : null;
+    case "CLAIM_CREATED":
+      return p ? ["为「", p, `」添加了${claimLabel}`] : null;
+    case "CLAIM_ACCEPTED":
+      return p ? ["确认了「", p, `」的${claimLabel}`] : null;
+    case "CLAIM_REJECTED":
+      return p ? ["不采用「", p, `」的一条${claimLabel}`] : null;
+    case "EVIDENCE_CREATED": {
+      const t = item.evidenceType ? EVIDENCE_TYPE_UI[item.evidenceType] : null;
+      return [t ? `添加了一条资料来源（${t}）` : "添加了一条资料来源"];
+    }
+    case "EVIDENCE_DELETED":
+      return ["移除了一条资料来源"];
+    default:
+      return null;
+  }
+}
 
 const NAME_PREVIEW = 3;
 
@@ -43,13 +123,18 @@ export function OverviewTab({
   onAuthError: (e: unknown) => boolean;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[] | null>(null);
   const [loadError, setLoadError] = useState("");
 
   const load = useCallback(async () => {
     setLoadError("");
     try {
-      const res = await v1api.getOverview(familyId);
-      setOverview(res.overview);
+      const [ov, act] = await Promise.all([
+        v1api.getOverview(familyId),
+        v1api.getActivity(familyId),
+      ]);
+      setOverview(ov.overview);
+      setActivity(act.activity);
     } catch (e) {
       if (onAuthError(e)) return;
       setLoadError(userMessageForApiError(e));
@@ -335,6 +420,52 @@ export function OverviewTab({
               );
             })}
           </ul>
+        </section>
+      ) : null}
+
+      {activity && activity.length > 0 ? (
+        <section aria-labelledby="overview-activity">
+          <h2
+            id="overview-activity"
+            className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            最近动态
+          </h2>
+          <ol className="alpha-panel divide-y divide-[color:var(--a-brand-line)]">
+            {activity.map((item) => {
+              const pieces = activityPieces(item);
+              if (!pieces) return null;
+              return (
+                <li
+                  key={item.id}
+                  className="flex items-baseline justify-between gap-3 px-4 py-3 text-sm"
+                >
+                  <p className="min-w-0 leading-relaxed text-[color:var(--a-ink)]">
+                    <span className="font-semibold">{actorLabel(item.actor)}</span>{" "}
+                    {pieces.map((piece, i) =>
+                      typeof piece === "string" ? (
+                        <Fragment key={i}>{piece}</Fragment>
+                      ) : (
+                        <Link
+                          key={i}
+                          href={`/alpha/families/${familyId}/people/${piece.personId}`}
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        >
+                          {piece.name}
+                        </Link>
+                      )
+                    )}
+                  </p>
+                  <time
+                    dateTime={item.at}
+                    className="shrink-0 text-xs text-[color:var(--a-muted)]"
+                  >
+                    {relativeTimeLabel(item.at)}
+                  </time>
+                </li>
+              );
+            })}
+          </ol>
         </section>
       ) : null}
     </div>
