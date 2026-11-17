@@ -383,6 +383,31 @@ async function runCoreJourney(
   expect(backupJson.sources.some((s) => s.title === "测试族谱")).toBe(true);
   await expect(backup.getByRole("status")).toContainText("已生成备份");
 
+  // Printable family book
+  await backup.getByRole("link", { name: "打印版家谱" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}/print$`));
+  await expect(
+    page.getByRole("heading", { level: 1, name: "测试赵氏家庭" })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("region", { name: "第一代" })).toContainText("赵甲");
+  const gen2 = page.getByRole("region", { name: "第二代" });
+  await expect(gen2).toContainText("赵乙");
+  await expect(gen2).toContainText("民国十三年");
+  await expect(gen2).not.toContainText("民国十四年");
+  await expect(gen2).toContainText("父母赵甲");
+  await expect(page.getByRole("region", { name: "资料来源" })).toContainText(
+    "族谱 · 测试族谱 · 第17页"
+  );
+  await expect(page.getByRole("region", { name: "资料来源" })).not.toContainText(
+    "测试合成照片"
+  );
+  const printBtn = page.getByRole("button", { name: "打印或保存为 PDF" });
+  await expect(printBtn).toBeVisible();
+  await page.emulateMedia({ media: "print" });
+  await expect(printBtn).toBeHidden();
+  await expect(page.locator(".alpha-nav")).toBeHidden();
+  await page.emulateMedia({ media: "screen" });
+
   // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
@@ -475,6 +500,8 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     baseURL,
     browser,
   }) => {
+    // Covers a dozen flows end to end; dev-server first compiles add up.
+    test.setTimeout(420_000);
     const { ownerId, familyId, yiId } = await runCoreJourney(page, baseURL!);
 
     // Flow 11 — Viewer

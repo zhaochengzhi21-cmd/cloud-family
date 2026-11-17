@@ -332,3 +332,43 @@
     transition: none !important;
   }
 }
+
+@media print {
+  @page {
+    margin: 16mm 14mm;
+  }
+
+  .alpha-shell {
+    background: #fff !important;
+    min-height: 0;
+  }
+
+  .alpha-nav,
+  .alpha-skip-link,
+  .alpha-print-hide {
+    display: none !important;
+  }
+
+  .alpha-shell #alpha-main {
+    max-width: none;
+    padding: 0;
+  }
+
+  .alpha-shell .alpha-panel {
+    background: #fff;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .alpha-shell .alpha-fade-in {
+    animation: none;
+  }
+
+  .alpha-print-avoid-break {
+    break-inside: avoid;
+  }
+
+  .alpha-print-page-break {
+    break-before: page;
+  }
+}

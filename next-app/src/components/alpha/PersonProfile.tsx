@@ -260,7 +260,7 @@ export function PersonProfile({
     <article className="alpha-fade-in py-2">
       <Link
         href={workspaceHref}
-        className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+        className="alpha-print-hide text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
       >
         ← {familyName || PRODUCT.family}
       </Link>
@@ -285,15 +285,24 @@ export function PersonProfile({
             </span>
           ) : null}
         </div>
-        {canEdit ? (
+        <div className="alpha-print-hide mt-5 flex flex-wrap gap-2">
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={openRecords}
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            >
+              补充或修改资料
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={openRecords}
-            className="alpha-btn alpha-btn-secondary mt-5 !min-h-[40px] !text-sm"
+            onClick={() => window.print()}
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
           >
-            补充或修改资料
+            打印
           </button>
-        ) : null}
+        </div>
       </header>
 
       <section aria-labelledby="profile-life" className="mb-8">
@@ -378,7 +387,7 @@ export function PersonProfile({
       {canEdit && missingTypes.length > 0 ? (
         <section
           aria-labelledby="profile-missing"
-          className="rounded-2xl bg-[color:var(--a-brand-soft)]/50 px-4 py-4"
+          className="alpha-print-hide rounded-2xl bg-[color:var(--a-brand-soft)]/50 px-4 py-4"
         >
           <h2
             id="profile-missing"

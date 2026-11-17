@@ -21,7 +21,7 @@ export function AlphaConnectivityBanner() {
 
   return (
     <div
-      className="border-b border-[color:var(--a-brand-line)] bg-[color:var(--a-warn-soft)] px-4 py-2.5 text-center text-sm text-[color:var(--a-ink)]"
+      className="alpha-print-hide border-b border-[color:var(--a-brand-line)] bg-[color:var(--a-warn-soft)] px-4 py-2.5 text-center text-sm text-[color:var(--a-ink)]"
       role="status"
       aria-live="polite"
     >

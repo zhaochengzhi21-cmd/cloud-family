@@ -4,6 +4,10 @@
  */
 
 import { ERROR_COPY } from "@/v1/ui/copy";
+import type { FamilyExport } from "@/v1/services/exportService";
+
+/** FamilyExport after JSON transport (dates are already ISO strings). */
+export type FamilyExportJson = FamilyExport;
 
 export type ApiErrorCode =
   | "UNAUTHENTICATED"
@@ -285,17 +289,10 @@ export const v1api = {
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
 
   exportFamily: (familyId: string) =>
-    v1Fetch<{
-      export: {
-        format: string;
-        version: number;
-        exportedAt: string;
-        family: { id: string; displayName: string; surname: string | null };
-        persons: Array<{ id: string; preferredName: string }>;
-        relationships: unknown[];
-        sources: unknown[];
-      };
-    }>(`/api/v1/families/${familyId}/export`, { timeoutMs: 120_000 }),
+    v1Fetch<{ export: FamilyExportJson }>(
+      `/api/v1/families/${familyId}/export`,
+      { timeoutMs: 120_000 }
+    ),
 
   createPerson: (
     familyId: string,

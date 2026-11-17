@@ -530,16 +530,24 @@ function BackupSection({
       </h2>
       <div className="alpha-panel px-4 py-4">
         <p className="text-sm leading-relaxed text-[color:var(--a-muted)]">
-          下载一份你能看到的成员、关系、资料与来源，自己保存一份，更安心。照片等原件不包含在文件里。
+          下载一份你能看到的成员、关系、资料与来源，自己保存一份，更安心。照片等原件不包含在文件里。也可以生成按代排列的打印版，存成 PDF 或印出来给长辈看。
         </p>
-        <button
-          type="button"
-          onClick={() => void download()}
-          disabled={busy}
-          className="alpha-btn alpha-btn-secondary mt-3 !min-h-[40px] !text-sm"
-        >
-          {busy ? "正在整理…" : "下载家族备份"}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void download()}
+            disabled={busy}
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+          >
+            {busy ? "正在整理…" : "下载家族备份"}
+          </button>
+          <Link
+            href={`/alpha/families/${familyId}/print`}
+            className="alpha-btn alpha-btn-secondary inline-flex !min-h-[40px] !text-sm"
+          >
+            打印版家谱
+          </Link>
+        </div>
         {message ? (
           <p
             role={failed ? "alert" : "status"}
