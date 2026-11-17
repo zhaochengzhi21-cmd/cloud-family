@@ -468,7 +468,92 @@ export function OverviewTab({
           </ol>
         </section>
       ) : null}
+
+      {persons.length > 0 ? (
+        <BackupSection familyId={familyId} onAuthError={onAuthError} />
+      ) : null}
     </div>
+  );
+}
+
+function backupFileName(displayName: string, at: Date): string {
+  const safe = displayName.replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 40);
+  const ymd = `${at.getFullYear()}${String(at.getMonth() + 1).padStart(2, "0")}${String(at.getDate()).padStart(2, "0")}`;
+  return `${safe || "家族"}-备份-${ymd}.json`;
+}
+
+function BackupSection({
+  familyId,
+  onAuthError,
+}: {
+  familyId: string;
+  onAuthError: (e: unknown) => boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
+
+  async function download() {
+    setBusy(true);
+    setMessage("");
+    setFailed(false);
+    try {
+      const { export: data } = await v1api.exportFamily(familyId);
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = backupFileName(data.family.displayName, new Date());
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage(`已生成备份：${data.persons.length} 位成员`);
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="overview-backup">
+      <h2
+        id="overview-backup"
+        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+      >
+        备份
+      </h2>
+      <div className="alpha-panel px-4 py-4">
+        <p className="text-sm leading-relaxed text-[color:var(--a-muted)]">
+          下载一份你能看到的成员、关系、资料与来源，自己保存一份，更安心。照片等原件不包含在文件里。
+        </p>
+        <button
+          type="button"
+          onClick={() => void download()}
+          disabled={busy}
+          className="alpha-btn alpha-btn-secondary mt-3 !min-h-[40px] !text-sm"
+        >
+          {busy ? "正在整理…" : "下载家族备份"}
+        </button>
+        {message ? (
+          <p
+            role={failed ? "alert" : "status"}
+            className={`mt-2 text-sm ${
+              failed
+                ? "text-[color:var(--a-danger)]"
+                : "text-[color:var(--a-brand)]"
+            }`}
+          >
+            {message}
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 

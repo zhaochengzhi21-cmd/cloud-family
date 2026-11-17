@@ -2,6 +2,7 @@
  * CF-V1-UI-001 Closed Alpha workspace E2E (fake session cookie).
  */
 
+import { readFileSync } from "node:fs";
 import { test, expect } from "@playwright/test";
 import {
   requireV1Env,
@@ -362,6 +363,26 @@ async function runCoreJourney(
   });
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
 
+  // Backup download from overview
+  await page.getByRole("tab", { name: "概览" }).click();
+  const backup = page.getByRole("region", { name: "备份" });
+  const downloadEvt = page.waitForEvent("download");
+  await backup.getByRole("button", { name: "下载家族备份" }).click();
+  const download = await downloadEvt;
+  expect(download.suggestedFilename()).toMatch(/^测试赵氏家庭-备份-\d{8}\.json$/);
+  const backupJson = JSON.parse(
+    readFileSync(await download.path(), "utf8")
+  ) as {
+    format: string;
+    persons: { preferredName: string; facts: { value: { text?: string } }[] }[];
+    sources: { title: string | null }[];
+  };
+  expect(backupJson.format).toBe("yunzupu.family-export");
+  const yiExport = backupJson.persons.find((p) => p.preferredName === "赵乙");
+  expect(yiExport?.facts.some((f) => f.value.text === "民国十三年")).toBe(true);
+  expect(backupJson.sources.some((s) => s.title === "测试族谱")).toBe(true);
+  await expect(backup.getByRole("status")).toContainText("已生成备份");
+
   // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
@@ -550,6 +571,17 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
         (i) => i.personId === privId
       )
     ).toBe(true);
+    type ExportBody = { export: { persons: { id: string }[] } };
+    const ownerExport = await apiJson(
+      ownerPage2,
+      `/api/v1/families/${familyId}/export`,
+      undefined,
+      baseURL
+    );
+    expect(ownerExport.status).toBe(200);
+    expect(
+      (ownerExport.body as ExportBody).export.persons.some((p) => p.id === privId)
+    ).toBe(true);
     await ownerCtx2.close();
 
     const editorCtx2 = await browser.newContext({
@@ -581,6 +613,17 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     expect(editorItems.length).toBeGreaterThan(0);
     expect(JSON.stringify(editorItems)).not.toContain(privId);
     expect(JSON.stringify(editorItems)).not.toContain("私密测试员");
+    const editorExport = await apiJson(
+      editorPage2,
+      `/api/v1/families/${familyId}/export`,
+      undefined,
+      baseURL
+    );
+    expect(editorExport.status).toBe(200);
+    const editorExportText = JSON.stringify(editorExport.body);
+    expect((editorExport.body as ExportBody).export.persons.length).toBeGreaterThan(0);
+    expect(editorExportText).not.toContain(privId);
+    expect(editorExportText).not.toContain("私密测试员");
     await editorCtx2.close();
 
     // Flow 13 — concurrency (stale revision in UI drawer)
