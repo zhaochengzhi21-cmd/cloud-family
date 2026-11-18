@@ -300,13 +300,18 @@ export const v1api = {
       invitableRoles: Array<"ADMIN" | "EDITOR" | "VIEWER">;
     }>(`/api/v1/families/${familyId}/invites`),
 
-  createFamilyInvite: (familyId: string, role: "ADMIN" | "EDITOR" | "VIEWER") =>
+  createFamilyInvite: (
+    familyId: string,
+    role: "ADMIN" | "EDITOR" | "VIEWER",
+    options?: { email?: string }
+  ) =>
     v1Fetch<{
       invite: { id: string; role: string; expiresAt: string; createdAt: string };
       token: string;
+      emailDelivery: "sent" | "skipped" | "failed" | null;
     }>(`/api/v1/families/${familyId}/invites`, {
       method: "POST",
-      body: { role },
+      body: { role, email: options?.email },
     }),
 
   revokeFamilyInvite: (familyId: string, inviteId: string) =>

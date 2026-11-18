@@ -7,13 +7,29 @@ import {
   createFamilyInvite,
   getFamilyAccessSummary,
 } from "@/v1/services/familyInviteService";
+import { findActiveFamilyById } from "@/v1/repositories/familyRepository";
+import { sendFamilyInviteEmail } from "@/v1/email/sendFamilyInviteEmail";
+import { ROLE_LABEL } from "@/v1/ui/copy";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const paramsSchema = z.object({ familyId: z.string().uuid() });
-const bodySchema = z.object({ role: z.enum(["ADMIN", "EDITOR", "VIEWER"]) });
+const bodySchema = z.object({
+  role: z.enum(["ADMIN", "EDITOR", "VIEWER"]),
+  email: z.string().email().optional(),
+});
+
+function requestPublicOrigin(req: NextRequest): string | null {
+  const host =
+    req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() ||
+    req.headers.get("host")?.trim();
+  if (!host) return null;
+  const proto =
+    req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "http";
+  return `${proto}://${host}`;
+}
 
 /** GET — open invites, member roles, and roles the caller may invite (OWNER / ADMIN). */
 export async function GET(
@@ -53,7 +69,7 @@ export async function GET(
   }
 }
 
-/** POST { role } — create a single-use invite; the raw token is returned once. */
+/** POST { role, email? } — create a single-use invite; raw token returned once. */
 export async function POST(
   req: NextRequest,
   { params }: { params: { familyId: string } }
@@ -75,6 +91,26 @@ export async function POST(
       parsed.data.role,
       { db: ctx.db }
     );
+
+    let emailDelivery: "sent" | "skipped" | "failed" | null = null;
+    if (parsed.data.email) {
+      const family = await findActiveFamilyById(ctx.db, p.data.familyId);
+      const origin = requestPublicOrigin(req);
+      if (!family || !origin) {
+        emailDelivery = "failed";
+      } else {
+        const roleLabel =
+          ROLE_LABEL[invite.role as keyof typeof ROLE_LABEL] ?? invite.role;
+        emailDelivery = await sendFamilyInviteEmail({
+          to: parsed.data.email,
+          familyName: family.displayName,
+          roleLabel,
+          inviteUrl: `${origin}/alpha/invite/${invite.rawToken}`,
+          expiresAt: invite.expiresAt,
+        });
+      }
+    }
+
     return okJson(
       {
         invite: {
@@ -84,6 +120,7 @@ export async function POST(
           createdAt: invite.createdAt.toISOString(),
         },
         token: invite.rawToken,
+        emailDelivery,
       },
       201
     );

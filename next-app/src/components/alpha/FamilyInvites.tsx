@@ -31,6 +31,7 @@ export function FamilyInvites({
 }) {
   const [access, setAccess] = useState<Access | null>(null);
   const [role, setRole] = useState<InviteRole>("EDITOR");
+  const [email, setEmail] = useState("");
   const [link, setLink] = useState<{ url: string; role: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -59,11 +60,26 @@ export function FamilyInvites({
     setMessage("");
     setFailed(false);
     try {
-      const r = await v1api.createFamilyInvite(familyId, role);
+      const trimmed = email.trim();
+      const r = await v1api.createFamilyInvite(
+        familyId,
+        role,
+        trimmed ? { email: trimmed } : undefined
+      );
       setLink({
         url: `${window.location.origin}/alpha/invite/${r.token}`,
         role: r.invite.role,
       });
+      if (trimmed) {
+        if (r.emailDelivery === "sent") {
+          setMessage("已发送邀请邮件；也可复制下方链接备用");
+        } else if (r.emailDelivery === "failed") {
+          setFailed(true);
+          setMessage("邮件发送失败，请复制下方链接发给对方");
+        } else {
+          setMessage("当前环境未开通发信，请复制下方链接发给对方");
+        }
+      }
       await load();
     } catch (e) {
       if (onAuthError(e)) return;
@@ -125,7 +141,7 @@ export function FamilyInvites({
             .filter((r) => counts.get(r))
             .map((r) => `${roleLabel(r)} ${counts.get(r)}`)
             .join("、")}
-          。生成一条链接发给家人，对方登录后即可加入；每条链接只能用一次，7 天内有效。
+          。可复制链接发给家人，也可填写邮箱尝试发送；对方登录后即可加入。每条链接只能用一次，7 天内有效。
         </p>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -144,13 +160,26 @@ export function FamilyInvites({
               ))}
             </select>
           </label>
+          <label className="min-w-0 flex-1">
+            <span className="alpha-label">对方邮箱（可选）</span>
+            <input
+              id="invite-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="例如：家人@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="alpha-input !min-h-[40px] !text-sm"
+            />
+          </label>
           <button
             type="button"
             onClick={() => void create()}
             disabled={busy}
             className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
           >
-            {busy ? "生成中…" : "生成邀请链接"}
+            {busy ? "生成中…" : email.trim() ? "生成并发送" : "生成邀请链接"}
           </button>
         </div>
 

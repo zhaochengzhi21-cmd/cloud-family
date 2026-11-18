@@ -960,6 +960,38 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     ).toBe("UNAVAILABLE");
     await outsiderCtx.close();
 
+    // Optional email: without verified Resend, invite still created and delivery skipped
+    const emailed = await apiJson(
+      page,
+      `/api/v1/families/${familyId}/invites`,
+      {
+        method: "POST",
+        body: { role: "VIEWER", email: "family-invite-e2e@example.com" },
+      },
+      baseURL
+    );
+    expect(emailed.status).toBe(201);
+    expect((emailed.body as { emailDelivery: string }).emailDelivery).toBe(
+      "skipped"
+    );
+    expect((emailed.body as { token: string }).token).toMatch(
+      /^[A-Za-z0-9_-]{43}$/
+    );
+    await page
+      .getByRole("region", { name: "邀请家人" })
+      .locator("#invite-email")
+      .fill("family-invite-ui@example.com");
+    await page
+      .getByRole("region", { name: "邀请家人" })
+      .getByRole("button", { name: "生成并发送" })
+      .click();
+    await expect(
+      page.getByRole("region", { name: "邀请家人" }).getByRole("status")
+    ).toContainText(/未开通发信|复制下方链接/);
+    await expect(
+      page.getByRole("region", { name: "邀请家人" }).locator("#invite-link")
+    ).toHaveValue(/\/alpha\/invite\//);
+
     // Flow 13 — concurrency (stale revision in UI drawer)
     const c2 = await browser.newContext({
       viewport: { width: 1280, height: 800 },
