@@ -728,6 +728,12 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     }
     await acceptOrder(mYi.id, "次");
     await acceptOrder(bingId, "长");
+    await page.goto(`/alpha/families/${mFamilyId}`);
+    await page.getByRole("tab", { name: "概览" }).click();
+    const orderFeed = page.getByRole("region", { name: "最近动态" });
+    await expect(orderFeed).toContainText(/确认了「赵丙」的排行|添加了排行/, {
+      timeout: 60_000,
+    });
     await page.goto(`/alpha/families/${mFamilyId}/people/${mJia.id}`);
     const kids = page.getByRole("region", { name: "家人" });
     await expect(kids.getByRole("link", { name: "长 赵丙" })).toBeVisible({
