@@ -341,6 +341,37 @@ async function runCoreJourney(
   const mediaId = links.map((l) => l.evidence.mediaObjectId).find(Boolean);
   if (mediaId) trackMedia(familyId, mediaId, ownerId);
 
+  // Person page — life timeline, photo wall, kin links, back to records
+  await page.getByRole("button", { name: "打开此人" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "查看人物页" }).click();
+  await expect(page).toHaveURL(new RegExp(`/people/${yi.id}$`));
+  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByText("第二代")).toBeVisible();
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByText("民国十三年")).toBeVisible();
+  await expect(life.getByText("民国十四年")).toHaveCount(0);
+  await expect(life.getByText(/^来源：.*族谱 · 测试族谱 · 第17页/)).toBeVisible();
+  const photos = page.getByRole("region", { name: "照片" });
+  await expect(photos.getByRole("img", { name: "测试合成照片" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await photos.getByRole("button", { name: /测试合成照片/ }).click();
+  await expect(page.getByRole("dialog", { name: "测试合成照片" })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "关闭" }).click();
+  await expect(page.getByRole("dialog", { name: "测试合成照片" })).toHaveCount(0);
+  const kin = page.getByRole("region", { name: "家人" });
+  await kin.getByRole("link", { name: "赵甲" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "赵甲" })).toBeVisible();
+  await page.getByRole("region", { name: "家人" }).getByRole("link", { name: "赵乙" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible();
+  await page.getByRole("button", { name: "补充或修改资料" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
+
   // Remove media evidence source (OWNER/ADMIN) — innermost li, not the claim card
   const photoRow = page.locator("li").filter({ hasText: "测试合成照片" }).last();
   await photoRow.getByRole("button", { name: "移除来源" }).click();
@@ -357,30 +388,6 @@ async function runCoreJourney(
   });
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
   await expect(page.getByText(/测试族谱/)).toBeVisible();
-
-  // Person page — life timeline, kin links, back to records
-  await page.getByRole("button", { name: "打开此人" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "查看人物页" }).click();
-  await expect(page).toHaveURL(new RegExp(`/people/${yi.id}$`));
-  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
-    timeout: 60_000,
-  });
-  await expect(page.getByText("第二代")).toBeVisible();
-  const life = page.getByRole("region", { name: "生平" });
-  await expect(life.getByText("民国十三年")).toBeVisible();
-  await expect(life.getByText("民国十四年")).toHaveCount(0);
-  await expect(life.getByText(/^来源：.*族谱 · 测试族谱 · 第17页/)).toBeVisible();
-  await expect(life.getByText(/测试合成照片/)).toHaveCount(0);
-  const kin = page.getByRole("region", { name: "家人" });
-  await kin.getByRole("link", { name: "赵甲" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "赵甲" })).toBeVisible();
-  await page.getByRole("region", { name: "家人" }).getByRole("link", { name: "赵乙" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible();
-  await page.getByRole("button", { name: "补充或修改资料" }).click();
-  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
-    timeout: 60_000,
-  });
-  await expect(page.locator("#records-person")).toHaveValue(yi.id);
 
   // Backup download from overview
   await page.getByRole("tab", { name: "概览" }).click();

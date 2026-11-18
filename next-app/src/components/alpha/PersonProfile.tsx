@@ -29,6 +29,11 @@ type EvidenceLink = Awaited<
   ReturnType<typeof v1api.getClaim>
 >["evidenceLinks"][number];
 type SourcesByClaim = Record<string, EvidenceLink[]>;
+type PhotoItem = {
+  mediaId: string;
+  title: string | null;
+  evidenceType: string;
+};
 
 const PARENT_TYPES = new Set([
   "BIOLOGICAL_PARENT",
@@ -84,6 +89,7 @@ export function PersonProfile({
   >({});
   const [claims, setClaims] = useState<Claim[]>([]);
   const [sources, setSources] = useState<SourcesByClaim>({});
+  const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -92,6 +98,7 @@ export function PersonProfile({
   const load = useCallback(async () => {
     const seq = ++loadSeq.current;
     setSources({});
+    setPhotos([]);
     setError("");
     setLoading(true);
     try {
@@ -114,12 +121,23 @@ export function PersonProfile({
       ).then((details) => {
         if (loadSeq.current !== seq) return;
         const next: SourcesByClaim = {};
+        const photoMap = new Map<string, PhotoItem>();
         details.forEach((d, i) => {
-          if (d.status === "fulfilled" && d.value.evidenceLinks.length) {
-            next[visible[i].id] = d.value.evidenceLinks;
+          if (d.status !== "fulfilled" || !d.value.evidenceLinks.length) return;
+          next[visible[i].id] = d.value.evidenceLinks;
+          for (const l of d.value.evidenceLinks) {
+            const mid = l.evidence.mediaObjectId;
+            if (!mid || photoMap.has(mid)) continue;
+            if (l.evidence.evidenceType !== "PHOTO") continue;
+            photoMap.set(mid, {
+              mediaId: mid,
+              title: l.evidence.title,
+              evidenceType: l.evidence.evidenceType,
+            });
           }
         });
         setSources(next);
+        setPhotos([...photoMap.values()]);
       });
     } catch (e) {
       if (handleAuthRedirect(e, router)) return;
@@ -335,6 +353,10 @@ export function PersonProfile({
         </ol>
       </section>
 
+      {photos.length > 0 ? (
+        <PhotoWall familyId={familyId} photos={photos} />
+      ) : null}
+
       <section aria-labelledby="profile-facts" className="mb-8">
         <h2
           id="profile-facts"
@@ -510,6 +532,131 @@ function sourceText(l: EvidenceLink): string {
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function PhotoWall({
+  familyId,
+  photos,
+}: {
+  familyId: string;
+  photos: PhotoItem[];
+}) {
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [failed, setFailed] = useState<Set<string>>(() => new Set());
+  const [viewer, setViewer] = useState<{ url: string; title: string } | null>(
+    null
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      photos.map(async (p) => {
+        try {
+          const r = await v1api.mediaRead(familyId, p.mediaId);
+          if (!cancelled && r.media.mimeType?.startsWith("image/")) {
+            setUrls((prev) =>
+              prev[p.mediaId] ? prev : { ...prev, [p.mediaId]: r.read.url }
+            );
+          } else if (!cancelled) {
+            setFailed((prev) => new Set(prev).add(p.mediaId));
+          }
+        } catch {
+          if (!cancelled) setFailed((prev) => new Set(prev).add(p.mediaId));
+        }
+      })
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, photos]);
+
+  const ready = photos.filter((p) => urls[p.mediaId]);
+  if (ready.length === 0 && failed.size === photos.length) return null;
+  if (ready.length === 0 && Object.keys(urls).length === 0) {
+    return (
+      <section aria-labelledby="profile-photos" className="mb-8">
+        <h2
+          id="profile-photos"
+          className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          照片
+        </h2>
+        <p className="text-sm text-[color:var(--a-muted)]" role="status">
+          正在载入照片…
+        </p>
+      </section>
+    );
+  }
+  if (ready.length === 0) return null;
+
+  return (
+    <section aria-labelledby="profile-photos" className="mb-8">
+      <h2
+        id="profile-photos"
+        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+      >
+        照片
+      </h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        {ready.map((p) => (
+          <li key={p.mediaId}>
+            <button
+              type="button"
+              onClick={() =>
+                setViewer({
+                  url: urls[p.mediaId],
+                  title: p.title || "照片",
+                })
+              }
+              className="group block w-full overflow-hidden rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface)] text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--a-brand)]"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={urls[p.mediaId]}
+                alt={p.title || "家族照片"}
+                className="aspect-square w-full object-cover transition group-hover:opacity-95"
+              />
+              {p.title ? (
+                <span className="block truncate px-2 py-1.5 text-xs text-[color:var(--a-muted)]">
+                  {p.title}
+                </span>
+              ) : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      {viewer ? (
+        <div
+          className="alpha-print-hide fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={viewer.title}
+          tabIndex={-1}
+          ref={(el) => el?.focus()}
+          onClick={() => setViewer(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setViewer(null);
+          }}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-full bg-white/90 px-3 py-1.5 text-sm font-semibold text-[color:var(--a-ink)]"
+            onClick={() => setViewer(null)}
+          >
+            关闭
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={viewer.url}
+            alt={viewer.title}
+            className="max-h-[90vh] max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 function ClaimValues({
