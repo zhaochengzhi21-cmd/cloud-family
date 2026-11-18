@@ -22,6 +22,7 @@ import {
   PRODUCT,
   ROLE_LABEL,
   generationLabel,
+  generationWordsByGeneration,
 } from "@/v1/ui/copy";
 import {
   userMessageForApiError,
@@ -112,6 +113,31 @@ function scrollIntoViewSafe(
     ...options,
     behavior: reduce ? "auto" : options.behavior ?? "smooth",
   });
+}
+
+/** Confirmed 字辈 per person; empty until loaded and on failure (it is only a hint). */
+function useGenerationWords(
+  familyId: string,
+  enabled: boolean,
+  version: number = 0
+) {
+  const [words, setWords] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    v1api
+      .getGenerationWords(familyId)
+      .then((r) => {
+        if (!cancelled) setWords(r.generationWords);
+      })
+      .catch(() => {
+        /* hint only */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, enabled, version]);
+  return words;
 }
 
 export function FamilyWorkspace({
@@ -514,6 +540,8 @@ export function FamilyWorkspace({
             onGoMembers={() => setTab("members")}
             onOpen={(id) => setSelectedPersonId(id)}
             personMap={personMap}
+            familyId={familyId}
+            dataVersion={dataVersion}
           />
         </div>
       ) : null}
@@ -527,6 +555,7 @@ export function FamilyWorkspace({
           <RecordsTab
             familyId={familyId}
             persons={persons}
+            generationByPerson={generationByPerson}
             canEdit={canEdit}
             canReview={canReview}
             role={role}
@@ -608,6 +637,7 @@ export function FamilyWorkspace({
           person={personMap.get(selectedPersonId)!}
           persons={persons}
           generation={generationByPerson[selectedPersonId]}
+          generationByPerson={generationByPerson}
           relationships={relationships}
           personMap={personMap}
           canEdit={canEdit}
@@ -862,6 +892,8 @@ function LineageTab({
   onGoMembers,
   onOpen,
   personMap,
+  familyId,
+  dataVersion,
 }: {
   persons: GraphPerson[];
   relationships: GraphRel[];
@@ -873,7 +905,18 @@ function LineageTab({
   onGoMembers: () => void;
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
+  familyId: string;
+  dataVersion: number;
 }) {
+  const wordsByPerson = useGenerationWords(
+    familyId,
+    relationships.length > 0,
+    dataVersion
+  );
+  const wordsByGen = useMemo(
+    () => generationWordsByGeneration(wordsByPerson, generationByPerson),
+    [wordsByPerson, generationByPerson]
+  );
   const spouses = useMemo(
     () => relationships.filter((r) => r.type === "SPOUSE"),
     [relationships]
@@ -1236,6 +1279,16 @@ function LineageTab({
                       {genCount} 人
                     </span>
                   </button>
+                  {wordsByGen.get(gen)?.length ? (
+                    <span className="ml-3 font-normal text-[color:var(--a-ink)]">
+                      字辈：
+                      {wordsByGen
+                        .get(gen)!
+                        .slice(0, 3)
+                        .map((w) => `「${w.word}」`)
+                        .join("")}
+                    </span>
+                  ) : null}
                 </h3>
                 <ul
                   id={`lineage-gen-${gen}`}
@@ -1353,6 +1406,7 @@ function LineageTab({
 function RecordsTab({
   familyId,
   persons,
+  generationByPerson,
   canEdit,
   canReview,
   role,
@@ -1364,6 +1418,7 @@ function RecordsTab({
 }: {
   familyId: string;
   persons: GraphPerson[];
+  generationByPerson: Record<string, number>;
   canEdit: boolean;
   canReview: boolean;
   role: Role;
@@ -1568,6 +1623,7 @@ function RecordsTab({
           personId={personId}
           canReview={canReview}
           compact
+          generationByPerson={generationByPerson}
           onAuthError={onAuthError}
           onDone={async () => {
             setFlash("已添加人物资料");
@@ -1722,6 +1778,7 @@ function AddClaimForm({
   onError,
   onAuthError,
   compact = false,
+  generationByPerson,
 }: {
   familyId: string;
   personId: string;
@@ -1731,6 +1788,8 @@ function AddClaimForm({
   onAuthError: (e: unknown) => boolean;
   /** On mobile-first surfaces, start collapsed to reduce density. */
   compact?: boolean;
+  /** Enables 字辈 suggestions from the same generation. */
+  generationByPerson?: Record<string, number>;
 }) {
   const [claimType, setClaimType] = useState("BIRTH_DATE");
   const [text, setText] = useState("");
@@ -1738,6 +1797,19 @@ function AddClaimForm({
   const [open, setOpen] = useState(!compact);
   const [localError, setLocalError] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
+  const wantWords = Boolean(generationByPerson) && claimType === "GENERATION_WORD";
+  const wordsByPerson = useGenerationWords(familyId, wantWords);
+  const myGeneration = generationByPerson?.[personId];
+  const peerWords = useMemo(() => {
+    if (!wantWords || !generationByPerson || !myGeneration) return [];
+    return (
+      generationWordsByGeneration(
+        wordsByPerson,
+        generationByPerson,
+        personId
+      ).get(myGeneration) ?? []
+    );
+  }, [wantWords, wordsByPerson, generationByPerson, myGeneration, personId]);
 
   useEffect(() => {
     setLocalError("");
@@ -1842,6 +1914,33 @@ function AddClaimForm({
             placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
             className="alpha-input"
           />
+          {peerWords.length > 0 ? (
+            <div
+              className="mt-2 flex flex-wrap items-center gap-2 text-sm"
+              role="group"
+              aria-label="同辈字辈"
+            >
+              <span className="text-[color:var(--a-muted)]">
+                同辈已记录：
+              </span>
+              {peerWords.slice(0, 4).map((w) => (
+                <button
+                  key={w.word}
+                  type="button"
+                  onClick={() => {
+                    setText(w.word);
+                    textRef.current?.focus();
+                  }}
+                  className="alpha-chip !min-h-[32px] font-semibold"
+                >
+                  {w.word}
+                  <span className="ml-1 font-normal text-[color:var(--a-muted)]">
+                    {w.count} 人
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
         <p className="text-xs text-[color:var(--a-muted)]">
           保存后为「待确认」
@@ -2988,6 +3087,7 @@ function PersonDrawer({
   person,
   persons,
   generation,
+  generationByPerson,
   relationships,
   personMap,
   canEdit,
@@ -3005,6 +3105,7 @@ function PersonDrawer({
   person: GraphPerson;
   persons: GraphPerson[];
   generation?: number;
+  generationByPerson: Record<string, number>;
   relationships: GraphRel[];
   personMap: Map<string, GraphPerson>;
   canEdit: boolean;
@@ -3508,6 +3609,7 @@ function PersonDrawer({
               personId={person.id}
               canReview={canReview}
               compact
+              generationByPerson={generationByPerson}
               onAuthError={onAuth}
               onDone={async () => {
                 setLocalFlash("已添加人物资料");

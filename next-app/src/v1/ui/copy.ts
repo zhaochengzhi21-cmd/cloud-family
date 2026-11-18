@@ -122,6 +122,32 @@ export function relativeTimeLabel(iso: string, now: Date = new Date()): string {
   return `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日`;
 }
 
+/** 字辈 in use per generation, most common first. */
+export function generationWordsByGeneration(
+  wordsByPerson: Record<string, string>,
+  generationByPerson: Record<string, number>,
+  excludePersonId?: string
+): Map<number, { word: string; count: number }[]> {
+  const counts = new Map<number, Map<string, number>>();
+  for (const [personId, word] of Object.entries(wordsByPerson)) {
+    const g = generationByPerson[personId];
+    if (!g || personId === excludePersonId) continue;
+    const m = counts.get(g) ?? new Map<string, number>();
+    m.set(word, (m.get(word) ?? 0) + 1);
+    counts.set(g, m);
+  }
+  const out = new Map<number, { word: string; count: number }[]>();
+  for (const [g, m] of counts) {
+    out.set(
+      g,
+      [...m.entries()]
+        .map(([word, count]) => ({ word, count }))
+        .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word, "zh-CN"))
+    );
+  }
+  return out;
+}
+
 export function generationLabel(gen: number): string {
   const cn = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   if (gen >= 1 && gen <= 10) return `第${cn[gen]}代`;

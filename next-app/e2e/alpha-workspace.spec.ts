@@ -508,6 +508,72 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     await expect(page.getByText("已保存基本信息")).toBeVisible();
     await page.getByRole("button", { name: "关闭" }).click();
     await expect(page.getByText("在世").first()).toBeVisible();
+
+    // 字辈 helper — generation header shows the confirmed word; peers get a suggestion
+    const mFamilyId = page.url().match(/families\/([0-9a-f-]{36})/i)![1];
+    const mGraph = await apiJson(page, `/api/v1/families/${mFamilyId}/graph`);
+    const mPersons = (
+      mGraph.body as { graph: { persons: { id: string; preferredName: string }[] } }
+    ).graph.persons;
+    const mJia = mPersons.find((p) => p.preferredName === "赵甲")!;
+    const mYi = mPersons.find((p) => p.preferredName === "赵乙")!;
+    const gw = await apiJson(page, `/api/v1/families/${mFamilyId}/claims`, {
+      method: "POST",
+      body: {
+        subjectType: "PERSON",
+        subjectId: mYi.id,
+        claimType: "GENERATION_WORD",
+        value: { text: "德" },
+        originType: "MANUAL",
+      },
+    });
+    expect(gw.status).toBe(201);
+    const gwId = (gw.body as { claim: { id: string } }).claim.id;
+    const gwAccept = await apiJson(
+      page,
+      `/api/v1/families/${mFamilyId}/claims/${gwId}/accept`,
+      { method: "POST", body: {} }
+    );
+    expect(gwAccept.status).toBe(200);
+    const bing = await apiJson(page, `/api/v1/families/${mFamilyId}/persons`, {
+      method: "POST",
+      body: {
+        preferredName: "赵丙",
+        gender: "UNKNOWN",
+        livingStatus: "UNKNOWN",
+        privacyLevel: "INHERIT",
+      },
+    });
+    expect([200, 201]).toContain(bing.status);
+    const bingId = (bing.body as { person: { id: string } }).person.id;
+    const bingRel = await apiJson(
+      page,
+      `/api/v1/families/${mFamilyId}/relationships`,
+      {
+        method: "POST",
+        body: {
+          fromPersonId: mJia.id,
+          toPersonId: bingId,
+          relationshipType: "BIOLOGICAL_PARENT",
+        },
+      }
+    );
+    expect(bingRel.status).toBe(201);
+    await page.reload();
+    await page.getByRole("tab", { name: "世系" }).click();
+    await expect(page.getByRole("heading", { name: /第二代/ })).toContainText(
+      "字辈：「德」",
+      { timeout: 20_000 }
+    );
+    await page.locator(`[data-lineage-person="${bingId}"]`).click();
+    const mDrawer = page.getByRole("dialog");
+    await mDrawer.getByRole("button", { name: "+ 添加人物资料" }).click();
+    await mDrawer.locator("#claim-type").selectOption("GENERATION_WORD");
+    await mDrawer
+      .getByRole("group", { name: "同辈字辈" })
+      .getByRole("button", { name: /^德/ })
+      .click();
+    await expect(mDrawer.locator("#claim-text")).toHaveValue("德");
   });
 });
 

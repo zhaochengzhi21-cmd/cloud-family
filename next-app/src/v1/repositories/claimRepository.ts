@@ -205,6 +205,29 @@ export async function setClaimConflictStatuses(
   return changed;
 }
 
+export async function listActiveClaimsByType(
+  db: DbOrTx,
+  args: {
+    familyId: string;
+    subjectType: string;
+    claimType: string;
+    status: string;
+  }
+) {
+  return db
+    .select()
+    .from(claims)
+    .where(
+      and(
+        eq(claims.familyId, args.familyId),
+        eq(claims.subjectType, args.subjectType),
+        eq(claims.claimType, args.claimType),
+        eq(claims.status, args.status),
+        isNull(claims.deletedAt)
+      )
+    );
+}
+
 export async function listActiveClaimsForSubject(
   db: DbOrTx,
   args: {

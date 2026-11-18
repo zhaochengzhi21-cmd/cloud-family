@@ -11,6 +11,7 @@ import {
   LIVING_STATUS_LABEL,
   PRODUCT,
   generationLabel,
+  generationWordsByGeneration,
 } from "@/v1/ui/copy";
 import {
   userMessageForApiError,
@@ -158,6 +159,21 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       }
       return { generation: g, people };
     });
+    const wordsByPerson: Record<string, string> = {};
+    const generationByPerson: Record<string, number> = {};
+    for (const p of book.persons) {
+      if (p.generation) generationByPerson[p.id] = p.generation;
+      const accepted = p.facts.find(
+        (f) => f.claimType === "GENERATION_WORD" && f.status === "ACCEPTED"
+      );
+      if (accepted && factText(accepted) !== "—") {
+        wordsByPerson[p.id] = factText(accepted);
+      }
+    }
+    const wordsByGen = generationWordsByGeneration(
+      wordsByPerson,
+      generationByPerson
+    );
     const sourceById = new Map(book.sources.map((s) => [s.id, s]));
     const notes = [...sourceNo.entries()]
       .map(([id, n]) => ({ n, source: sourceById.get(id) }))
@@ -168,6 +184,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       generations,
       sourceNo,
       notes,
+      wordsByGen,
       generationCount: order.filter((g) => g !== null).length,
     };
   }, [book]);
@@ -245,6 +262,16 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             className="alpha-font-display mb-4 text-xl font-bold text-[color:var(--a-brand)]"
           >
             {generation ? generationLabel(generation) : "代数未定"}
+            {generation && layout.wordsByGen.get(generation)?.length ? (
+              <span className="ml-3 text-base font-normal text-[color:var(--a-ink)]">
+                字辈
+                {layout.wordsByGen
+                  .get(generation)!
+                  .slice(0, 3)
+                  .map((w) => `「${w.word}」`)
+                  .join("")}
+              </span>
+            ) : null}
           </h2>
           <div className="space-y-4">
             {people.map((p) => (

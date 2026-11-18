@@ -288,6 +288,11 @@ export const v1api = {
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
 
+  getGenerationWords: (familyId: string) =>
+    v1Fetch<{ generationWords: Record<string, string> }>(
+      `/api/v1/families/${familyId}/generation-words`
+    ),
+
   exportFamily: (familyId: string) =>
     v1Fetch<{ export: FamilyExportJson }>(
       `/api/v1/families/${familyId}/export`,
