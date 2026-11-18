@@ -11,6 +11,7 @@ import {
 } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { FamilyInvites } from "@/components/alpha/FamilyInvites";
+import { gedcomFromExport } from "@/v1/export/gedcom";
 
 type Person = { id: string; preferredName: string };
 type Rel = { fromPersonId: string; toPersonId: string };
@@ -483,10 +484,21 @@ export function OverviewTab({
   );
 }
 
-function backupFileName(displayName: string, at: Date): string {
+function backupFileName(displayName: string, at: Date, ext: string): string {
   const safe = displayName.replace(/[\\/:*?"<>|\s]+/g, "_").slice(0, 40);
   const ymd = `${at.getFullYear()}${String(at.getMonth() + 1).padStart(2, "0")}${String(at.getDate()).padStart(2, "0")}`;
-  return `${safe || "家族"}-备份-${ymd}.json`;
+  return `${safe || "家族"}-备份-${ymd}.${ext}`;
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function BackupSection({
@@ -496,34 +508,40 @@ function BackupSection({
   familyId: string;
   onAuthError: (e: unknown) => boolean;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"json" | "ged" | null>(null);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
 
-  async function download() {
-    setBusy(true);
+  async function download(kind: "json" | "ged") {
+    setBusy(kind);
     setMessage("");
     setFailed(false);
     try {
       const { export: data } = await v1api.exportFamily(familyId);
-      const blob = new Blob([JSON.stringify(data, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = backupFileName(data.family.displayName, new Date());
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setMessage(`已生成备份：${data.persons.length} 位成员`);
+      const now = new Date();
+      if (kind === "json") {
+        triggerDownload(
+          new Blob([JSON.stringify(data, null, 2)], {
+            type: "application/json",
+          }),
+          backupFileName(data.family.displayName, now, "json")
+        );
+        setMessage(`已生成备份：${data.persons.length} 位成员`);
+      } else {
+        triggerDownload(
+          new Blob([gedcomFromExport(data)], {
+            type: "text/plain;charset=utf-8",
+          }),
+          backupFileName(data.family.displayName, now, "ged")
+        );
+        setMessage(`已生成 GEDCOM：${data.persons.length} 位成员`);
+      }
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
       setMessage(userMessageForApiError(e));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -537,16 +555,24 @@ function BackupSection({
       </h2>
       <div className="alpha-panel px-4 py-4">
         <p className="text-sm leading-relaxed text-[color:var(--a-muted)]">
-          下载一份你能看到的成员、关系、资料与来源，自己保存一份，更安心。照片等原件不包含在文件里。也可以生成按代排列的打印版，存成 PDF 或印出来给长辈看。
+          下载一份你能看到的成员、关系、资料与来源，自己保存一份，更安心。照片等原件不包含在文件里。也可以导出 GEDCOM 给其他族谱软件，或生成按代排列的打印版。
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void download()}
-            disabled={busy}
+            onClick={() => void download("json")}
+            disabled={busy !== null}
             className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
           >
-            {busy ? "正在整理…" : "下载家族备份"}
+            {busy === "json" ? "正在整理…" : "下载家族备份"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void download("ged")}
+            disabled={busy !== null}
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+          >
+            {busy === "ged" ? "正在整理…" : "导出 GEDCOM"}
           </button>
           <Link
             href={`/alpha/families/${familyId}/print`}

@@ -402,6 +402,19 @@ async function runCoreJourney(
   expect(backupJson.sources.some((s) => s.title === "测试族谱")).toBe(true);
   await expect(backup.getByRole("status")).toContainText("已生成备份");
 
+  const gedEvt = page.waitForEvent("download");
+  await backup.getByRole("button", { name: "导出 GEDCOM" }).click();
+  const gedDownload = await gedEvt;
+  expect(gedDownload.suggestedFilename()).toMatch(/^测试赵氏家庭-备份-\d{8}\.ged$/);
+  const gedText = readFileSync(await gedDownload.path(), "utf8");
+  expect(gedText).toContain("0 HEAD");
+  expect(gedText).toContain("1 CHAR UTF-8");
+  expect(gedText).toMatch(/0 @I\d+@ INDI/);
+  expect(gedText).toContain("赵");
+  expect(gedText).toContain("民国十三年");
+  expect(gedText).toContain("0 TRLR");
+  await expect(backup.getByRole("status")).toContainText("已生成 GEDCOM");
+
   // Printable family book
   await backup.getByRole("link", { name: "打印版家谱" }).click();
   await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}/print$`));
