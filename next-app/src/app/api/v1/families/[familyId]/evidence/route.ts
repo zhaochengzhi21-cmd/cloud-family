@@ -4,13 +4,51 @@ import { readJsonBody } from "@/v1/http/request";
 import { createEvidenceBodySchema } from "@/v1/http/schemas/workspace";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { evidenceDto, okJson } from "@/v1/http/response";
-import { createEvidence } from "@/v1/services/evidenceService";
+import {
+  createEvidence,
+  listFamilyEvidence,
+} from "@/v1/services/evidenceService";
 import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const paramsSchema = z.object({ familyId: z.string().uuid() });
+
+/** GET — readable family sources (for reuse and library views). */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { familyId: string } }
+) {
+  const started = await beginWorkspaceRequest(req, { mutation: false });
+  if (!started.ok) return started.response;
+  const { ctx } = started;
+  const p = paramsSchema.safeParse(params);
+  if (!p.success) return invalidRequest();
+
+  try {
+    const limitRaw = req.nextUrl.searchParams.get("limit");
+    const limit = limitRaw ? Number(limitRaw) : undefined;
+    const items = await listFamilyEvidence(p.data.familyId, ctx.actorContext, {
+      db: ctx.db,
+      limit: Number.isFinite(limit) ? limit : undefined,
+    });
+    return okJson({
+      evidence: items.map((e) => ({
+        ...evidenceDto(e),
+        mimeType: e.mimeType,
+        linkCount: e.linkCount,
+      })),
+    });
+  } catch (e) {
+    return mapDomainErrorToResponse(e, {
+      userId: ctx.userId,
+      familyId: p.data.familyId,
+      db: ctx.db,
+      readPath: true,
+    });
+  }
+}
 
 export async function POST(
   req: NextRequest,

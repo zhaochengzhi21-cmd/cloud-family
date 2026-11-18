@@ -267,18 +267,43 @@ async function runCoreJourney(
   await page.getByRole("button", { name: "确认这条资料" }).click();
   await expect(page.getByText("已确认").first()).toBeVisible();
 
+  // Reuse an existing source on a new fact
   await page.getByRole("button", { name: "+ 添加人物资料" }).click();
+  await page.locator("#claim-type").selectOption("BIRTH_PLACE");
+  await page.locator("#claim-text").fill("西递");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(page.getByText("西递")).toBeVisible();
+  const xidiCard = page.locator("li").filter({ hasText: "西递" });
+  await xidiCard.getByRole("button", { name: "添加资料来源" }).click();
+  await xidiCard.getByRole("button", { name: "使用已有来源" }).click();
+  const reuseOpt = xidiCard
+    .locator("#ev-reuse option")
+    .filter({ hasText: "测试族谱" })
+    .first();
+  await expect(reuseOpt).toBeAttached({ timeout: 15_000 });
+  const reuseValue = await reuseOpt.getAttribute("value");
+  expect(reuseValue).toBeTruthy();
+  await xidiCard.locator("#ev-reuse").selectOption(reuseValue!);
+  await xidiCard.getByRole("button", { name: "挂到来源" }).click();
+  await expect(page.getByText("已添加资料来源")).toBeVisible();
+  await expect(xidiCard.getByText(/测试族谱/)).toBeVisible();
+  await xidiCard.getByRole("button", { name: "确认这条资料" }).click();
+  await expect(page.getByText("已确认").first()).toBeVisible();
+
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
+  await page.locator("#claim-type").selectOption("BIRTH_DATE");
   await page.locator("#claim-text").fill("民国十四年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("民国十四年")).toBeVisible();
-  await page.getByRole("button", { name: "添加资料来源" }).last().click();
-  await page.getByLabel("来源标题（可选）").fill("测试墓碑记录");
-  await page.getByRole("button", { name: "保存来源" }).click();
+  const year14Card = page.locator("li").filter({ hasText: "民国十四年" });
+  await year14Card.getByRole("button", { name: "添加资料来源" }).click();
+  await year14Card.getByLabel("来源标题（可选）").fill("测试墓碑记录");
+  await year14Card.getByRole("button", { name: "保存来源" }).click();
   await expect(page.getByText("已添加资料来源")).toBeVisible();
   const accept2 = page.waitForResponse(
     (r) => r.url().includes("/accept") && r.request().method() === "POST"
   );
-  await page.getByRole("button", { name: "确认这条资料" }).click();
+  await year14Card.getByRole("button", { name: "确认这条资料" }).click();
   expect((await accept2).status()).toBe(200);
   await expect(page.getByText("存在不同说法").first()).toBeVisible({
     timeout: 30_000,
@@ -351,8 +376,11 @@ async function runCoreJourney(
   await expect(page.getByText("第二代")).toBeVisible();
   const life = page.getByRole("region", { name: "生平" });
   await expect(life.getByText("民国十三年")).toBeVisible();
+  await expect(life.getByText("西递")).toBeVisible();
   await expect(life.getByText("民国十四年")).toHaveCount(0);
-  await expect(life.getByText(/^来源：.*族谱 · 测试族谱 · 第17页/)).toBeVisible();
+  await expect(
+    life.getByText(/^来源：.*族谱 · 测试族谱 · 第17页/).first()
+  ).toBeVisible();
   const photos = page.getByRole("region", { name: "照片" });
   await expect(photos.getByRole("img", { name: "测试合成照片" })).toBeVisible({
     timeout: 60_000,
@@ -378,7 +406,7 @@ async function runCoreJourney(
   await photoRow.getByRole("button", { name: "确认移除" }).click();
   await expect(page.getByText("已移除资料来源")).toBeVisible();
   await expect(page.getByText("测试合成照片")).toHaveCount(0);
-  await expect(page.getByText(/测试族谱/)).toBeVisible();
+  await expect(page.getByText(/测试族谱/).first()).toBeVisible();
 
   // Persist records person + tab across reload
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
@@ -387,7 +415,7 @@ async function runCoreJourney(
     timeout: 60_000,
   });
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
-  await expect(page.getByText(/测试族谱/)).toBeVisible();
+  await expect(page.getByText(/测试族谱/).first()).toBeVisible();
 
   // Backup download from overview
   await page.getByRole("tab", { name: "概览" }).click();
@@ -408,6 +436,10 @@ async function runCoreJourney(
   expect(yiExport?.facts.some((f) => f.value.text === "民国十三年")).toBe(true);
   expect(backupJson.sources.some((s) => s.title === "测试族谱")).toBe(true);
   await expect(backup.getByRole("status")).toContainText("已生成备份");
+
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(sourcesLib).toContainText("测试族谱");
+  await expect(sourcesLib).toContainText(/已用于 [2-9] 条资料/);
 
   const gedEvt = page.waitForEvent("download");
   await backup.getByRole("button", { name: "导出 GEDCOM" }).click();

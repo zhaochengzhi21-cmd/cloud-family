@@ -1,0 +1,186 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { EVIDENCE_TYPE_UI } from "@/v1/ui/copy";
+import { userMessageForApiError, v1api } from "@/v1/client/api";
+
+type Item = Awaited<ReturnType<typeof v1api.listEvidence>>["evidence"][number];
+
+function isAudio(mime: string | null, type: string) {
+  return Boolean(mime?.startsWith("audio/")) || type === "ORAL_HISTORY";
+}
+
+export function FamilySources({
+  familyId,
+  onAuthError,
+}: {
+  familyId: string;
+  onAuthError: (e: unknown) => boolean;
+}) {
+  const [items, setItems] = useState<Item[] | null>(null);
+  const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO">("ALL");
+  const [error, setError] = useState("");
+  const [playing, setPlaying] = useState<{
+    id: string;
+    url: string;
+    title: string;
+  } | null>(null);
+
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const r = await v1api.listEvidence(familyId);
+      setItems(r.evidence);
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setError(userMessageForApiError(e));
+    }
+  }, [familyId, onAuthError]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const shown = useMemo(() => {
+    if (!items) return [];
+    if (filter === "PHOTO") {
+      return items.filter(
+        (e) => e.evidenceType === "PHOTO" || e.mimeType?.startsWith("image/")
+      );
+    }
+    if (filter === "AUDIO") {
+      return items.filter((e) => isAudio(e.mimeType, e.evidenceType));
+    }
+    return items;
+  }, [items, filter]);
+
+  async function play(item: Item) {
+    if (!item.mediaObjectId) return;
+    try {
+      const r = await v1api.mediaRead(familyId, item.mediaObjectId);
+      setPlaying({
+        id: item.id,
+        url: r.read.url,
+        title: item.title || EVIDENCE_TYPE_UI[item.evidenceType] || "口述录音",
+      });
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setError(userMessageForApiError(e));
+    }
+  }
+
+  if (error && !items) {
+    return (
+      <p role="alert" className="text-sm text-[color:var(--a-danger)]">
+        {error}
+      </p>
+    );
+  }
+  if (!items) return null;
+  if (items.length === 0) return null;
+
+  return (
+    <section aria-labelledby="overview-sources">
+      <h2
+        id="overview-sources"
+        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+      >
+        资料来源库
+      </h2>
+      <div className="alpha-panel px-4 py-4">
+        <p className="text-sm text-[color:var(--a-muted)]">
+          家族里已收录的出处。添加人物资料时可以选择「使用已有来源」，不必重复上传。
+        </p>
+        <div
+          className="mt-3 flex flex-wrap gap-2"
+          role="group"
+          aria-label="来源筛选"
+        >
+          {(
+            [
+              ["ALL", "全部"],
+              ["PHOTO", "照片"],
+              ["AUDIO", "口述 / 录音"],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={filter === k}
+              onClick={() => setFilter(k)}
+              className={`alpha-chip !min-h-[32px] font-semibold ${
+                filter === k ? "!bg-[color:var(--a-brand-soft)]" : ""
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {shown.length === 0 ? (
+          <p className="mt-3 text-sm text-[color:var(--a-muted)]">
+            这一类还没有来源。
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-[color:var(--a-brand-line)]" aria-label="资料来源列表">
+            {shown.map((e) => (
+              <li
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-[color:var(--a-ink)]">
+                    {EVIDENCE_TYPE_UI[e.evidenceType] ?? "来源"}
+                    {e.title ? ` · ${e.title}` : ""}
+                  </p>
+                  <p className="text-xs text-[color:var(--a-muted)]">
+                    {e.sourceLocator ? `${e.sourceLocator} · ` : ""}
+                    已用于 {e.linkCount} 条资料
+                  </p>
+                </div>
+                {e.mediaObjectId && isAudio(e.mimeType, e.evidenceType) ? (
+                  <button
+                    type="button"
+                    className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => void play(e)}
+                  >
+                    收听
+                  </button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        )}
+        {playing ? (
+          <div className="mt-3 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-[color:var(--a-brand)]">
+                {playing.title}
+              </p>
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-muted)]"
+                onClick={() => setPlaying(null)}
+              >
+                关闭
+              </button>
+            </div>
+            <audio
+              key={playing.id}
+              controls
+              autoPlay
+              src={playing.url}
+              className="w-full"
+            >
+              你的浏览器不支持音频播放。
+            </audio>
+          </div>
+        ) : null}
+        {error ? (
+          <p role="alert" className="mt-2 text-sm text-[color:var(--a-danger)]">
+            {error}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}

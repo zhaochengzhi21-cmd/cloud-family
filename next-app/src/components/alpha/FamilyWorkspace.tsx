@@ -2237,6 +2237,9 @@ function ClaimCard({
         <AddEvidenceForm
           familyId={familyId}
           claimId={claim.id}
+          linkedEvidenceIds={
+            bundle?.evidenceLinks.map((l) => l.evidence.id) ?? []
+          }
           defaultEvidenceType={
             claim.claimType === "STORY" ? "ORAL_HISTORY" : "GENEALOGY_PAGE"
           }
@@ -2289,6 +2292,7 @@ function MediaViewButton({
 function AddEvidenceForm({
   familyId,
   claimId,
+  linkedEvidenceIds,
   defaultEvidenceType = "GENEALOGY_PAGE",
   onClose,
   onDone,
@@ -2297,12 +2301,18 @@ function AddEvidenceForm({
 }: {
   familyId: string;
   claimId: string;
+  linkedEvidenceIds: string[];
   defaultEvidenceType?: string;
   onClose: () => void;
   onDone: () => Promise<void>;
   onError: (s: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
+  const [mode, setMode] = useState<"new" | "reuse">("new");
+  const [library, setLibrary] = useState<
+    Awaited<ReturnType<typeof v1api.listEvidence>>["evidence"]
+  >([]);
+  const [pickedId, setPickedId] = useState("");
   const [evidenceType, setEvidenceType] = useState(defaultEvidenceType);
   const [title, setTitle] = useState("");
   const [sourceLocator, setSourceLocator] = useState("");
@@ -2313,6 +2323,26 @@ function AddEvidenceForm({
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const leaveWarn = useRef(false);
+  const linkedKey = linkedEvidenceIds.slice().sort().join(",");
+
+  useEffect(() => {
+    if (mode !== "reuse") return;
+    let cancelled = false;
+    const linked = new Set(linkedKey.split(",").filter(Boolean));
+    v1api
+      .listEvidence(familyId)
+      .then((r) => {
+        if (cancelled) return;
+        setLibrary(r.evidence.filter((e) => !linked.has(e.id)));
+      })
+      .catch((e) => {
+        if (cancelled || onAuthError(e)) return;
+        setLocalError(userMessageForApiError(e));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, familyId, linkedKey, onAuthError]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -2328,6 +2358,30 @@ function AddEvidenceForm({
   function setPhase(label: string, pct: number) {
     setUploadState(label);
     setUploadPct(pct);
+  }
+
+  async function submitReuse(e: FormEvent) {
+    e.preventDefault();
+    if (!pickedId) {
+      setLocalError("请选择一条已有来源");
+      return;
+    }
+    setBusy(true);
+    setLocalError("");
+    try {
+      await v1api.linkEvidence(familyId, claimId, {
+        evidenceId: pickedId,
+        relation: "SUPPORTS",
+      });
+      await onDone();
+    } catch (err) {
+      if (onAuthError(err)) return;
+      const msg = userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function submit(e: FormEvent) {
@@ -2441,8 +2495,97 @@ function AddEvidenceForm({
     }
   }
 
+  const reuseOptions = library;
+
   return (
     <div className="mt-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface-strong)] p-3">
+      <div
+        className="mb-3 flex flex-wrap gap-2"
+        role="group"
+        aria-label="添加来源方式"
+      >
+        <button
+          type="button"
+          className={`alpha-chip !min-h-[32px] font-semibold ${
+            mode === "new" ? "!bg-[color:var(--a-brand-soft)]" : ""
+          }`}
+          aria-pressed={mode === "new"}
+          onClick={() => {
+            setMode("new");
+            setLocalError("");
+          }}
+        >
+          新建来源
+        </button>
+        <button
+          type="button"
+          className={`alpha-chip !min-h-[32px] font-semibold ${
+            mode === "reuse" ? "!bg-[color:var(--a-brand-soft)]" : ""
+          }`}
+          aria-pressed={mode === "reuse"}
+          onClick={() => {
+            setMode("reuse");
+            setLocalError("");
+          }}
+        >
+          使用已有来源
+        </button>
+      </div>
+
+      {mode === "reuse" ? (
+        <form onSubmit={submitReuse} className="space-y-3">
+          {localError ? (
+            <p className="alpha-alert alpha-alert-error" role="alert">
+              {localError}
+            </p>
+          ) : null}
+          {reuseOptions.length === 0 ? (
+            <p className="text-sm text-[color:var(--a-muted)]">
+              还没有可复用的来源，请先新建一条。
+            </p>
+          ) : (
+            <div>
+              <label htmlFor="ev-reuse" className="alpha-label">
+                选择已有来源
+              </label>
+              <select
+                id="ev-reuse"
+                value={pickedId}
+                onChange={(e) => setPickedId(e.target.value)}
+                className="alpha-input"
+                required
+              >
+                <option value="">请选择…</option>
+                {reuseOptions.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {(EVIDENCE_TYPE_UI[e.evidenceType] ?? "来源") +
+                      (e.title ? ` · ${e.title}` : "") +
+                      (e.sourceLocator ? ` · ${e.sourceLocator}` : "") +
+                      (e.linkCount ? `（已用于 ${e.linkCount} 条资料）` : "")}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="alpha-btn alpha-btn-secondary flex-1 !min-h-[44px]"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              disabled={busy || reuseOptions.length === 0}
+              className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
+            >
+              {busy ? "保存中…" : "挂到来源"}
+            </button>
+          </div>
+        </form>
+      ) : (
       <form onSubmit={submit} className="space-y-3">
         {localError ? (
           <p className="alpha-alert alpha-alert-error" role="alert">
@@ -2568,6 +2711,7 @@ function AddEvidenceForm({
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

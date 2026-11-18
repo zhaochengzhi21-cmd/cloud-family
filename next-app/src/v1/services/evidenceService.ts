@@ -309,6 +309,54 @@ export async function getEvidence(
   return evidenceRepo.mapEvidenceDto(row);
 }
 
+export type FamilyEvidenceItem = EvidenceDto & {
+  mimeType: string | null;
+  linkCount: number;
+};
+
+/** Readable sources in the family, newest first. */
+export async function listFamilyEvidence(
+  familyId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db; limit?: number }
+): Promise<FamilyEvidenceItem[]> {
+  const database = dbOrDefault(options?.db);
+  const auth = await authorizeFamilyAction(
+    familyId,
+    actorContext,
+    "READ_FAMILY",
+    { db: database }
+  ).catch(mapPerm);
+  if (auth.decision !== "ALLOW") {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+
+  const limit = Math.min(Math.max(options?.limit ?? 100, 1), 200);
+  const rows = await evidenceRepo.listActiveEvidenceForFamily(
+    database,
+    familyId
+  );
+  const out: FamilyEvidenceItem[] = [];
+  for (const row of rows) {
+    if (out.length >= limit) break;
+    const ok = await canReadEvidenceInternal(row.evidence, actorContext, {
+      db: database,
+    });
+    if (!ok) continue;
+    const linkCount = await evidenceRepo.countActiveLinksForEvidence(
+      database,
+      row.evidence.id
+    );
+    out.push({
+      ...evidenceRepo.mapEvidenceDto(row.evidence),
+      mimeType:
+        row.mediaStatus === "ACTIVE" ? row.mimeType ?? null : null,
+      linkCount,
+    });
+  }
+  return out;
+}
+
 export async function linkEvidenceToClaim(
   input: LinkEvidenceInput,
   options?: { db?: V1Db }

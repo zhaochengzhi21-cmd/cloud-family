@@ -506,6 +506,22 @@ export const v1api = {
       { method: "POST", body: {} }
     ),
 
+  listEvidence: (familyId: string, limit = 100) =>
+    v1Fetch<{
+      evidence: Array<{
+        id: string;
+        evidenceType: string;
+        title: string | null;
+        description: string | null;
+        sourceLocator: string | null;
+        sourceDateText: string | null;
+        mediaObjectId: string | null;
+        mimeType: string | null;
+        linkCount: number;
+        createdAt: string;
+      }>;
+    }>(`/api/v1/families/${familyId}/evidence?limit=${limit}`),
+
   createEvidence: (
     familyId: string,
     body: {

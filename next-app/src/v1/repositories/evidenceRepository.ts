@@ -2,9 +2,9 @@
  * Trusted internal Evidence data access — not a public security boundary.
  */
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
-import { claimEvidence, evidence } from "@/db/schema";
+import { claimEvidence, evidence, mediaObjects } from "@/db/schema";
 import type {
   ClaimEvidenceRelation,
   EvidenceType,
@@ -104,6 +104,19 @@ export async function insertClaimEvidenceLink(
   }
 ) {
   await db.insert(claimEvidence).values(values);
+}
+
+export async function listActiveEvidenceForFamily(db: DbOrTx, familyId: string) {
+  return db
+    .select({
+      evidence,
+      mimeType: mediaObjects.mimeType,
+      mediaStatus: mediaObjects.status,
+    })
+    .from(evidence)
+    .leftJoin(mediaObjects, eq(evidence.mediaObjectId, mediaObjects.id))
+    .where(and(eq(evidence.familyId, familyId), isNull(evidence.deletedAt)))
+    .orderBy(desc(evidence.createdAt));
 }
 
 export async function listActiveLinksForClaim(db: DbOrTx, claimId: string) {

@@ -35,6 +35,11 @@ type PhotoItem = {
   title: string | null;
   evidenceType: string;
 };
+type AudioItem = {
+  mediaId: string;
+  title: string | null;
+  evidenceType: string;
+};
 
 const PARENT_TYPES = new Set([
   "BIOLOGICAL_PARENT",
@@ -106,6 +111,7 @@ export function PersonProfile({
   const [claims, setClaims] = useState<Claim[]>([]);
   const [sources, setSources] = useState<SourcesByClaim>({});
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [audios, setAudios] = useState<AudioItem[]>([]);
   const [birthOrders, setBirthOrders] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -116,6 +122,7 @@ export function PersonProfile({
     const seq = ++loadSeq.current;
     setSources({});
     setPhotos([]);
+    setAudios([]);
     setError("");
     setLoading(true);
     try {
@@ -141,22 +148,38 @@ export function PersonProfile({
         if (loadSeq.current !== seq) return;
         const next: SourcesByClaim = {};
         const photoMap = new Map<string, PhotoItem>();
+        const audioMap = new Map<string, AudioItem>();
         details.forEach((d, i) => {
           if (d.status !== "fulfilled" || !d.value.evidenceLinks.length) return;
           next[visible[i].id] = d.value.evidenceLinks;
           for (const l of d.value.evidenceLinks) {
             const mid = l.evidence.mediaObjectId;
-            if (!mid || photoMap.has(mid)) continue;
-            if (l.evidence.evidenceType !== "PHOTO") continue;
-            photoMap.set(mid, {
-              mediaId: mid,
-              title: l.evidence.title,
-              evidenceType: l.evidence.evidenceType,
-            });
+            if (!mid) continue;
+            if (
+              l.evidence.evidenceType === "PHOTO" &&
+              !photoMap.has(mid)
+            ) {
+              photoMap.set(mid, {
+                mediaId: mid,
+                title: l.evidence.title,
+                evidenceType: l.evidence.evidenceType,
+              });
+            }
+            if (
+              l.evidence.evidenceType === "ORAL_HISTORY" &&
+              !audioMap.has(mid)
+            ) {
+              audioMap.set(mid, {
+                mediaId: mid,
+                title: l.evidence.title,
+                evidenceType: l.evidence.evidenceType,
+              });
+            }
           }
         });
         setSources(next);
         setPhotos([...photoMap.values()]);
+        setAudios([...audioMap.values()]);
       });
     } catch (e) {
       if (handleAuthRedirect(e, router)) return;
@@ -376,6 +399,10 @@ export function PersonProfile({
         <PhotoWall familyId={familyId} photos={photos} />
       ) : null}
 
+      {audios.length > 0 ? (
+        <AudioWall familyId={familyId} audios={audios} />
+      ) : null}
+
       <section aria-labelledby="profile-facts" className="mb-8">
         <h2
           id="profile-facts"
@@ -557,6 +584,94 @@ function sourceText(l: EvidenceLink): string {
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function AudioWall({
+  familyId,
+  audios,
+}: {
+  familyId: string;
+  audios: AudioItem[];
+}) {
+  const [clips, setClips] = useState<
+    Array<{ mediaId: string; title: string; url: string }> | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setClips(null);
+    void Promise.all(
+      audios.map(async (a) => {
+        try {
+          const r = await v1api.mediaRead(familyId, a.mediaId);
+          if (
+            cancelled ||
+            (r.media.mimeType && !r.media.mimeType.startsWith("audio/"))
+          ) {
+            return null;
+          }
+          return {
+            mediaId: a.mediaId,
+            title: a.title || "口述录音",
+            url: r.read.url,
+          };
+        } catch {
+          return null;
+        }
+      })
+    ).then((rows) => {
+      if (!cancelled) {
+        setClips(rows.filter(Boolean) as Array<{
+          mediaId: string;
+          title: string;
+          url: string;
+        }>);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, audios]);
+
+  if (clips === null) {
+    return (
+      <section aria-labelledby="profile-audio" className="mb-8">
+        <h2
+          id="profile-audio"
+          className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          口述录音
+        </h2>
+        <p className="text-sm text-[color:var(--a-muted)]" role="status">
+          正在载入录音…
+        </p>
+      </section>
+    );
+  }
+  if (clips.length === 0) return null;
+
+  return (
+    <section aria-labelledby="profile-audio" className="mb-8">
+      <h2
+        id="profile-audio"
+        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+      >
+        口述录音
+      </h2>
+      <ul className="space-y-3">
+        {clips.map((c) => (
+          <li key={c.mediaId} className="alpha-panel px-4 py-3">
+            <p className="mb-2 text-sm font-semibold text-[color:var(--a-ink)]">
+              {c.title}
+            </p>
+            <audio controls src={c.url} className="w-full">
+              你的浏览器不支持音频播放。
+            </audio>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function PhotoWall({

@@ -11,6 +11,7 @@ import {
 } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { FamilyInvites } from "@/components/alpha/FamilyInvites";
+import { FamilySources } from "@/components/alpha/FamilySources";
 import { gedcomFromExport } from "@/v1/export/gedcom";
 
 type Person = { id: string; preferredName: string };
@@ -475,6 +476,10 @@ export function OverviewTab({
 
       {canReview ? (
         <FamilyInvites familyId={familyId} onAuthError={onAuthError} />
+      ) : null}
+
+      {persons.length > 0 ? (
+        <FamilySources familyId={familyId} onAuthError={onAuthError} />
       ) : null}
 
       {persons.length > 0 ? (
