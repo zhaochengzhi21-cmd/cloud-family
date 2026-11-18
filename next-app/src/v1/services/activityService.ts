@@ -25,6 +25,7 @@ const FEED_EVENT_TYPES = [
   "CLAIM_REJECTED",
   "EVIDENCE_CREATED",
   "EVIDENCE_DELETED",
+  "MEMBER_JOINED",
 ];
 
 /** Claim types surfaced in the product UI; others (e.g. assertions) stay out of the feed. */
@@ -118,6 +119,7 @@ export async function getFamilyActivity(
       case "FAMILY_IDENTITY_UPDATED":
       case "PERSON_DELETED":
       case "EVIDENCE_DELETED":
+      case "MEMBER_JOINED":
         items.push(base);
         break;
       case "EVIDENCE_CREATED":

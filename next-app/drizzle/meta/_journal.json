@@ -57,6 +57,13 @@
       "when": 1788591957334,
       "tag": "0007_alpha_invites_auth_http",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794981766326,
+      "tag": "0008_family_invites",
+      "breakpoints": true
     }
   ]
 }

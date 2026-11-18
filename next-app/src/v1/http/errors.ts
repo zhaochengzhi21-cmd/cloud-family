@@ -10,6 +10,7 @@ import { isRelationshipDomainError } from "@/v1/domain/relationship/errors";
 import { isClaimDomainError } from "@/v1/domain/claim/errors";
 import { isEvidenceDomainError } from "@/v1/domain/evidence/errors";
 import { isMediaDomainError } from "@/v1/domain/media/errors";
+import { isInviteDomainError } from "@/v1/domain/invite/errors";
 import { HttpUnauthenticatedError } from "@/v1/http/authContext";
 import { HttpForbiddenOriginError } from "@/v1/http/origin";
 import { privateNoStoreHeaders } from "@/v1/http/origin";
@@ -192,6 +193,27 @@ export async function mapDomainErrorToResponse(
       case "UPLOAD_FAILED":
       case "STORAGE_ERROR":
         return json(502, "UPLOAD_FAILED");
+      default:
+        return json(400, "INVALID_REQUEST");
+    }
+  }
+
+  if (isInviteDomainError(e)) {
+    switch (e.code) {
+      case "INVALID_INPUT":
+        return json(400, "INVALID_REQUEST");
+      case "FAMILY_NOT_FOUND":
+      case "INVITE_NOT_FOUND":
+        return json(404, "NOT_FOUND");
+      case "INVITE_UNAVAILABLE":
+        return json(410, "INVITE_UNAVAILABLE");
+      case "MEMBERSHIP_SUSPENDED":
+        return json(403, "FORBIDDEN");
+      case "FORBIDDEN":
+        if (opts.readPath || !opts.userId || !opts.db) {
+          return json(404, "NOT_FOUND");
+        }
+        return forbiddenOrNotFound(opts.familyId, opts.userId, opts.db);
       default:
         return json(400, "INVALID_REQUEST");
     }

@@ -208,6 +208,7 @@ export async function cleanupAllV1TestData(): Promise<void> {
   await db.execute(sql`DELETE FROM audit_events`);
   await db.execute(sql`DELETE FROM family_memberships`);
   await db.execute(sql`DELETE FROM family_share_links`).catch(() => undefined);
+  await db.execute(sql`DELETE FROM family_invites`).catch(() => undefined);
   await db.execute(sql`DELETE FROM families`);
   await db.execute(sql`DELETE FROM sessions`);
   await db.execute(sql`DELETE FROM auth_challenges`).catch(() => undefined);

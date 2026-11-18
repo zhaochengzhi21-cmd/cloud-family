@@ -586,7 +586,7 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     browser,
   }) => {
     // Covers a dozen flows end to end; dev-server first compiles add up.
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     const { ownerId, familyId, yiId } = await runCoreJourney(page, baseURL!);
 
     // Flow 11 — Viewer
@@ -736,7 +736,121 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     expect((editorExport.body as ExportBody).export.persons.length).toBeGreaterThan(0);
     expect(editorExportText).not.toContain(privId);
     expect(editorExportText).not.toContain("私密测试员");
+    // Editors cannot hand out invites
+    const editorInvite = await apiJson(
+      editorPage2,
+      `/api/v1/families/${familyId}/invites`,
+      { method: "POST", body: { role: "VIEWER" } },
+      baseURL
+    );
+    expect([403, 404]).toContain(editorInvite.status);
     await editorCtx2.close();
+
+    // A3.1 — family invite link: create → join → single use → feed → revoke
+    await page.goto(`/alpha/families/${familyId}`);
+    await page.getByRole("tab", { name: "概览" }).click();
+    const inviteBox = page.getByRole("region", { name: "邀请家人" });
+    await expect(inviteBox).toContainText("已有 3 个账号参与", { timeout: 60_000 });
+    await inviteBox.locator("#invite-role").selectOption("EDITOR");
+    await inviteBox.getByRole("button", { name: "生成邀请链接" }).click();
+    const inviteUrl = await inviteBox.locator("#invite-link").inputValue();
+    expect(inviteUrl).toMatch(/\/alpha\/invite\/[A-Za-z0-9_-]{43}$/);
+    const invitePath = new URL(inviteUrl).pathname;
+    await expect(
+      inviteBox.getByRole("list", { name: "尚未使用的邀请" }).getByRole("listitem")
+    ).toHaveCount(1);
+
+    const anonCtx = await browser.newContext({ baseURL });
+    const anonPage = await anonCtx.newPage();
+    await anonPage.goto(invitePath);
+    await expect(anonPage).toHaveURL(
+      new RegExp(`/alpha/login\\?next=${encodeURIComponent(invitePath)}$`),
+      { timeout: 60_000 }
+    );
+    await anonCtx.close();
+
+    const joinerId = await insertFakeUser();
+    const joinCtx = await browser.newContext({
+      viewport: { width: 1280, height: 800 },
+      baseURL,
+    });
+    const joinPage = await joinCtx.newPage();
+    await loginAs(joinPage, joinerId, baseURL!);
+    await joinPage.goto(invitePath);
+    await expect(
+      joinPage.getByRole("heading", { name: "加入「测试赵氏家庭」" })
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(joinPage.getByText("加入后你的权限是「可编辑」")).toBeVisible();
+    await joinPage.getByRole("button", { name: "加入家族" }).click();
+    await expect(joinPage).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+    await expect(
+      joinPage.getByRole("heading", { name: "测试赵氏家庭" })
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(joinPage.getByText("我的权限：可编辑")).toBeVisible();
+    await joinPage.goto(invitePath);
+    await expect(
+      joinPage.getByRole("heading", { name: "你已经是「测试赵氏家庭」的成员" })
+    ).toBeVisible({ timeout: 60_000 });
+    await joinCtx.close();
+
+    const lateId = await insertFakeUser();
+    const lateCtx = await browser.newContext({ baseURL });
+    const latePage = await lateCtx.newPage();
+    await loginAs(latePage, lateId, baseURL!);
+    await latePage.goto(invitePath);
+    await expect(
+      latePage.getByRole("heading", { name: "这条邀请已失效" })
+    ).toBeVisible({ timeout: 60_000 });
+    await expect(latePage.getByText("测试赵氏家庭")).toHaveCount(0);
+    const inviteToken = invitePath.split("/").pop()!;
+    const lateAccept = await apiJson(
+      latePage,
+      `/api/v1/invites/${inviteToken}/accept`,
+      { method: "POST", body: {} },
+      baseURL
+    );
+    expect(lateAccept.status).toBe(410);
+    await lateCtx.close();
+
+    await page.reload();
+    await page.getByRole("tab", { name: "概览" }).click();
+    await expect(page.getByRole("region", { name: "最近动态" })).toContainText(
+      "可编辑 通过邀请加入了家族",
+      { timeout: 60_000 }
+    );
+    const inviteBox2 = page.getByRole("region", { name: "邀请家人" });
+    await expect(inviteBox2).toContainText("已有 4 个账号参与");
+    await expect(
+      inviteBox2.getByRole("list", { name: "尚未使用的邀请" })
+    ).toHaveCount(0);
+    await inviteBox2.locator("#invite-role").selectOption("VIEWER");
+    await inviteBox2.getByRole("button", { name: "生成邀请链接" }).click();
+    const revokedPath = new URL(
+      await inviteBox2.locator("#invite-link").inputValue()
+    ).pathname;
+    await inviteBox2
+      .getByRole("list", { name: "尚未使用的邀请" })
+      .getByRole("button", { name: "撤销" })
+      .click();
+    await expect(inviteBox2.getByRole("status")).toContainText("已撤销邀请");
+    await expect(
+      inviteBox2.getByRole("list", { name: "尚未使用的邀请" })
+    ).toHaveCount(0);
+    const outsiderId = await insertFakeUser();
+    const outsiderCtx = await browser.newContext({ baseURL });
+    const outsiderPage = await outsiderCtx.newPage();
+    await loginAs(outsiderPage, outsiderId, baseURL!);
+    await outsiderPage.goto("/alpha/families");
+    const revokedPreview = await apiJson(
+      outsiderPage,
+      `/api/v1/invites/${revokedPath.split("/").pop()}`,
+      undefined,
+      baseURL
+    );
+    expect(
+      (revokedPreview.body as { invite: { status: string } }).invite.status
+    ).toBe("UNAVAILABLE");
+    await outsiderCtx.close();
 
     // Flow 13 — concurrency (stale revision in UI drawer)
     const c2 = await browser.newContext({

@@ -10,6 +10,7 @@ import {
   relativeTimeLabel,
 } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
+import { FamilyInvites } from "@/components/alpha/FamilyInvites";
 
 type Person = { id: string; preferredName: string };
 type Rel = { fromPersonId: string; toPersonId: string };
@@ -84,6 +85,8 @@ function activityPieces(item: ActivityItem): Piece[] | null {
     }
     case "EVIDENCE_DELETED":
       return ["移除了一条资料来源"];
+    case "MEMBER_JOINED":
+      return ["通过邀请加入了家族"];
     default:
       return null;
   }
@@ -467,6 +470,10 @@ export function OverviewTab({
             })}
           </ol>
         </section>
+      ) : null}
+
+      {canReview ? (
+        <FamilyInvites familyId={familyId} onAuthError={onAuthError} />
       ) : null}
 
       {persons.length > 0 ? (

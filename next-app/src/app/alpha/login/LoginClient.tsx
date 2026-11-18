@@ -17,10 +17,18 @@ function maskEmail(raw: string): string {
   return `${local.slice(0, 2)}··${domain}`;
 }
 
+/** Only same-site Alpha paths; rejects absolute and protocol-relative URLs. */
+function safeNextPath(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/alpha/") || raw.startsWith("//")) return null;
+  if (/[\\\s]/.test(raw) || raw.startsWith("/alpha/login")) return null;
+  return raw;
+}
+
 export default function AlphaLoginPage() {
   const router = useRouter();
   const search = useSearchParams();
   const expired = search.get("reason") === "expired";
+  const nextPath = safeNextPath(search.get("next"));
 
   const [email, setEmail] = useState("");
   const [inviteToken, setInviteToken] = useState("");
@@ -133,7 +141,7 @@ export default function AlphaLoginPage() {
     setMessage("");
     try {
       await v1api.verify({ challengeId, code: nextCode.trim() });
-      router.replace("/alpha/families");
+      router.replace(nextPath ?? "/alpha/families");
     } catch {
       setMessage(ERROR_COPY.verifyFailed);
       autoSubmitRef.current = false;

@@ -12,3 +12,4 @@ export { authChallenges } from "./auth";
 export { alphaInvites } from "./alphaInvites";
 export { sessions } from "./sessions";
 export { familyShareLinks } from "./shareLinks";
+export { familyInvites } from "./familyInvites";

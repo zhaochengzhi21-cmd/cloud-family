@@ -288,6 +288,51 @@ export const v1api = {
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
 
+  getFamilyAccess: (familyId: string) =>
+    v1Fetch<{
+      invites: Array<{
+        id: string;
+        role: string;
+        expiresAt: string;
+        createdAt: string;
+      }>;
+      members: Array<{ role: string; isYou: boolean; joinedAt: string }>;
+      invitableRoles: Array<"ADMIN" | "EDITOR" | "VIEWER">;
+    }>(`/api/v1/families/${familyId}/invites`),
+
+  createFamilyInvite: (familyId: string, role: "ADMIN" | "EDITOR" | "VIEWER") =>
+    v1Fetch<{
+      invite: { id: string; role: string; expiresAt: string; createdAt: string };
+      token: string;
+    }>(`/api/v1/families/${familyId}/invites`, {
+      method: "POST",
+      body: { role },
+    }),
+
+  revokeFamilyInvite: (familyId: string, inviteId: string) =>
+    v1Fetch<{ inviteId: string }>(
+      `/api/v1/families/${familyId}/invites/${inviteId}`,
+      { method: "DELETE", body: {} }
+    ),
+
+  previewInvite: (token: string) =>
+    v1Fetch<{
+      invite: {
+        status: "OPEN" | "UNAVAILABLE" | "ALREADY_MEMBER";
+        familyId: string | null;
+        familyName: string | null;
+        role: string | null;
+      };
+    }>(`/api/v1/invites/${encodeURIComponent(token)}`),
+
+  acceptInvite: (token: string) =>
+    v1Fetch<{
+      membership: { familyId: string; role: string; alreadyMember: boolean };
+    }>(`/api/v1/invites/${encodeURIComponent(token)}/accept`, {
+      method: "POST",
+      body: {},
+    }),
+
   getGenerationWords: (familyId: string) =>
     v1Fetch<{ generationWords: Record<string, string> }>(
       `/api/v1/families/${familyId}/generation-words`
