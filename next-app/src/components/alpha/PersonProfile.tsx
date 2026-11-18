@@ -273,10 +273,22 @@ export function PersonProfile({
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "EDITOR";
   const workspaceHref = `/alpha/families/${familyId}`;
 
-  function openRecords() {
+  function openRecords(claimType?: string) {
     try {
       sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
+      if (claimType) {
+        sessionStorage.setItem(
+          `alpha-records-claim-seed:${familyId}`,
+          JSON.stringify({
+            personId,
+            claimType,
+            nonce: Date.now(),
+          })
+        );
+      } else {
+        sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
+      }
     } catch {
       /* private mode */
     }
@@ -350,7 +362,7 @@ export function PersonProfile({
           {canEdit ? (
             <button
               type="button"
-              onClick={openRecords}
+              onClick={() => openRecords()}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
             >
               补充或修改资料
@@ -524,17 +536,24 @@ export function PersonProfile({
             还可以补充
           </h2>
           <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-            {missingTypes
-              .map((t) => CLAIM_TYPE_UI[t]?.label ?? t)
-              .join("、")}
+            点一项即可打开资料表单开始填写。
           </p>
-          <button
-            type="button"
-            onClick={openRecords}
-            className="mt-3 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          <div
+            className="mt-3 flex flex-wrap gap-2"
+            role="group"
+            aria-label="还可以补充的资料"
           >
-            去补充资料
-          </button>
+            {missingTypes.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => openRecords(t)}
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+              >
+                {CLAIM_TYPE_UI[t]?.label ?? t}
+              </button>
+            ))}
+          </div>
         </section>
       ) : null}
     </article>

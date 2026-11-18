@@ -259,6 +259,31 @@ export function FamilyWorkspace({
     nonce: number;
   } | null>(null);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(
+        `alpha-records-claim-seed:${familyId}`
+      );
+      if (!raw) return;
+      sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
+      const parsed = JSON.parse(raw) as {
+        personId?: string;
+        claimType?: string;
+        nonce?: number;
+      };
+      if (parsed.personId && parsed.claimType) {
+        setClaimSeed({
+          personId: parsed.personId,
+          claimType: parsed.claimType,
+          nonce: parsed.nonce ?? Date.now(),
+        });
+        setTab("records");
+      }
+    } catch {
+      /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
   const openRecordsFor = useCallback(
     (personId: string, claimType?: string) => {
       try {

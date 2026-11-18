@@ -471,11 +471,19 @@ async function runCoreJourney(
   await expect(page.getByRole("heading", { level: 1, name: "赵甲" })).toBeVisible();
   await page.getByRole("region", { name: "家人" }).getByRole("link", { name: "赵乙" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible();
-  await page.getByRole("button", { name: "补充或修改资料" }).click();
+  const missingBox = page.getByRole("region", { name: "还可以补充" });
+  await expect(missingBox).toBeVisible();
+  await missingBox.getByRole("button", { name: "职业" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
   await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
     timeout: 60_000,
   });
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
+  await expect(page.locator("#claim-type")).toHaveValue("OCCUPATION", {
+    timeout: 15_000,
+  });
+  await page.getByRole("button", { name: "收起" }).click();
+  await expect(page.getByRole("button", { name: "+ 添加人物资料" })).toBeVisible();
 
   // Remove media evidence source (OWNER/ADMIN) — innermost li, not the claim card
   const photoRow = page.locator("li").filter({ hasText: "测试合成照片" }).last();
