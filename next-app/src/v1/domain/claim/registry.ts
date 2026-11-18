@@ -51,6 +51,7 @@ const REGISTRY: Record<ClaimType, ClaimTypeDefinition> = {
     cardinality: "SINGLETON",
     kind: "TEXTUAL",
   },
+  STORY: { type: "STORY", cardinality: "MULTI", kind: "TEXTUAL" },
   RELATIONSHIP_ASSERTION: {
     type: "RELATIONSHIP_ASSERTION",
     cardinality: "MULTI",

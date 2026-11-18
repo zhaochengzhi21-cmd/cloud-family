@@ -49,6 +49,7 @@ const ALL_TYPES = [
   "DEATH_DATE",
   "BURIAL_PLACE",
   ...FACT_TYPES,
+  "STORY",
 ] as const;
 
 /** Accepted claims win; otherwise show every open claim so differences stay visible. */
@@ -354,6 +355,59 @@ export function PersonProfile({
           ))}
         </dl>
       </section>
+
+      {pickShown(claims, "STORY").length > 0 ? (
+        <section aria-labelledby="profile-stories" className="mb-8">
+          <h2
+            id="profile-stories"
+            className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            故事与口述
+          </h2>
+          <ul className="space-y-3">
+            {pickShown(claims, "STORY").map((c) => (
+              <li key={c.id} className="alpha-panel px-4 py-4">
+                <p className="whitespace-pre-wrap leading-relaxed text-[color:var(--a-ink)]">
+                  {c.value?.text ?? "—"}
+                </p>
+                {c.value?.narrator ? (
+                  <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+                    讲述：{c.value.narrator}
+                  </p>
+                ) : null}
+                {sources[c.id]?.length ? (
+                  <p className="mt-2 text-xs text-[color:var(--a-muted)]">
+                    来源：
+                    {sources[c.id]
+                      .map((l) =>
+                        [
+                          EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源",
+                          l.evidence.title,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      )
+                      .join("；")}
+                  </p>
+                ) : null}
+                {c.status !== "ACCEPTED" ? (
+                  <span
+                    className={`alpha-chip mt-2 inline-flex ${
+                      c.status === "CONFLICTED"
+                        ? "alpha-chip-conflicted"
+                        : "alpha-chip-proposed"
+                    }`}
+                  >
+                    {CLAIM_STATUS_LABEL[
+                      c.status as keyof typeof CLAIM_STATUS_LABEL
+                    ] ?? c.status}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section aria-labelledby="profile-family" className="mb-8">
         <h2

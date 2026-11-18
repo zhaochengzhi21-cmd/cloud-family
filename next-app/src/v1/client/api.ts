@@ -430,14 +430,14 @@ export const v1api = {
     body: {
       subjectId: string;
       claimType: string;
-      value: { text: string };
+      value: { text: string; narrator?: string | null };
     }
   ) =>
     v1Fetch<{
       claim: {
         id: string;
         claimType: string;
-        value: { text?: string };
+        value: { text?: string; narrator?: string | null };
         status: string;
       };
     }>(`/api/v1/families/${familyId}/claims`, {
@@ -456,7 +456,7 @@ export const v1api = {
       claims: Array<{
         id: string;
         claimType: string;
-        value: { text?: string };
+        value: { text?: string; narrator?: string | null };
         status: string;
         originType: string;
         confidence: number | null;

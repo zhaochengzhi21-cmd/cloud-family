@@ -16,7 +16,7 @@ import type {
   RelationshipAssertionValue,
   TextualClaimValue,
 } from "./types";
-import { normalizeClaimValue, normalizeTextualText } from "./normalization";
+import { normalizeClaimValue } from "./normalization";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -62,7 +62,16 @@ function parseTextualValue(raw: unknown): TextualClaimValue {
       "caller must not supply normalized fields"
     );
   }
-  return { text: normalizeTextualText(obj.text) };
+  const narrator =
+    obj.narrator === undefined || obj.narrator === null
+      ? null
+      : typeof obj.narrator === "string"
+        ? obj.narrator
+        : (() => {
+            throw new ClaimDomainError("INVALID_INPUT", "narrator must be string");
+          })();
+  // Shape only — claim-type rules (length, newlines) live in normalizeClaimValue.
+  return narrator ? { text: obj.text, narrator } : { text: obj.text };
 }
 
 function parseRelationshipAssertion(raw: unknown): RelationshipAssertionValue {

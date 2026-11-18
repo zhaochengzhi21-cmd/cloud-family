@@ -74,6 +74,8 @@ export const CLAIM_TYPE = [
   "RELATIONSHIP_ASSERTION",
   "HALL_NAME",
   "BRANCH_NAME",
+  /** Long-form remembered story or oral account about a person. */
+  "STORY",
 ] as const;
 export type ClaimType = (typeof CLAIM_TYPE)[number];
 

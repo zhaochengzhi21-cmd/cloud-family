@@ -3,6 +3,7 @@
 import {
   FormEvent,
   KeyboardEvent as ReactKeyboardEvent,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -54,7 +55,7 @@ type GraphRel = {
 type ClaimRow = {
   id: string;
   claimType: string;
-  value: { text?: string };
+  value: { text?: string; narrator?: string | null };
   status: string;
 };
 
@@ -1793,10 +1794,12 @@ function AddClaimForm({
 }) {
   const [claimType, setClaimType] = useState("BIRTH_DATE");
   const [text, setText] = useState("");
+  const [narrator, setNarrator] = useState("");
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(!compact);
   const [localError, setLocalError] = useState("");
-  const textRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const isStory = claimType === "STORY";
   const wantWords = Boolean(generationByPerson) && claimType === "GENERATION_WORD";
   const wordsByPerson = useGenerationWords(familyId, wantWords);
   const myGeneration = generationByPerson?.[personId];
@@ -1814,6 +1817,7 @@ function AddClaimForm({
   useEffect(() => {
     setLocalError("");
     setText("");
+    setNarrator("");
     setClaimType("BIRTH_DATE");
     if (compact) setOpen(false);
   }, [personId, compact]);
@@ -1830,9 +1834,15 @@ function AddClaimForm({
       await v1api.createClaim(familyId, {
         subjectId: personId,
         claimType,
-        value: { text: text.trim() },
+        value: isStory
+          ? {
+              text: text.trim(),
+              narrator: narrator.trim() || null,
+            }
+          : { text: text.trim() },
       });
       setText("");
+      setNarrator("");
       if (compact) setOpen(false);
       await onDone();
     } catch (err) {
@@ -1903,17 +1913,49 @@ function AddClaimForm({
         </div>
         <div>
           <label htmlFor="claim-text" className="alpha-label">
-            {CLAIM_TYPE_UI[claimType]?.label ?? "内容"}
+            {isStory ? "故事内容" : CLAIM_TYPE_UI[claimType]?.label ?? "内容"}
           </label>
-          <input
-            ref={textRef}
-            id="claim-text"
-            required
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
-            className="alpha-input"
-          />
+          {isStory ? (
+            <textarea
+              ref={textRef as RefObject<HTMLTextAreaElement>}
+              id="claim-text"
+              required
+              rows={6}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={CLAIM_TYPE_UI.STORY.placeholder}
+              className="alpha-input !min-h-[8rem] resize-y !py-2"
+              maxLength={8000}
+            />
+          ) : (
+            <input
+              ref={textRef as RefObject<HTMLInputElement>}
+              id="claim-text"
+              required
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={CLAIM_TYPE_UI[claimType]?.placeholder}
+              className="alpha-input"
+            />
+          )}
+          {isStory ? (
+            <div className="mt-3">
+              <label htmlFor="claim-narrator" className="alpha-label">
+                讲述者（可选）
+              </label>
+              <input
+                id="claim-narrator"
+                value={narrator}
+                onChange={(e) => setNarrator(e.target.value)}
+                placeholder="例如：张奶奶口述"
+                className="alpha-input"
+                maxLength={80}
+              />
+              <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+                记下是谁讲的，方便后人知道出处。
+              </p>
+            </div>
+          ) : null}
           {peerWords.length > 0 ? (
             <div
               className="mt-2 flex flex-wrap items-center gap-2 text-sm"
@@ -2017,9 +2059,23 @@ function ClaimCard({
     <li className="alpha-panel p-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-base font-semibold text-[color:var(--a-ink)]">
+          {claim.claimType === "STORY" ? (
+            <p className="mb-1 text-xs font-semibold tracking-wide text-[color:var(--a-brand)]">
+              故事 / 口述
+            </p>
+          ) : null}
+          <p
+            className={`text-base font-semibold text-[color:var(--a-ink)] ${
+              claim.claimType === "STORY" ? "whitespace-pre-wrap font-normal leading-relaxed" : ""
+            }`}
+          >
             {claim.value?.text ?? "—"}
           </p>
+          {claim.value?.narrator ? (
+            <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+              讲述：{claim.value.narrator}
+            </p>
+          ) : null}
           <p className="mt-1">
             <span className={statusChip}>{statusLabel}</span>
           </p>
@@ -2175,6 +2231,9 @@ function ClaimCard({
         <AddEvidenceForm
           familyId={familyId}
           claimId={claim.id}
+          defaultEvidenceType={
+            claim.claimType === "STORY" ? "ORAL_HISTORY" : "GENEALOGY_PAGE"
+          }
           onClose={() => setShowEvidence(false)}
           onDone={async () => {
             setShowEvidence(false);
@@ -2224,6 +2283,7 @@ function MediaViewButton({
 function AddEvidenceForm({
   familyId,
   claimId,
+  defaultEvidenceType = "GENEALOGY_PAGE",
   onClose,
   onDone,
   onError,
@@ -2231,12 +2291,13 @@ function AddEvidenceForm({
 }: {
   familyId: string;
   claimId: string;
+  defaultEvidenceType?: string;
   onClose: () => void;
   onDone: () => Promise<void>;
   onError: (s: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
-  const [evidenceType, setEvidenceType] = useState("GENEALOGY_PAGE");
+  const [evidenceType, setEvidenceType] = useState(defaultEvidenceType);
   const [title, setTitle] = useState("");
   const [sourceLocator, setSourceLocator] = useState("");
   const [description, setDescription] = useState("");

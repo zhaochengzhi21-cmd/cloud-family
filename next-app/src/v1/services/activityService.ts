@@ -38,6 +38,7 @@ const FEED_CLAIM_TYPES = new Set([
   "GENERATION_WORD",
   "ALIAS",
   "OCCUPATION",
+  "STORY",
 ]);
 
 export type ActivityItem = {

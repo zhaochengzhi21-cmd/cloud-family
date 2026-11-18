@@ -147,7 +147,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     const generations = order.map((g) => {
       const people = (groups.get(g) ?? []).slice().sort(byName);
       for (const p of people) {
-        for (const t of FACT_ORDER) {
+        for (const t of [...FACT_ORDER, "STORY"] as const) {
           for (const f of shownFacts(p.facts, t)) {
             for (const s of f.sources) {
               if (!sourceNo.has(s.sourceId)) {
@@ -334,6 +334,7 @@ function BookEntry({
     type: t,
     rows: shownFacts(person.facts, t),
   })).filter((x) => x.rows.length > 0);
+  const stories = shownFacts(person.facts, "STORY");
   const kinRows = kin
     ? ([
         ["父母", kin.parents],
@@ -352,7 +353,7 @@ function BookEntry({
           </span>
         ) : null}
       </h3>
-      {facts.length + kinRows.length > 0 ? (
+      {facts.length + kinRows.length + stories.length > 0 ? (
         <dl className="mt-2 grid grid-cols-[4.5rem_1fr] gap-x-3 gap-y-1 text-sm">
           {facts.map(({ type, rows }) => (
             <div key={type} className="contents">
@@ -394,6 +395,33 @@ function BookEntry({
       ) : (
         <p className="mt-1 text-sm text-[color:var(--a-muted)]">暂无更多记录</p>
       )}
+      {stories.length > 0 ? (
+        <div className="mt-3 space-y-3 border-t border-[color:var(--a-brand-line)] pt-3">
+          <p className="text-sm font-semibold text-[color:var(--a-brand)]">
+            故事与口述
+          </p>
+          {stories.map((f) => {
+            const v = f.value as { text?: string; narrator?: string | null };
+            return (
+              <div key={f.id}>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-[color:var(--a-ink)]">
+                  {typeof v?.text === "string" ? v.text : "—"}
+                </p>
+                {v?.narrator ? (
+                  <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+                    讲述：{v.narrator}
+                  </p>
+                ) : null}
+                {f.sources.map((s) => (
+                  <sup key={s.sourceId} className="ml-0.5 text-[color:var(--a-muted)]">
+                    [{sourceNo.get(s.sourceId)}]
+                  </sup>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
     </div>
   );
 }

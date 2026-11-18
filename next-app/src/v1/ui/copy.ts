@@ -62,6 +62,10 @@ export const CLAIM_TYPE_UI: Record<
   GENERATION_WORD: { label: "字辈", placeholder: "例如：德" },
   ALIAS: { label: "别名", placeholder: "例如：字子明" },
   OCCUPATION: { label: "职业", placeholder: "例如：耕读" },
+  STORY: {
+    label: "故事 / 口述",
+    placeholder: "记下长辈讲过的事，可以多写几段",
+  },
 };
 
 export const EVIDENCE_TYPE_UI: Record<string, string> = {

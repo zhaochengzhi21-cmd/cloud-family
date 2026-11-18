@@ -574,6 +574,29 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
       .getByRole("button", { name: /^德/ })
       .click();
     await expect(mDrawer.locator("#claim-text")).toHaveValue("德");
+    await mDrawer.getByRole("button", { name: "收起" }).click();
+
+    // A3.2 — story with narrator on person page
+    await mDrawer.getByRole("button", { name: "+ 添加人物资料" }).click();
+    await mDrawer.locator("#claim-type").selectOption("STORY");
+    await mDrawer
+      .locator("#claim-text")
+      .fill("小时候常听外公讲西递的故事。\n\n他说祠堂前的银杏有三百年。");
+    await mDrawer.locator("#claim-narrator").fill("赵甲口述");
+    await mDrawer.getByRole("button", { name: "保存资料" }).click();
+    await expect(page.getByText("已添加人物资料")).toBeVisible();
+    await expect(mDrawer.getByText("小时候常听外公讲西递的故事。")).toBeVisible();
+    await expect(mDrawer.getByText("讲述：赵甲口述")).toBeVisible();
+    const storyAccept = mDrawer.getByRole("button", { name: "确认这条资料" });
+    if (await storyAccept.isVisible()) {
+      await storyAccept.click();
+      await expect(page.getByText("已确认这条资料")).toBeVisible();
+    }
+    await mDrawer.getByRole("button", { name: "查看人物页" }).click();
+    await expect(page).toHaveURL(new RegExp(`/people/${bingId}$`));
+    const stories = page.getByRole("region", { name: "故事与口述" });
+    await expect(stories).toContainText("银杏有三百年", { timeout: 60_000 });
+    await expect(stories).toContainText("讲述：赵甲口述");
   });
 });
 

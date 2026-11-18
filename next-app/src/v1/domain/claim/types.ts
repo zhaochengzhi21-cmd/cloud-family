@@ -11,6 +11,8 @@ export type ClaimCardinality = "SINGLETON" | "MULTI";
 
 export type TextualClaimValue = {
   text: string;
+  /** Optional credited narrator (e.g. the elder who told the story). */
+  narrator?: string | null;
 };
 
 export type RelationshipAssertionDirection =
