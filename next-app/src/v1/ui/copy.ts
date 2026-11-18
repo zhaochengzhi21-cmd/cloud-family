@@ -66,7 +66,40 @@ export const CLAIM_TYPE_UI: Record<
     label: "故事 / 口述",
     placeholder: "记下长辈讲过的事，可以多写几段",
   },
+  BIRTH_ORDER: {
+    label: "排行",
+    placeholder: "例如：长、次、三",
+  },
 };
+
+/** Rank for 排行 labels — lower sorts first. Unknown → null. */
+export function birthOrderRank(text: string): number | null {
+  const t = text.trim();
+  if (!t) return null;
+  const named: Record<string, number> = {
+    长: 1,
+    伯: 1,
+    孟: 1,
+    次: 2,
+    仲: 2,
+    三: 3,
+    叔: 3,
+    四: 4,
+    季: 4,
+    五: 5,
+    六: 6,
+    七: 7,
+    八: 8,
+    九: 9,
+    十: 10,
+  };
+  if (t in named) return named[t];
+  if (/^[幺幼]$/.test(t)) return 99;
+  const m = t.match(/^第?\s*(\d+)\s*([子女孩]|)$/);
+  if (m) return Number(m[1]);
+  if (/^\d+$/.test(t)) return Number(t);
+  return null;
+}
 
 export const EVIDENCE_TYPE_UI: Record<string, string> = {
   GENEALOGY_PAGE: "族谱",

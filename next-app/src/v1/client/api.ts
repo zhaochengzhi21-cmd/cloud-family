@@ -338,6 +338,11 @@ export const v1api = {
       `/api/v1/families/${familyId}/generation-words`
     ),
 
+  getBirthOrders: (familyId: string) =>
+    v1Fetch<{ birthOrders: Record<string, string> }>(
+      `/api/v1/families/${familyId}/birth-orders`
+    ),
+
   exportFamily: (familyId: string) =>
     v1Fetch<{ export: FamilyExportJson }>(
       `/api/v1/families/${familyId}/export`,

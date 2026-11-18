@@ -617,6 +617,39 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     const stories = page.getByRole("region", { name: "故事与口述" });
     await expect(stories).toContainText("银杏有三百年", { timeout: 60_000 });
     await expect(stories).toContainText("讲述：赵甲口述");
+
+    // Sibling birth order on parent person page
+    async function acceptOrder(personId: string, text: string) {
+      const created = await apiJson(page, `/api/v1/families/${mFamilyId}/claims`, {
+        method: "POST",
+        body: {
+          subjectType: "PERSON",
+          subjectId: personId,
+          claimType: "BIRTH_ORDER",
+          value: { text },
+          originType: "MANUAL",
+        },
+      });
+      expect(created.status).toBe(201);
+      const id = (created.body as { claim: { id: string } }).claim.id;
+      const acc = await apiJson(
+        page,
+        `/api/v1/families/${mFamilyId}/claims/${id}/accept`,
+        { method: "POST", body: {} }
+      );
+      expect(acc.status).toBe(200);
+    }
+    await acceptOrder(mYi.id, "次");
+    await acceptOrder(bingId, "长");
+    await page.goto(`/alpha/families/${mFamilyId}/people/${mJia.id}`);
+    const kids = page.getByRole("region", { name: "家人" });
+    await expect(kids.getByRole("link", { name: "长 赵丙" })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(kids.getByRole("link", { name: "次 赵乙" })).toBeVisible();
+    const kidLinks = kids.getByRole("link");
+    await expect(kidLinks.nth(0)).toHaveText(/长\s*赵丙/);
+    await expect(kidLinks.nth(1)).toHaveText(/次\s*赵乙/);
   });
 });
 

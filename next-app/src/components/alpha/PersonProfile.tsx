@@ -11,6 +11,7 @@ import {
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
+  birthOrderRank,
   generationLabel,
 } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api, V1ApiError } from "@/v1/client/api";
@@ -44,6 +45,7 @@ const PARENT_TYPES = new Set([
 const FACT_TYPES = [
   "ANCESTRAL_PLACE",
   "GENERATION_WORD",
+  "BIRTH_ORDER",
   "ALIAS",
   "OCCUPATION",
 ] as const;
@@ -56,6 +58,20 @@ const ALL_TYPES = [
   ...FACT_TYPES,
   "STORY",
 ] as const;
+
+function sortByBirthOrder(
+  list: Person[],
+  orders: Record<string, string>
+): Person[] {
+  return list.slice().sort((a, b) => {
+    const ra = orders[a.id] ? birthOrderRank(orders[a.id]) : null;
+    const rb = orders[b.id] ? birthOrderRank(orders[b.id]) : null;
+    if (ra != null && rb != null && ra !== rb) return ra - rb;
+    if (ra != null && rb == null) return -1;
+    if (ra == null && rb != null) return 1;
+    return a.preferredName.localeCompare(b.preferredName, "zh-CN");
+  });
+}
 
 /** Accepted claims win; otherwise show every open claim so differences stay visible. */
 function pickShown(claims: Claim[], type: string): Claim[] {
@@ -90,6 +106,7 @@ export function PersonProfile({
   const [claims, setClaims] = useState<Claim[]>([]);
   const [sources, setSources] = useState<SourcesByClaim>({});
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
+  const [birthOrders, setBirthOrders] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -102,11 +119,12 @@ export function PersonProfile({
     setError("");
     setLoading(true);
     try {
-      const [fam, list, graph, claimRes] = await Promise.all([
+      const [fam, list, graph, claimRes, orders] = await Promise.all([
         v1api.getFamily(familyId),
         v1api.listFamilies(),
         v1api.getGraph(familyId),
         v1api.listPersonClaims(familyId, personId),
+        v1api.getBirthOrders(familyId).catch(() => ({ birthOrders: {} })),
       ]);
       setFamilyName(fam.family.displayName);
       const mine = list.families.find((f) => f.id === familyId);
@@ -114,6 +132,7 @@ export function PersonProfile({
       setPersons(graph.graph.persons);
       setRelationships(graph.graph.relationships);
       setGenerationByPerson(graph.graph.generationByPerson);
+      setBirthOrders(orders.birthOrders);
       setClaims(claimRes.claims);
       const visible = claimRes.claims.filter((c) => c.status !== "REJECTED");
       void Promise.allSettled(
@@ -213,10 +232,10 @@ export function PersonProfile({
     return {
       parents: sortByName(parents),
       spouses: sortByName(spouses),
-      siblings: sortByName(siblings),
-      children: sortByName(children),
+      siblings: sortByBirthOrder(siblings, birthOrders),
+      children: sortByBirthOrder(children, birthOrders),
     };
-  }, [relationships, personId, personMap]);
+  }, [relationships, personId, personMap, birthOrders]);
 
   const missingTypes = useMemo(
     () =>
@@ -454,8 +473,14 @@ export function PersonProfile({
               label="兄弟姐妹"
               people={family.siblings}
               familyId={familyId}
+              orders={birthOrders}
             />
-            <KinRow label="子女" people={family.children} familyId={familyId} />
+            <KinRow
+              label="子女"
+              people={family.children}
+              familyId={familyId}
+              orders={birthOrders}
+            />
           </div>
         )}
       </section>
@@ -712,10 +737,12 @@ function KinRow({
   label,
   people,
   familyId,
+  orders,
 }: {
   label: string;
   people: Person[];
   familyId: string;
+  orders?: Record<string, string>;
 }) {
   if (people.length === 0) return null;
   return (
@@ -728,8 +755,13 @@ function KinRow({
           <li key={p.id}>
             <Link
               href={`/alpha/families/${familyId}/people/${p.id}`}
-              className="alpha-panel alpha-panel-interactive inline-flex min-h-[40px] items-center px-3 text-sm font-semibold text-[color:var(--a-ink)]"
+              className="alpha-panel alpha-panel-interactive inline-flex min-h-[40px] items-center gap-2 px-3 text-sm font-semibold text-[color:var(--a-ink)]"
             >
+              {orders?.[p.id] ? (
+                <span className="text-xs font-semibold text-[color:var(--a-brand)]">
+                  {orders[p.id]}
+                </span>
+              ) : null}
               {p.preferredName}
             </Link>
           </li>

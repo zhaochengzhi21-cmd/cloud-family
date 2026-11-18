@@ -76,6 +76,8 @@ export const CLAIM_TYPE = [
   "BRANCH_NAME",
   /** Long-form remembered story or oral account about a person. */
   "STORY",
+  /** Sibling / birth order among children of the same parents, e.g. 长、次、三. */
+  "BIRTH_ORDER",
 ] as const;
 export type ClaimType = (typeof CLAIM_TYPE)[number];
 

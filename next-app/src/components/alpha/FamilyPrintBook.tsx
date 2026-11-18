@@ -10,6 +10,7 @@ import {
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
+  birthOrderRank,
   generationLabel,
   generationWordsByGeneration,
 } from "@/v1/ui/copy";
@@ -32,6 +33,7 @@ const FACT_ORDER = [
   "BURIAL_PLACE",
   "ANCESTRAL_PLACE",
   "GENERATION_WORD",
+  "BIRTH_ORDER",
   "ALIAS",
   "OCCUPATION",
 ] as const;
@@ -54,6 +56,13 @@ function shownFacts(facts: BookFact[], type: string): BookFact[] {
   );
   const accepted = rows.filter((f) => f.status === "ACCEPTED");
   return accepted.length ? accepted : rows;
+}
+
+function firstFactText(facts: BookFact[], type: string): string | null {
+  const rows = shownFacts(facts, type);
+  if (!rows.length) return null;
+  const t = factText(rows[0]);
+  return t === "—" ? null : t;
 }
 
 function byName(a: BookPerson, b: BookPerson) {
@@ -107,9 +116,13 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
   const layout = useMemo(() => {
     if (!book) return null;
     const byId = new Map(book.persons.map((p) => [p.id, p]));
+    const orderOf = (p: BookPerson) => {
+      const raw = firstFactText(p.facts, "BIRTH_ORDER");
+      return raw ? birthOrderRank(raw) : null;
+    };
     const kin = new Map<
       string,
-      { parents: string[]; spouses: string[]; children: string[] }
+      { parents: string[]; spouses: string[]; children: BookPerson[] }
     >();
     const entry = (id: string) => {
       let k = kin.get(id);
@@ -125,11 +138,21 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       if (!from || !to) continue;
       if (PARENT_TYPES.has(r.type)) {
         entry(to.id).parents.push(from.preferredName);
-        entry(from.id).children.push(to.preferredName);
+        entry(from.id).children.push(to);
       } else if (r.type === "SPOUSE") {
         entry(from.id).spouses.push(to.preferredName);
         entry(to.id).spouses.push(from.preferredName);
       }
+    }
+    for (const k of kin.values()) {
+      k.children.sort((a, b) => {
+        const ra = orderOf(a);
+        const rb = orderOf(b);
+        if (ra != null && rb != null && ra !== rb) return ra - rb;
+        if (ra != null && rb == null) return -1;
+        if (ra == null && rb != null) return 1;
+        return a.preferredName.localeCompare(b.preferredName, "zh-CN");
+      });
     }
 
     const groups = new Map<number | null, BookPerson[]>();
@@ -321,7 +344,7 @@ function BookEntry({
   sourceNo,
 }: {
   person: BookPerson;
-  kin?: { parents: string[]; spouses: string[]; children: string[] };
+  kin?: { parents: string[]; spouses: string[]; children: BookPerson[] };
   sourceNo: Map<string, number>;
 }) {
   const meta = [
@@ -335,11 +358,15 @@ function BookEntry({
     rows: shownFacts(person.facts, t),
   })).filter((x) => x.rows.length > 0);
   const stories = shownFacts(person.facts, "STORY");
+  const childLabels = (kin?.children ?? []).map((c) => {
+    const raw = firstFactText(c.facts, "BIRTH_ORDER");
+    return raw ? `${raw}${c.preferredName}` : c.preferredName;
+  });
   const kinRows = kin
     ? ([
         ["父母", kin.parents],
         ["配偶", kin.spouses],
-        ["子女", kin.children],
+        ["子女", childLabels],
       ] as const).filter(([, names]) => names.length > 0)
     : [];
 
