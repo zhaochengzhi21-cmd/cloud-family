@@ -201,6 +201,13 @@ export function OverviewTab({
     );
   }, [overview, sortedPersons]);
 
+  const missingAncestral = useMemo(() => {
+    if (!overview) return [];
+    return sortedPersons.filter(
+      (p) => !overview.personStats[p.id]?.claimTypes.includes("ANCESTRAL_PLACE")
+    );
+  }, [overview, sortedPersons]);
+
   const acceptedTotal = useMemo(() => {
     if (!overview) return 0;
     return Object.values(overview.personStats).reduce(
@@ -284,6 +291,15 @@ export function OverviewTab({
       peopleAria: "补充安葬地",
     });
   }
+  if (overview && total > 0 && missingAncestral.length > 0) {
+    steps.push({
+      key: "ancestral",
+      title: `补充 ${missingAncestral.length} 位成员的祖籍`,
+      body: "祖籍是认亲、核对旧谱最常用的线索，写到县或村一级就可以。",
+      people: canEdit ? missingAncestral.slice(0, 6) : undefined,
+      peopleAria: "补充祖籍",
+    });
+  }
   if (pendingTotal > 0) {
     steps.push({
       key: "review",
@@ -352,7 +368,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，出生与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充祖籍、安葬地和资料来源。
+                成员都已连入世系，出生、祖籍与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -386,7 +402,9 @@ export function OverviewTab({
                                   ? "DEATH_DATE"
                                   : s.key === "burial"
                                     ? "BURIAL_PLACE"
-                                    : undefined
+                                    : s.key === "ancestral"
+                                      ? "ANCESTRAL_PLACE"
+                                      : undefined
                             )
                           }
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"

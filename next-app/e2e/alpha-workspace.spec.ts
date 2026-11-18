@@ -262,6 +262,25 @@ async function runCoreJourney(
   await expect(
     page.getByRole("listitem").filter({ hasText: "已故成员的安葬地" })
   ).toBeVisible();
+  const ancestralStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "成员的祖籍" });
+  await expect(ancestralStep).toContainText("补充 2 位成员的祖籍");
+  await ancestralStep.getByRole("button", { name: /赵乙/ }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
+  await expect(page.locator("#claim-type")).toHaveValue("ANCESTRAL_PLACE", {
+    timeout: 15_000,
+  });
+  await page.locator("#claim-text").fill("徽州");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(page.getByText("徽州")).toBeVisible();
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "成员的祖籍" })
+  ).toContainText("补充 1 位成员的祖籍", { timeout: 60_000 });
   await page.getByRole("tab", { name: "世系" }).click();
 
   // Flow 05–09 claims / evidence / conflict
@@ -276,9 +295,10 @@ async function runCoreJourney(
 
   // Overview: progress + next steps + pending queue jumps to the person's records
   await page.getByRole("tab", { name: "概览" }).click();
-  await expect(page.getByText("处理 2 条待确认资料")).toBeVisible();
+  await expect(page.getByText("处理 3 条待确认资料")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的出生信息")).toBeVisible();
   await expect(page.getByText("补充 1 位已故成员的安葬地")).toBeVisible();
+  await expect(page.getByText("补充 1 位成员的祖籍")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "为赵甲补充出生信息" })
   ).toBeVisible();
@@ -291,7 +311,7 @@ async function runCoreJourney(
   );
   await page
     .getByRole("region", { name: /待确认资料/ })
-    .getByRole("button", { name: /赵乙/ })
+    .getByRole("button", { name: /赵乙.*出生信息|民国十三年/ })
     .click();
   await expect(page.getByRole("tab", { selected: true })).toHaveText("资料");
   await expect(page.locator("#records-person")).toHaveValue(yi.id);
@@ -299,8 +319,9 @@ async function runCoreJourney(
 
   // Status filter
   await page.getByRole("button", { name: /^待确认/ }).click();
-  await expect(page.getByText(/显示 1 \/ 1 条资料/)).toBeVisible();
+  await expect(page.getByText(/显示 2 \/ 2 条资料/)).toBeVisible();
   await expect(page.getByText("民国十三年")).toBeVisible();
+  await expect(page.getByText("徽州")).toBeVisible();
   await page.getByRole("button", { name: /^已确认/ }).click();
   await expect(page.getByText("没有符合当前筛选的资料")).toBeVisible();
   await page.getByRole("button", { name: "查看全部" }).click();
@@ -310,7 +331,8 @@ async function runCoreJourney(
   await expect(page.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible();
   await expect(page.getByText("民国十三年")).toBeVisible();
 
-  await page.getByRole("button", { name: "添加资料来源" }).click();
+  const year13Card = page.locator("li").filter({ hasText: "民国十三年" });
+  await year13Card.getByRole("button", { name: "添加资料来源" }).click();
   await page.locator("#ev-type").selectOption("GENEALOGY_PAGE");
   await page.getByLabel("来源标题（可选）").fill("测试族谱");
   await page.getByLabel("出处位置（可选）").fill("第17页");
@@ -319,7 +341,7 @@ async function runCoreJourney(
   await expect(page.getByText(/测试族谱/)).toBeVisible();
   await expect(page.getByText(/第17页/)).toBeVisible();
 
-  await page.getByRole("button", { name: "确认这条资料" }).click();
+  await year13Card.getByRole("button", { name: "确认这条资料" }).click();
   await expect(page.getByText("已确认").first()).toBeVisible();
 
   // Reuse an existing source on a new fact
