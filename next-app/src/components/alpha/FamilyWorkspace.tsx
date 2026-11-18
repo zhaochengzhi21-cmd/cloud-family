@@ -1136,6 +1136,12 @@ function LineageTab({
         </p>
       ) : null}
 
+      {persons.length > 200 ? (
+        <p className="mb-3 text-sm text-[color:var(--a-muted)]">
+          成员较多时，可用上方查找或「某人一支」缩小范围；超过约 80 人时，较远的世代会默认收起。
+        </p>
+      ) : null}
+
       {relationships.length > 0 && persons.length >= 2 ? (
         <div
           role="search"

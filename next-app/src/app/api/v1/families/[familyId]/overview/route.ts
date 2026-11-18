@@ -4,6 +4,7 @@ import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { okJson } from "@/v1/http/response";
 import { getFamilyGraph } from "@/v1/services/familyGraphService";
 import { getClaimsForSubject } from "@/v1/services/claimService";
+import { mapPool } from "@/v1/util/pool";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -40,7 +41,6 @@ export async function GET(
       db: ctx.db,
     });
 
-    const personStats: Record<string, PersonStats> = {};
     const pending: Array<{
       claimId: string;
       personId: string;
@@ -50,7 +50,7 @@ export async function GET(
       createdAt: string;
     }> = [];
 
-    for (const person of graph.persons) {
+    const rows = await mapPool(graph.persons, 8, async (person) => {
       const claims = await getClaimsForSubject(
         p.data.familyId,
         "PERSON",
@@ -64,6 +64,7 @@ export async function GET(
         conflicted: 0,
         claimTypes: [],
       };
+      const pendingForPerson: typeof pending = [];
       for (const c of claims) {
         if (c.status === "REJECTED") continue;
         if (!stats.claimTypes.includes(c.claimType)) {
@@ -74,7 +75,7 @@ export async function GET(
         else if (c.status === "CONFLICTED") stats.conflicted += 1;
         if (c.status === "PROPOSED" || c.status === "CONFLICTED") {
           const value = c.value as { text?: unknown } | null;
-          pending.push({
+          pendingForPerson.push({
             claimId: c.id,
             personId: person.id,
             claimType: c.claimType,
@@ -84,7 +85,13 @@ export async function GET(
           });
         }
       }
-      personStats[person.id] = stats;
+      return { personId: person.id, stats, pendingForPerson };
+    });
+
+    const personStats: Record<string, PersonStats> = {};
+    for (const row of rows) {
+      personStats[row.personId] = row.stats;
+      pending.push(...row.pendingForPerson);
     }
 
     pending.sort((a, b) => a.createdAt.localeCompare(b.createdAt));

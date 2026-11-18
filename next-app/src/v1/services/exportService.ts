@@ -15,6 +15,11 @@ import {
   getClaimsForSubject,
   getClaimWithEvidence,
 } from "@/v1/services/claimService";
+import { mapPool } from "@/v1/util/pool";
+
+/** Cap parallel person/claim reads so large families don't open hundreds of queries. */
+const PERSON_CONCURRENCY = 6;
+const CLAIM_CONCURRENCY = 4;
 
 export const EXPORT_FORMAT = "yunzupu.family-export";
 export const EXPORT_VERSION = 1;
@@ -69,9 +74,7 @@ export async function getFamilyExport(
   const graph = await getFamilyGraph(familyId, actorContext, { db });
 
   const sources = new Map<string, FamilyExport["sources"][number]>();
-  const persons: FamilyExport["persons"] = [];
-
-  for (const person of graph.persons) {
+  const persons = await mapPool(graph.persons, PERSON_CONCURRENCY, async (person) => {
     const claims = await getClaimsForSubject(
       familyId,
       "PERSON",
@@ -79,8 +82,7 @@ export async function getFamilyExport(
       actorContext,
       { db }
     );
-    const facts: FamilyExport["persons"][number]["facts"] = [];
-    for (const claim of claims) {
+    const facts = await mapPool(claims, CLAIM_CONCURRENCY, async (claim) => {
       const bundle = await getClaimWithEvidence(claim.id, actorContext, { db });
       const links = bundle?.evidenceLinks ?? [];
       for (const { evidence: ev } of links) {
@@ -97,7 +99,7 @@ export async function getFamilyExport(
           });
         }
       }
-      facts.push({
+      return {
         id: claim.id,
         claimType: claim.claimType,
         value: claim.value,
@@ -109,17 +111,17 @@ export async function getFamilyExport(
           sourceId: l.evidence.id,
           relation: l.relation,
         })),
-      });
-    }
-    persons.push({
+      };
+    });
+    return {
       id: person.id,
       preferredName: person.preferredName,
       gender: person.gender,
       livingStatus: person.livingStatus,
       generation: graph.generationByPerson[person.id] ?? null,
       facts,
-    });
-  }
+    };
+  });
 
   return {
     format: EXPORT_FORMAT,
