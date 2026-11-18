@@ -14,7 +14,7 @@ import { FamilyInvites } from "@/components/alpha/FamilyInvites";
 import { FamilySources } from "@/components/alpha/FamilySources";
 import { gedcomFromExport } from "@/v1/export/gedcom";
 
-type Person = { id: string; preferredName: string };
+type Person = { id: string; preferredName: string; livingStatus?: string };
 type Rel = { fromPersonId: string; toPersonId: string };
 
 type Overview = Awaited<ReturnType<typeof v1api.getOverview>>["overview"];
@@ -182,6 +182,25 @@ export function OverviewTab({
     );
   }, [overview, sortedPersons]);
 
+  const missingDeath = useMemo(() => {
+    if (!overview) return [];
+    return sortedPersons.filter(
+      (p) =>
+        p.livingStatus === "DECEASED" &&
+        !overview.personStats[p.id]?.claimTypes.includes("DEATH_DATE")
+    );
+  }, [overview, sortedPersons]);
+
+  const missingBurial = useMemo(() => {
+    if (!overview) return [];
+    return sortedPersons.filter(
+      (p) =>
+        p.livingStatus === "DECEASED" &&
+        overview.personStats[p.id]?.claimTypes.includes("DEATH_DATE") &&
+        !overview.personStats[p.id]?.claimTypes.includes("BURIAL_PLACE")
+    );
+  }, [overview, sortedPersons]);
+
   const acceptedTotal = useMemo(() => {
     if (!overview) return 0;
     return Object.values(overview.personStats).reduce(
@@ -201,6 +220,7 @@ export function OverviewTab({
     body: string;
     action?: { label: string; onClick: () => void };
     people?: Person[];
+    peopleAria?: string;
   };
 
   const steps: Step[] = [];
@@ -244,6 +264,24 @@ export function OverviewTab({
       title: `补充 ${missingBirth.length} 位成员的出生信息`,
       body: "出生年代是排辈、核对来源最常用的线索，大概的年份也可以。",
       people: canEdit ? missingBirth.slice(0, 6) : undefined,
+      peopleAria: "补充出生信息",
+    });
+  }
+  if (overview && missingDeath.length > 0) {
+    steps.push({
+      key: "death",
+      title: `补充 ${missingDeath.length} 位已故成员的去世信息`,
+      body: "标为已故后，补上大概的卒年，后人查阅和排谱会清楚很多。",
+      people: canEdit ? missingDeath.slice(0, 6) : undefined,
+      peopleAria: "补充去世信息",
+    });
+  } else if (overview && missingBurial.length > 0) {
+    steps.push({
+      key: "burial",
+      title: `补充 ${missingBurial.length} 位已故成员的安葬地`,
+      body: "安葬地是扫墓与核对族谱页的重要线索，记得不清楚也可以先写大概位置。",
+      people: canEdit ? missingBurial.slice(0, 6) : undefined,
+      peopleAria: "补充安葬地",
     });
   }
   if (pendingTotal > 0) {
@@ -314,7 +352,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系、都有出生信息，也没有待确认资料。可以继续为每个人补充祖籍、安葬地和资料来源。
+                成员都已连入世系，出生与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充祖籍、安葬地和资料来源。
               </p>
             ) : null}
           </div>
@@ -341,7 +379,7 @@ export function OverviewTab({
                           type="button"
                           onClick={() => onOpenRecords(p.id)}
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
-                          aria-label={`为${p.preferredName}补充出生信息`}
+                          aria-label={`为${p.preferredName}${s.peopleAria ?? "补充资料"}`}
                         >
                           {p.preferredName}
                         </button>

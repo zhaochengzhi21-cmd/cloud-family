@@ -3518,7 +3518,14 @@ function PersonDrawer({
       setName(res.person.preferredName);
       setLiving(res.person.livingStatus);
       setGender(res.person.gender);
-      setLocalFlash("已保存基本信息");
+      const needsDeath =
+        res.person.livingStatus === "DECEASED" &&
+        !activeClaims.some((c) => c.claimType === "DEATH_DATE");
+      setLocalFlash(
+        needsDeath
+          ? "已保存基本信息。建议在下方补充去世信息。"
+          : "已保存基本信息"
+      );
       await onChanged();
     } catch (err) {
       if (onAuth(err)) return;

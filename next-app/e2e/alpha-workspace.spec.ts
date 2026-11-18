@@ -210,6 +210,58 @@ async function runCoreJourney(
     page.getByRole("heading", { name: /第二代/ })
   ).toBeVisible({ timeout: 20_000 });
 
+  // Overview next-step: deceased without death date
+  const graphForDeath = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/graph`
+  );
+  const jiaLive = (
+    graphForDeath.body as {
+      graph: { persons: { id: string; preferredName: string; revisionNo: number }[] };
+    }
+  ).graph.persons.find((p) => p.id === jia.id)!;
+  const markDead = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${jia.id}`,
+    {
+      method: "PATCH",
+      body: {
+        expectedRevision: jiaLive.revisionNo,
+        livingStatus: "DECEASED",
+      },
+    },
+    baseURL
+  );
+  expect(markDead.status).toBe(200);
+  await page.getByRole("tab", { name: "概览" }).click();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await page.getByRole("tab", { name: "概览" }).click();
+  const deathStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "已故成员的去世信息" });
+  await expect(deathStep).toBeVisible({ timeout: 60_000 });
+  await deathStep.getByRole("button", { name: /赵甲/ }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(jia.id);
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
+  await page.locator("#claim-type").selectOption("DEATH_DATE");
+  await page.locator("#claim-text").fill("一九九八年");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(page.getByText("一九九八年")).toBeVisible();
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "已故成员的去世信息" })
+  ).toHaveCount(0, { timeout: 60_000 });
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "已故成员的安葬地" })
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "世系" }).click();
+
   // Flow 05–09 claims / evidence / conflict
   await page.getByRole("tab", { name: "资料" }).click();
   await expect(page.getByRole("tabpanel")).toBeVisible();
@@ -222,8 +274,9 @@ async function runCoreJourney(
 
   // Overview: progress + next steps + pending queue jumps to the person's records
   await page.getByRole("tab", { name: "概览" }).click();
-  await expect(page.getByText("处理 1 条待确认资料")).toBeVisible();
+  await expect(page.getByText("处理 2 条待确认资料")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的出生信息")).toBeVisible();
+  await expect(page.getByText("补充 1 位已故成员的安葬地")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "为赵甲补充出生信息" })
   ).toBeVisible();
