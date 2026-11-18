@@ -248,8 +248,10 @@ async function runCoreJourney(
     timeout: 60_000,
   });
   await expect(page.locator("#records-person")).toHaveValue(jia.id);
-  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
-  await page.locator("#claim-type").selectOption("DEATH_DATE");
+  await expect(page.locator("#claim-type")).toHaveValue("DEATH_DATE", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
   await page.locator("#claim-text").fill("一九九八年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("一九九八年")).toBeVisible();

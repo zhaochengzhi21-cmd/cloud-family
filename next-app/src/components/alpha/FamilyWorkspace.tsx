@@ -253,12 +253,21 @@ export function FamilyWorkspace({
     }
   }, [familyId]);
 
+  const [claimSeed, setClaimSeed] = useState<{
+    personId: string;
+    claimType: string;
+    nonce: number;
+  } | null>(null);
+
   const openRecordsFor = useCallback(
-    (personId: string) => {
+    (personId: string, claimType?: string) => {
       try {
         sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       } catch {
         /* private mode */
+      }
+      if (claimType) {
+        setClaimSeed({ personId, claimType, nonce: Date.now() });
       }
       setTab("records");
     },
@@ -560,6 +569,8 @@ export function FamilyWorkspace({
             canEdit={canEdit}
             canReview={canReview}
             role={role}
+            claimSeed={claimSeed}
+            onClaimSeedConsumed={() => setClaimSeed(null)}
             onAuthError={(e) => handleAuthRedirect(e, router)}
             onOpenPerson={(id) => setSelectedPersonId(id)}
             onGoMembers={() => setTab("members")}
@@ -1410,6 +1421,43 @@ function LineageTab({
   );
 }
 
+function ClaimStartCtas({
+  livingStatus,
+  onPick,
+}: {
+  livingStatus?: string;
+  onPick: (claimType: string) => void;
+}) {
+  const items: Array<{ type: string; label: string }> = [
+    { type: "BIRTH_DATE", label: "记下出生信息" },
+    { type: "STORY", label: "记下故事" },
+  ];
+  if (livingStatus === "DECEASED") {
+    items.push(
+      { type: "DEATH_DATE", label: "记下去世信息" },
+      { type: "BURIAL_PLACE", label: "记下安葬地" }
+    );
+  }
+  return (
+    <div
+      className="mt-4 flex flex-wrap justify-center gap-2"
+      role="group"
+      aria-label="开始记录"
+    >
+      {items.map((i) => (
+        <button
+          key={i.type}
+          type="button"
+          className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+          onClick={() => onPick(i.type)}
+        >
+          {i.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function RecordsTab({
   familyId,
   persons,
@@ -1417,6 +1465,8 @@ function RecordsTab({
   canEdit,
   canReview,
   role,
+  claimSeed,
+  onClaimSeedConsumed,
   onAuthError,
   onOpenPerson,
   onGoMembers,
@@ -1429,6 +1479,8 @@ function RecordsTab({
   canEdit: boolean;
   canReview: boolean;
   role: Role;
+  claimSeed: { personId: string; claimType: string; nonce: number } | null;
+  onClaimSeedConsumed: () => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
   onGoMembers: () => void;
@@ -1438,6 +1490,10 @@ function RecordsTab({
   const [personId, setPersonId] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [localSeed, setLocalSeed] = useState<{
+    claimType: string;
+    nonce: number;
+  } | null>(null);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PROPOSED" | "ACCEPTED" | "CONFLICTED"
   >("ALL");
@@ -1517,7 +1573,19 @@ function RecordsTab({
     setStatusFilter("ALL");
   }, [personId]);
 
+  useEffect(() => {
+    if (!claimSeed) return;
+    if (persons.some((p) => p.id === claimSeed.personId)) {
+      setPersonId(claimSeed.personId);
+      setLocalSeed({
+        claimType: claimSeed.claimType,
+        nonce: claimSeed.nonce,
+      });
+    }
+  }, [claimSeed, persons]);
+
   const active = claims.filter((c) => c.status !== "REJECTED");
+  const selectedPerson = persons.find((p) => p.id === personId);
   const rejected = claims.filter((c) => c.status === "REJECTED");
   const proposedCount = active.filter((c) => c.status === "PROPOSED").length;
   const acceptedCount = active.filter((c) => c.status === "ACCEPTED").length;
@@ -1631,6 +1699,12 @@ function RecordsTab({
           canReview={canReview}
           compact
           generationByPerson={generationByPerson}
+          seedClaimType={localSeed?.claimType ?? null}
+          seedNonce={localSeed?.nonce ?? null}
+          onSeedConsumed={() => {
+            setLocalSeed(null);
+            onClaimSeedConsumed();
+          }}
           onAuthError={onAuthError}
           onDone={async () => {
             setFlash("已添加人物资料");
@@ -1754,6 +1828,14 @@ function RecordsTab({
               ? "有编辑权限的家人补充后，会显示在这里。"
               : "可以从出生信息、祖籍等开始记录，以后再补来源。"}
           </p>
+          {canEdit ? (
+            <ClaimStartCtas
+              livingStatus={selectedPerson?.livingStatus}
+              onPick={(claimType) =>
+                setLocalSeed({ claimType, nonce: Date.now() })
+              }
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -1786,6 +1868,9 @@ function AddClaimForm({
   onAuthError,
   compact = false,
   generationByPerson,
+  seedClaimType = null,
+  seedNonce = null,
+  onSeedConsumed,
 }: {
   familyId: string;
   personId: string;
@@ -1797,6 +1882,9 @@ function AddClaimForm({
   compact?: boolean;
   /** Enables 字辈 suggestions from the same generation. */
   generationByPerson?: Record<string, number>;
+  seedClaimType?: string | null;
+  seedNonce?: number | null;
+  onSeedConsumed?: () => void;
 }) {
   const [claimType, setClaimType] = useState("BIRTH_DATE");
   const [text, setText] = useState("");
@@ -1829,8 +1917,15 @@ function AddClaimForm({
   }, [personId, compact]);
 
   useEffect(() => {
+    if (!seedClaimType || seedNonce == null) return;
+    setClaimType(seedClaimType);
+    setOpen(true);
+    onSeedConsumed?.();
+  }, [seedClaimType, seedNonce, onSeedConsumed]);
+
+  useEffect(() => {
     if (open) textRef.current?.focus();
-  }, [open]);
+  }, [open, claimType]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -3334,6 +3429,10 @@ function PersonDrawer({
   const [name, setName] = useState(person.preferredName);
   const [living, setLiving] = useState(person.livingStatus);
   const [gender, setGender] = useState(person.gender);
+  const [drawerClaimSeed, setDrawerClaimSeed] = useState<{
+    claimType: string;
+    nonce: number;
+  } | null>(null);
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -3828,6 +3927,9 @@ function PersonDrawer({
               canReview={canReview}
               compact
               generationByPerson={generationByPerson}
+              seedClaimType={drawerClaimSeed?.claimType ?? null}
+              seedNonce={drawerClaimSeed?.nonce ?? null}
+              onSeedConsumed={() => setDrawerClaimSeed(null)}
               onAuthError={onAuth}
               onDone={async () => {
                 setLocalFlash("已添加人物资料");
@@ -3900,11 +4002,21 @@ function PersonDrawer({
             </details>
           ) : null}
           {!claimsLoading && activeClaims.length === 0 ? (
-            <p className="text-sm text-[color:var(--a-muted)]">
-              {canEdit
-                ? "还没有人物资料，可以从出生信息等开始记录。"
-                : "暂无人物资料。"}
-            </p>
+            <div>
+              <p className="text-sm text-[color:var(--a-muted)]">
+                {canEdit
+                  ? "还没有人物资料，可以从出生信息等开始记录。"
+                  : "暂无人物资料。"}
+              </p>
+              {canEdit ? (
+                <ClaimStartCtas
+                  livingStatus={living}
+                  onPick={(claimType) =>
+                    setDrawerClaimSeed({ claimType, nonce: Date.now() })
+                  }
+                />
+              ) : null}
+            </div>
           ) : null}
 
           {canEdit ? (

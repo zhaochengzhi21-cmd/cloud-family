@@ -124,7 +124,7 @@ export function OverviewTab({
   canReview: boolean;
   onAddPerson: () => void;
   onAddRel: () => void;
-  onOpenRecords: (personId: string) => void;
+  onOpenRecords: (personId: string, claimType?: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -377,7 +377,18 @@ export function OverviewTab({
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => onOpenRecords(p.id)}
+                          onClick={() =>
+                            onOpenRecords(
+                              p.id,
+                              s.key === "birth"
+                                ? "BIRTH_DATE"
+                                : s.key === "death"
+                                  ? "DEATH_DATE"
+                                  : s.key === "burial"
+                                    ? "BURIAL_PLACE"
+                                    : undefined
+                            )
+                          }
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
                           aria-label={`为${p.preferredName}${s.peopleAria ?? "补充资料"}`}
                         >
