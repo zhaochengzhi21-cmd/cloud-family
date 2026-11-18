@@ -2244,22 +2244,40 @@ function ClaimCard({
           </div>
         ) : null}
         {canReview && claim.status === "CONFLICTED" ? (
-          <button
-            type="button"
-            className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
-            onClick={async () => {
-              try {
-                await v1api.rejectClaim(familyId, claim.id);
-                onFlash("已处理不同说法");
-                await onChanged();
-              } catch (e) {
-                if (onAuthError(e)) return;
-                onError(userMessageForApiError(e));
-              }
-            }}
-          >
-            不采用
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-primary !min-h-[40px] !px-3 !text-sm"
+              onClick={async () => {
+                try {
+                  await v1api.preferClaim(familyId, claim.id);
+                  onFlash("已采用这条说法");
+                  await onChanged();
+                } catch (e) {
+                  if (onAuthError(e)) return;
+                  onError(userMessageForApiError(e));
+                }
+              }}
+            >
+              采用这条
+            </button>
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+              onClick={async () => {
+                try {
+                  await v1api.rejectClaim(familyId, claim.id);
+                  onFlash("已处理不同说法");
+                  await onChanged();
+                } catch (e) {
+                  if (onAuthError(e)) return;
+                  onError(userMessageForApiError(e));
+                }
+              }}
+            >
+              不采用
+            </button>
+          </div>
         ) : null}
       </div>
 

@@ -505,6 +505,12 @@ export const v1api = {
       { method: "POST", body: {} }
     ),
 
+  preferClaim: (familyId: string, claimId: string) =>
+    v1Fetch<{ claim: { id: string; status: string } }>(
+      `/api/v1/families/${familyId}/claims/${claimId}/prefer`,
+      { method: "POST", body: {} }
+    ),
+
   rejectClaim: (familyId: string, claimId: string) =>
     v1Fetch<{ claim: { id: string; status: string } }>(
       `/api/v1/families/${familyId}/claims/${claimId}/reject`,

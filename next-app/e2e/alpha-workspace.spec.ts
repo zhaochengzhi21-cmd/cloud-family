@@ -392,10 +392,15 @@ async function runCoreJourney(
     page.getByText("目前资料中记录不一致，先保留两种说法")
   ).toBeVisible();
 
-  // reject second (十四年) — find card with 十四年 and reject
-  const conflictCards = page.locator("li").filter({ hasText: "民国十四年" });
-  await conflictCards.getByRole("button", { name: "不采用" }).click();
-  await expect(page.getByText("已确认").first()).toBeVisible();
+  // Prefer first saying (十三年) over the conflicting 十四年
+  const year13Conflict = page.locator("li").filter({ hasText: "民国十三年" });
+  await year13Conflict.getByRole("button", { name: "采用这条" }).click();
+  await expect(page.getByText("已采用这条说法")).toBeVisible();
+  await expect(page.getByText("存在不同说法")).toHaveCount(0);
+  await expect(
+    page.getByText("目前资料中记录不一致，先保留两种说法")
+  ).toHaveCount(0);
+  await expect(year13Conflict.getByText("已确认")).toBeVisible();
   await expect(page.getByText("查看不采用的记录")).toBeVisible();
   await page.getByText("查看不采用的记录").click();
   await expect(page.getByText("民国十四年")).toBeVisible();

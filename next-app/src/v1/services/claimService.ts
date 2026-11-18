@@ -396,6 +396,115 @@ export async function acceptClaim(
   return result;
 }
 
+/**
+ * Prefer one CONFLICTED singleton claim: reject other ACCEPTED|CONFLICTED
+ * siblings for the same subject+type, then recompute so the chosen one is ACCEPTED.
+ */
+export async function preferClaim(
+  familyId: string,
+  claimId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db }
+): Promise<ReviewClaimResult> {
+  const database = dbOrDefault(options?.db);
+  const userId = actorUserId(actorContext);
+  if (!userId) {
+    throw new ClaimDomainError("FORBIDDEN");
+  }
+
+  const reviewAuth = await authorizeFamilyAction(
+    familyId,
+    actorContext,
+    "REVIEW_CLAIM",
+    { db: database }
+  ).catch(mapPerm);
+  if (reviewAuth.decision !== "ALLOW") {
+    throw new ClaimDomainError("FORBIDDEN");
+  }
+
+  const now = new Date();
+
+  return database.transaction(async (tx) => {
+    const family = await lockFamilyForMutation(tx, familyId);
+    if (!family) {
+      throw new ClaimDomainError("FAMILY_NOT_FOUND");
+    }
+
+    const existing = await claimRepo.findActiveClaimById(tx, claimId);
+    if (!existing || existing.familyId !== familyId) {
+      throw new ClaimDomainError("CLAIM_NOT_FOUND");
+    }
+    if (existing.status !== "CONFLICTED") {
+      throw new ClaimDomainError("INVALID_CLAIM_STATUS_TRANSITION");
+    }
+
+    const def = getClaimTypeDefinition(existing.claimType as ClaimType);
+    if (!def || def.cardinality !== "SINGLETON") {
+      throw new ClaimDomainError("INVALID_CLAIM_STATUS_TRANSITION");
+    }
+
+    const siblings = await claimRepo.listConflictCandidates(tx, {
+      familyId,
+      subjectType: existing.subjectType,
+      subjectId: existing.subjectId,
+      claimType: existing.claimType,
+    });
+
+    let rejectedSiblingCount = 0;
+    for (const sibling of siblings) {
+      if (sibling.id === claimId) continue;
+      const rejected = await claimRepo.tryRejectReviewedClaim(tx, {
+        claimId: sibling.id,
+        reviewedByUserId: userId,
+        reviewedAt: now,
+        updatedAt: now,
+      });
+      if (!rejected) {
+        throw new ClaimDomainError("REVIEW_CONFLICT");
+      }
+      rejectedSiblingCount += 1;
+    }
+
+    const recompute = await recomputeSingletonConflicts(tx, {
+      familyId,
+      subjectType: existing.subjectType,
+      subjectId: existing.subjectId,
+      claimType: existing.claimType as ClaimType,
+      now,
+    });
+
+    const finalRow = await claimRepo.findActiveClaimById(tx, claimId);
+    if (!finalRow || finalRow.status !== "ACCEPTED") {
+      throw new ClaimDomainError("REVIEW_CONFLICT");
+    }
+
+    const familyVersion = await advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId: userId,
+      summary: "CLAIM_ACCEPTED",
+      eventType: "CLAIM_ACCEPTED",
+      entityType: "CLAIM",
+      entityId: claimId,
+      metadataJson: {
+        claimType: existing.claimType,
+        subjectType: existing.subjectType,
+        preferred: true,
+        rejectedSiblingCount,
+        conflictCount: recompute.conflictCount,
+        changedClaimCount: recompute.changedClaimCount,
+      },
+      now: new Date(),
+    });
+
+    return {
+      claim: claimRepo.mapClaimDto(finalRow),
+      familyVersion,
+      conflictCount: recompute.conflictCount,
+      changedClaimCount: recompute.changedClaimCount + rejectedSiblingCount,
+    };
+  });
+}
+
 export async function rejectClaim(
   familyId: string,
   claimId: string,
