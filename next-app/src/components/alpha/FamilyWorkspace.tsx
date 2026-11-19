@@ -3887,6 +3887,12 @@ function PersonDrawer({
   const [name, setName] = useState(person.preferredName);
   const [living, setLiving] = useState(person.livingStatus);
   const [gender, setGender] = useState(person.gender);
+  /** Last-known server values — dirty uses these so close works before parent reload re-renders. */
+  const [savedBasics, setSavedBasics] = useState({
+    preferredName: person.preferredName,
+    livingStatus: person.livingStatus,
+    gender: person.gender,
+  });
   const [drawerClaimSeed, setDrawerClaimSeed] = useState<{
     claimType: string;
     nonce: number;
@@ -3935,14 +3941,22 @@ function PersonDrawer({
     setName(person.preferredName);
     setLiving(person.livingStatus);
     setGender(person.gender);
+    setSavedBasics({
+      preferredName: person.preferredName,
+      livingStatus: person.livingStatus,
+      gender: person.gender,
+    });
     setRevision(person.revisionNo);
     setConfirmDelete(false);
     setConfirmDiscard(false);
     setPendingPersonId(null);
     setConfirmRelId(null);
     setLocalError("");
-    setLocalFlash("");
   }, [person.id, person.preferredName, person.livingStatus, person.gender, person.revisionNo]);
+
+  useEffect(() => {
+    setLocalFlash("");
+  }, [person.id]);
 
   useEffect(() => {
     if (!localFlash) return;
@@ -3965,9 +3979,9 @@ function PersonDrawer({
 
   const dirty =
     canEdit &&
-    (name.trim() !== person.preferredName ||
-      living !== person.livingStatus ||
-      gender !== person.gender);
+    (name.trim() !== savedBasics.preferredName ||
+      living !== savedBasics.livingStatus ||
+      gender !== savedBasics.gender);
 
   const discardPending = useCallback(() => {
     const nextId = pendingPersonId;
@@ -4080,6 +4094,11 @@ function PersonDrawer({
       setName(res.person.preferredName);
       setLiving(res.person.livingStatus);
       setGender(res.person.gender);
+      setSavedBasics({
+        preferredName: res.person.preferredName,
+        livingStatus: res.person.livingStatus,
+        gender: res.person.gender,
+      });
       const needsDeath =
         res.person.livingStatus === "DECEASED" &&
         !activeClaims.some((c) => c.claimType === "DEATH_DATE");
@@ -4088,6 +4107,9 @@ function PersonDrawer({
           ? "已保存基本信息。建议在下方补充去世信息。"
           : "已保存基本信息"
       );
+      if (needsDeath) {
+        setDrawerClaimSeed({ claimType: "DEATH_DATE", nonce: Date.now() });
+      }
       await onChanged();
     } catch (err) {
       if (onAuth(err)) return;

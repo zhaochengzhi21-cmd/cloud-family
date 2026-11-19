@@ -233,34 +233,23 @@ async function runCoreJourney(
   await spouseModal.getByRole("button", { name: "关闭" }).click();
   await page.getByRole("tab", { name: "世系" }).click();
 
-  // Overview next-step: deceased without death date
-  const graphForDeath = await apiJson(
-    page,
-    `/api/v1/families/${familyId}/graph`
-  );
-  const jiaLive = (
-    graphForDeath.body as {
-      graph: { persons: { id: string; preferredName: string; revisionNo: number }[] };
-    }
-  ).graph.persons.find((p) => p.id === jia.id)!;
-  const markDead = await apiJson(
-    page,
-    `/api/v1/families/${familyId}/persons/${jia.id}`,
-    {
-      method: "PATCH",
-      body: {
-        expectedRevision: jiaLive.revisionNo,
-        livingStatus: "DECEASED",
-      },
-    },
-    baseURL
-  );
-  expect(markDead.status).toBe(200);
-  await page.getByRole("tab", { name: "概览" }).click();
-  await page.reload();
-  await expect(page.getByRole("heading", { name: "测试赵氏家庭" })).toBeVisible({
-    timeout: 60_000,
+  // Mark deceased in drawer → auto-open death claim form
+  await page.getByRole("button", { name: /^赵甲/ }).click();
+  const deathDrawer = page.getByRole("dialog");
+  await expect(deathDrawer.getByRole("heading", { name: "赵甲" })).toBeVisible();
+  await deathDrawer.locator("#edit-living").selectOption("DECEASED");
+  await deathDrawer.getByRole("button", { name: "保存基本信息" }).click();
+  await expect(
+    deathDrawer.getByText("已保存基本信息。建议在下方补充去世信息。")
+  ).toBeVisible();
+  await expect(deathDrawer.locator("#claim-type")).toHaveValue("DEATH_DATE", {
+    timeout: 15_000,
   });
+  await expect(deathDrawer.locator("#claim-text")).toBeFocused();
+  await deathDrawer.getByRole("button", { name: "关闭" }).click();
+  await expect(deathDrawer).toHaveCount(0);
+
+  // Overview next-step: deceased without death date
   await page.getByRole("tab", { name: "概览" }).click();
   const deathStep = page
     .getByRole("listitem")
