@@ -407,10 +407,26 @@ export function PersonProfile({
           <TimelineEvent
             title="出生"
             rows={[
-              { label: "时间", claims: birthDate },
-              { label: "地点", claims: birthPlace },
+              {
+                label: "时间",
+                claims: birthDate,
+                fill:
+                  birthDate.length === 0
+                    ? { label: "补充出生", claimType: "BIRTH_DATE" }
+                    : undefined,
+              },
+              {
+                label: "地点",
+                claims: birthPlace,
+                fill:
+                  birthDate.length > 0 && birthPlace.length === 0
+                    ? { label: "补充出生地", claimType: "BIRTH_PLACE" }
+                    : undefined,
+              },
             ]}
             sources={sources}
+            canEdit={canEdit}
+            onFill={openRecords}
           />
           {alias.length > 0 ? (
             <TimelineEvent
@@ -451,10 +467,26 @@ export function PersonProfile({
             <TimelineEvent
               title="去世"
               rows={[
-                { label: "时间", claims: deathDate },
-                { label: "安葬", claims: burial },
+                {
+                  label: "时间",
+                  claims: deathDate,
+                  fill:
+                    deathDate.length === 0
+                      ? { label: "补充去世", claimType: "DEATH_DATE" }
+                      : undefined,
+                },
+                {
+                  label: "安葬",
+                  claims: burial,
+                  fill:
+                    deathDate.length > 0 && burial.length === 0
+                      ? { label: "补充安葬地", claimType: "BURIAL_PLACE" }
+                      : undefined,
+                },
               ]}
               sources={sources}
+              canEdit={canEdit}
+              onFill={openRecords}
             />
           ) : null}
         </ol>
@@ -673,15 +705,30 @@ export function PersonProfile({
   );
 }
 
+type TimelineRow = {
+  label: string;
+  claims: Claim[];
+  fill?: { label: string; claimType: string };
+};
+
 function TimelineEvent({
   title,
   rows,
   sources,
+  canEdit = false,
+  onFill,
 }: {
   title: string;
-  rows: { label: string; claims: Claim[] }[];
+  rows: TimelineRow[];
   sources: SourcesByClaim;
+  canEdit?: boolean;
+  onFill?: (claimType: string) => void;
 }) {
+  const visible = rows.filter(
+    (r) => r.claims.length > 0 || (canEdit && r.fill && onFill)
+  );
+  if (visible.length === 0) return null;
+
   return (
     <li className="relative">
       <span
@@ -692,13 +739,23 @@ function TimelineEvent({
         {title}
       </h3>
       <dl className="mt-1 space-y-1">
-        {rows.map((r) => (
+        {visible.map((r) => (
           <div key={r.label} className="flex gap-3">
             <dt className="w-10 shrink-0 text-sm text-[color:var(--a-muted)]">
               {r.label}
             </dt>
-              <dd className="min-w-0 flex-1">
-              <ClaimValues claims={r.claims} sources={sources} />
+            <dd className="min-w-0 flex-1">
+              {r.claims.length > 0 ? (
+                <ClaimValues claims={r.claims} sources={sources} />
+              ) : r.fill && onFill ? (
+                <button
+                  type="button"
+                  className="alpha-print-hide text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => onFill(r.fill!.claimType)}
+                >
+                  {r.fill.label}
+                </button>
+              ) : null}
             </dd>
           </div>
         ))}
