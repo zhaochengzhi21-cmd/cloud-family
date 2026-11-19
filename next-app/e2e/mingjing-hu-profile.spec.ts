@@ -564,3 +564,63 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   });
   await expect(page.locator("#claim-text")).toBeFocused();
 });
+
+test("明经胡氏：有配偶无子女时提示补充子女", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·配偶子女（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+  const spouseId = await seedPerson(
+    page,
+    familyId,
+    {
+      preferredName: "汪孺人",
+      gender: "FEMALE",
+      livingStatus: "DECEASED",
+    },
+    [{ claimType: "BIRTH_DATE", text: "约明嘉靖年间" }]
+  );
+  const spouseRel = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/relationships`,
+    {
+      method: "POST",
+      body: {
+        fromPersonId: personId,
+        toPersonId: spouseId,
+        relationshipType: "SPOUSE",
+      },
+    }
+  );
+  expect(spouseRel.status, JSON.stringify(spouseRel.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const kin = page.getByRole("region", { name: "家人" });
+  await expect(kin.getByRole("button", { name: "补充配偶" })).toHaveCount(0);
+  await expect(kin.getByRole("button", { name: "补充子女" })).toBeVisible();
+  await kin.getByRole("button", { name: "补充子女" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("世系", {
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("dialog", { name: /添加子女/ })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("dialog")).toContainText(
+    sample.wenGuang.preferredName
+  );
+});
