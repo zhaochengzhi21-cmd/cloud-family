@@ -355,6 +355,7 @@ async function runCoreJourney(
   await expect(page.getByText("补充 1 位已故成员的安葬地")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的祖籍")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的职业")).toBeVisible();
+  await expect(page.getByText("补充 1 位成员的字号")).toBeVisible();
   await expect(page.getByText("补充 2 位成员的字辈")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "为赵甲补充出生信息" })

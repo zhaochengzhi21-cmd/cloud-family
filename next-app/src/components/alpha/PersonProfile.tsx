@@ -335,6 +335,7 @@ export function PersonProfile({
   const generation = generationByPerson[person.id];
   const birthDate = pickShown(claims, "BIRTH_DATE");
   const birthPlace = pickShown(claims, "BIRTH_PLACE");
+  const alias = pickShown(claims, "ALIAS");
   const ancestral = pickShown(claims, "ANCESTRAL_PLACE");
   const occupation = pickShown(claims, "OCCUPATION");
   const deathDate = pickShown(claims, "DEATH_DATE");
@@ -409,6 +410,13 @@ export function PersonProfile({
             ]}
             sources={sources}
           />
+          {alias.length > 0 ? (
+            <TimelineEvent
+              title="字号"
+              rows={[{ label: "称呼", claims: alias }]}
+              sources={sources}
+            />
+          ) : null}
           {ancestral.length > 0 ? (
             <TimelineEvent
               title="祖籍"

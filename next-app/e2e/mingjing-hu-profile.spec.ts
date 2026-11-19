@@ -217,5 +217,60 @@ test("明经胡氏：保存祖籍后链式展开职业表单", async ({ page, ba
   await expect(page.locator("#claim-text")).toBeFocused();
   await page.locator("#claim-text").fill("万载知县，后升胶州刺史");
   await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(page.getByText("已添加职业。接着可以记下字号或别名。")).toBeVisible();
+  await expect(page.locator("#claim-type")).toHaveValue("ALIAS", {
+    timeout: 15_000,
+  });
   await expect(page.getByText("万载知县，后升胶州刺史")).toBeVisible();
+});
+
+test("明经胡氏：人物页显示字号，概览 chip 直达别名表单", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·字号（测试）",
+    sample.surname
+  );
+
+  const sl = sample.shiLiang;
+  const shiLiangId = await seedPerson(page, familyId, sl, sl.claims);
+
+  await page.goto(`/alpha/families/${familyId}/people/${shiLiangId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sl.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByRole("heading", { name: "字号" })).toBeVisible();
+  await expect(life.getByText("字季臣")).toBeVisible();
+
+  const wg = sample.wenGuang;
+  const wenGuangId = await seedPerson(
+    page,
+    familyId,
+    wg,
+    wg.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const aliasStep = page.getByRole("listitem").filter({ hasText: "成员的字号" });
+  await expect(aliasStep).toContainText(/补充 \d+ 位成员的字号/, {
+    timeout: 60_000,
+  });
+  await aliasStep
+    .getByRole("button", { name: `为${wg.preferredName}补充字号` })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(wenGuangId);
+  await expect(page.locator("#claim-type")).toHaveValue("ALIAS", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
 });

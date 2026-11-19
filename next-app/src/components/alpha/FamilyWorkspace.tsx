@@ -1560,6 +1560,7 @@ function nextClaimAfterSave(
     return "ANCESTRAL_PLACE";
   if (savedType === "ANCESTRAL_PLACE" && !has("OCCUPATION"))
     return "OCCUPATION";
+  if (savedType === "OCCUPATION" && !has("ALIAS")) return "ALIAS";
   if (
     savedType === "DEATH_DATE" &&
     livingStatus === "DECEASED" &&
@@ -1575,6 +1576,7 @@ function flashAfterClaimSave(followUp: string | null): string {
   if (followUp === "ANCESTRAL_PLACE")
     return "已添加出生地。接着可以记下祖籍。";
   if (followUp === "OCCUPATION") return "已添加祖籍。接着可以记下职业。";
+  if (followUp === "ALIAS") return "已添加职业。接着可以记下字号或别名。";
   if (followUp === "BURIAL_PLACE")
     return "已添加去世信息。接着可以记下安葬地。";
   return "已添加人物资料。需要的话，可为这条补上来源。";
