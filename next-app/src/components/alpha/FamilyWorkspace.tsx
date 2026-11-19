@@ -1614,11 +1614,11 @@ function ClaimStartCtas({
     "BIRTH_DATE",
     "BIRTH_PLACE",
     "ANCESTRAL_PLACE",
+    "OCCUPATION",
+    "ALIAS",
+    "STORY",
     "GENERATION_WORD",
     "BIRTH_ORDER",
-    "ALIAS",
-    "OCCUPATION",
-    "STORY",
     ...(livingStatus === "DECEASED" ? ["DEATH_DATE", "BURIAL_PLACE"] : []),
   ].filter((t) => !present.has(t));
   if (types.length === 0) return null;
