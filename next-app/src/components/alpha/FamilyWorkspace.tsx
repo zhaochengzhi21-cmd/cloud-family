@@ -1623,6 +1623,8 @@ function flashAfterClaimSave(
     return "已添加去世信息。接着可以记下安葬地。";
   if (savedType === "STORY")
     return "已添加故事。接着可以补上口述或谱页来源。";
+  if (savedType)
+    return "已添加人物资料。接着可以补上谱页或其他来源。";
   return "已添加人物资料。需要的话，可为这条补上来源。";
 }
 
@@ -2024,7 +2026,7 @@ function RecordsTab({
             await loadClaims();
             if (followUp) {
               setLocalSeed({ claimType: followUp, nonce: Date.now() });
-            } else if (savedType === "STORY") {
+            } else {
               setOpenEvidenceClaimId(claimId);
             }
           }}
@@ -4866,7 +4868,7 @@ function PersonDrawer({
                 await loadClaims();
                 if (followUp) {
                   setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
-                } else if (savedType === "STORY") {
+                } else {
                   setDrawerOpenEvidenceClaimId(claimId);
                 }
               }}

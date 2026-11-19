@@ -305,6 +305,39 @@ test("明经胡氏：字辈表单可从行辈歌取字", async ({ page, baseURL 
   await expect(page.locator("#claim-text")).toHaveValue("清");
 });
 
+test("明经胡氏：保存字辈后自动打开谱页来源表单", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·字辈来源（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.guanSan, [
+    { claimType: "BIRTH_DATE", text: "约清乾隆年间" },
+  ]);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
+  await page.locator("#claim-type").selectOption("GENERATION_WORD");
+  await page.locator("#claim-text").fill("贯");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(
+    page.getByText("已添加人物资料。接着可以补上谱页或其他来源。")
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "保存来源" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator("#ev-type")).toHaveValue("GENEALOGY_PAGE");
+  await expect(
+    page.locator(`[data-claim-id]`).filter({ hasText: "贯" })
+  ).toBeVisible();
+});
+
 test("明经胡氏：保存故事后自动打开来源表单", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
