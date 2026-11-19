@@ -1091,6 +1091,76 @@ test("明经胡氏：概览有配偶无子女时 chip 打开添加子女", async
   await expect(dialog).toContainText(sample.wenGuang.preferredName);
 });
 
+test("明经胡氏：人物页来源可查看照片", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物页照片来源（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("PHOTO");
+  await birthCard.getByLabel("来源标题（可选）").fill("文光公画像（测试）");
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  await birthCard.locator('input[type="file"]').setInputFiles({
+    name: "wenguang.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("文光公画像（测试）")).toBeVisible({
+    timeout: 90_000,
+  });
+
+  const claimId = await birthCard.getAttribute("data-claim-id");
+  expect(claimId).toBeTruthy();
+  const detail = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}`
+  );
+  const mediaId = (
+    detail.body as {
+      evidenceLinks: { evidence: { mediaObjectId: string | null } }[];
+    }
+  ).evidenceLinks
+    .map((l) => l.evidence.mediaObjectId)
+    .find(Boolean);
+  expect(mediaId, JSON.stringify(detail.body)).toBeTruthy();
+  trackMedia(familyId, mediaId!, ownerId);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByText(/文光公画像/)).toBeVisible({ timeout: 60_000 });
+  await life.getByRole("button", { name: "查看" }).first().click();
+  const dialog = page.getByRole("dialog", { name: "文光公画像（测试）" });
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByRole("img", { name: "文光公画像（测试）" })).toBeVisible();
+  await dialog.getByRole("button", { name: "关闭" }).click();
+});
+
 test("明经胡氏：确认无来源资料后自动打开来源表单", async ({
   page,
   baseURL,

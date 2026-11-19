@@ -534,6 +534,7 @@ export function PersonProfile({
               },
             ]}
             sources={sources}
+            familyId={familyId}
             canEdit={canEdit}
             onFill={openRecords}
             onAddSource={openEvidence}
@@ -566,6 +567,7 @@ export function PersonProfile({
                 },
               ]}
               sources={sources}
+              familyId={familyId}
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
@@ -587,6 +589,7 @@ export function PersonProfile({
                 },
               ]}
               sources={sources}
+              familyId={familyId}
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
@@ -608,6 +611,7 @@ export function PersonProfile({
                 },
               ]}
               sources={sources}
+              familyId={familyId}
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
@@ -629,6 +633,7 @@ export function PersonProfile({
                 },
               ]}
               sources={sources}
+              familyId={familyId}
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
@@ -657,6 +662,7 @@ export function PersonProfile({
                 },
               ]}
               sources={sources}
+              familyId={familyId}
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
@@ -739,6 +745,7 @@ export function PersonProfile({
                     <ClaimValues
                       claims={rows}
                       sources={sources}
+                      familyId={familyId}
                       canEdit={canEdit}
                       onAddSource={openEvidence}
                       onFocusClaim={openRecordsFocus}
@@ -771,19 +778,9 @@ export function PersonProfile({
                   </p>
                 ) : null}
                 {sources[c.id]?.length ? (
-                  <p className="mt-2 text-xs text-[color:var(--a-muted)]">
-                    来源：
-                    {sources[c.id]
-                      .map((l) =>
-                        [
-                          EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源",
-                          l.evidence.title,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")
-                      )
-                      .join("；")}
-                  </p>
+                  <div className="mt-2">
+                    <ClaimSources familyId={familyId} links={sources[c.id]} />
+                  </div>
                 ) : canEdit ? (
                   <button
                     type="button"
@@ -1032,6 +1029,7 @@ function TimelineEvent({
   title,
   rows,
   sources,
+  familyId,
   canEdit = false,
   onFill,
   onAddSource,
@@ -1040,6 +1038,7 @@ function TimelineEvent({
   title: string;
   rows: TimelineRow[];
   sources: SourcesByClaim;
+  familyId: string;
   canEdit?: boolean;
   onFill?: (claimType: string) => void;
   onAddSource?: (claimId: string) => void;
@@ -1070,6 +1069,7 @@ function TimelineEvent({
                 <ClaimValues
                   claims={r.claims}
                   sources={sources}
+                  familyId={familyId}
                   canEdit={canEdit}
                   onAddSource={onAddSource}
                   onFocusClaim={onFocusClaim}
@@ -1100,6 +1100,139 @@ function sourceText(l: EvidenceLink): string {
   ]
     .filter(Boolean)
     .join(" · ");
+}
+
+function isAudioEvidence(type: string) {
+  return type === "ORAL_HISTORY";
+}
+
+function isPhotoEvidence(type: string) {
+  return type === "PHOTO";
+}
+
+function ClaimSources({
+  familyId,
+  links,
+}: {
+  familyId: string;
+  links: EvidenceLink[];
+}) {
+  const [viewer, setViewer] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
+  const [playing, setPlaying] = useState<{
+    url: string;
+    title: string;
+  } | null>(null);
+  const [mediaError, setMediaError] = useState("");
+
+  async function openMedia(l: EvidenceLink, kind: "photo" | "audio") {
+    const mediaId = l.evidence.mediaObjectId;
+    if (!mediaId) return;
+    setMediaError("");
+    try {
+      const r = await v1api.mediaRead(familyId, mediaId);
+      const title =
+        l.evidence.title ||
+        EVIDENCE_TYPE_UI[l.evidence.evidenceType] ||
+        (kind === "audio" ? "口述录音" : "照片");
+      if (kind === "audio") {
+        setViewer(null);
+        setPlaying({ url: r.read.url, title });
+      } else {
+        setPlaying(null);
+        setViewer({ url: r.read.url, title });
+      }
+    } catch (e) {
+      setMediaError(userMessageForApiError(e));
+    }
+  }
+
+  return (
+    <div className="w-full text-xs text-[color:var(--a-muted)]">
+      <ul className="space-y-1">
+        {links.map((l) => {
+          const mid = l.evidence.mediaObjectId;
+          const type = l.evidence.evidenceType;
+          return (
+            <li
+              key={l.evidence.id}
+              className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+            >
+              <span>来源：{sourceText(l)}</span>
+              {mid && isAudioEvidence(type) ? (
+                <button
+                  type="button"
+                  className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => void openMedia(l, "audio")}
+                >
+                  收听
+                </button>
+              ) : null}
+              {mid && isPhotoEvidence(type) ? (
+                <button
+                  type="button"
+                  className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => void openMedia(l, "photo")}
+                >
+                  查看
+                </button>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {playing ? (
+        <div className="alpha-print-hide mt-2 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="font-semibold text-[color:var(--a-brand)]">
+              {playing.title}
+            </p>
+            <button
+              type="button"
+              className="font-semibold text-[color:var(--a-muted)]"
+              onClick={() => setPlaying(null)}
+            >
+              关闭
+            </button>
+          </div>
+          <audio controls autoPlay src={playing.url} className="w-full">
+            你的浏览器不支持音频播放。
+          </audio>
+        </div>
+      ) : null}
+      {viewer ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={viewer.title}
+          className="alpha-print-hide fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setViewer(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-[color:var(--a-ink)]"
+            onClick={() => setViewer(null)}
+          >
+            关闭
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={viewer.url}
+            alt={viewer.title}
+            className="max-h-[90vh] max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
+      {mediaError ? (
+        <p role="alert" className="mt-1 text-[color:var(--a-danger)]">
+          {mediaError}
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 function AudioWall({
@@ -1318,12 +1451,14 @@ function PhotoWall({
 function ClaimValues({
   claims,
   sources,
+  familyId,
   canEdit = false,
   onAddSource,
   onFocusClaim,
 }: {
   claims: Claim[];
   sources: SourcesByClaim;
+  familyId: string;
   canEdit?: boolean;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
@@ -1389,9 +1524,7 @@ function ClaimValues({
               )
             ) : null}
             {sources[c.id]?.length ? (
-              <span className="w-full text-xs text-[color:var(--a-muted)]">
-                来源：{sources[c.id].map(sourceText).join("；")}
-              </span>
+              <ClaimSources familyId={familyId} links={sources[c.id]} />
             ) : canEdit && onAddSource ? (
               <button
                 type="button"
