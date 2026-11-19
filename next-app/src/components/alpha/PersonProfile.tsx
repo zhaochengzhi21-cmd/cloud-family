@@ -278,6 +278,7 @@ export function PersonProfile({
       sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
       sessionStorage.removeItem(`alpha-records-evidence-seed:${familyId}`);
+      sessionStorage.removeItem(`alpha-records-focus:${familyId}`);
       if (claimType) {
         sessionStorage.setItem(
           `alpha-records-claim-seed:${familyId}`,
@@ -301,12 +302,40 @@ export function PersonProfile({
       sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
       sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
+      sessionStorage.removeItem(`alpha-records-focus:${familyId}`);
       sessionStorage.setItem(
         `alpha-records-evidence-seed:${familyId}`,
         JSON.stringify({
           personId,
           claimId,
           evidenceType: evidenceType || undefined,
+          nonce: Date.now(),
+        })
+      );
+    } catch {
+      /* private mode */
+    }
+    router.push(workspaceHref);
+  }
+
+  function openRecordsFocus(claimId: string, status?: string) {
+    const statusFilter =
+      status === "CONFLICTED"
+        ? "CONFLICTED"
+        : status === "PROPOSED"
+          ? "PROPOSED"
+          : undefined;
+    try {
+      sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
+      sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
+      sessionStorage.removeItem(`alpha-records-evidence-seed:${familyId}`);
+      sessionStorage.setItem(
+        `alpha-records-focus:${familyId}`,
+        JSON.stringify({
+          personId,
+          claimId,
+          statusFilter,
           nonce: Date.now(),
         })
       );
@@ -508,6 +537,7 @@ export function PersonProfile({
             canEdit={canEdit}
             onFill={openRecords}
             onAddSource={openEvidence}
+            onFocusClaim={openRecordsFocus}
           />
           {generationWord.length > 0 ||
           birthOrder.length > 0 ||
@@ -539,6 +569,7 @@ export function PersonProfile({
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
+              onFocusClaim={openRecordsFocus}
             />
           ) : null}
           {ancestral.length > 0 ||
@@ -559,6 +590,7 @@ export function PersonProfile({
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
+              onFocusClaim={openRecordsFocus}
             />
           ) : null}
           {occupation.length > 0 ||
@@ -579,6 +611,7 @@ export function PersonProfile({
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
+              onFocusClaim={openRecordsFocus}
             />
           ) : null}
           {alias.length > 0 ||
@@ -599,6 +632,7 @@ export function PersonProfile({
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
+              onFocusClaim={openRecordsFocus}
             />
           ) : null}
           {showDeath ? (
@@ -626,6 +660,7 @@ export function PersonProfile({
               canEdit={canEdit}
               onFill={openRecords}
               onAddSource={openEvidence}
+              onFocusClaim={openRecordsFocus}
             />
           ) : null}
         </ol>
@@ -706,6 +741,7 @@ export function PersonProfile({
                       sources={sources}
                       canEdit={canEdit}
                       onAddSource={openEvidence}
+                      onFocusClaim={openRecordsFocus}
                     />
                   </dd>
                 </div>
@@ -758,17 +794,19 @@ export function PersonProfile({
                   </button>
                 ) : null}
                 {c.status !== "ACCEPTED" ? (
-                  <span
-                    className={`alpha-chip mt-2 inline-flex ${
+                  <button
+                    type="button"
+                    className={`alpha-print-hide alpha-chip mt-2 inline-flex ${
                       c.status === "CONFLICTED"
                         ? "alpha-chip-conflicted"
                         : "alpha-chip-proposed"
                     }`}
+                    onClick={() => openRecordsFocus(c.id, c.status)}
                   >
                     {CLAIM_STATUS_LABEL[
                       c.status as keyof typeof CLAIM_STATUS_LABEL
                     ] ?? c.status}
-                  </span>
+                  </button>
                 ) : null}
               </li>
             ))}
@@ -997,6 +1035,7 @@ function TimelineEvent({
   canEdit = false,
   onFill,
   onAddSource,
+  onFocusClaim,
 }: {
   title: string;
   rows: TimelineRow[];
@@ -1004,6 +1043,7 @@ function TimelineEvent({
   canEdit?: boolean;
   onFill?: (claimType: string) => void;
   onAddSource?: (claimId: string) => void;
+  onFocusClaim?: (claimId: string, status?: string) => void;
 }) {
   const visible = rows.filter(
     (r) => r.claims.length > 0 || (canEdit && r.fill && onFill)
@@ -1032,6 +1072,7 @@ function TimelineEvent({
                   sources={sources}
                   canEdit={canEdit}
                   onAddSource={onAddSource}
+                  onFocusClaim={onFocusClaim}
                 />
               ) : r.fill && onFill ? (
                 <button
@@ -1279,22 +1320,38 @@ function ClaimValues({
   sources,
   canEdit = false,
   onAddSource,
+  onFocusClaim,
 }: {
   claims: Claim[];
   sources: SourcesByClaim;
   canEdit?: boolean;
   onAddSource?: (claimId: string) => void;
+  onFocusClaim?: (claimId: string, status?: string) => void;
 }) {
   if (claims.length === 0) {
     return <span className="text-sm text-[color:var(--a-muted)]">未记录</span>;
   }
   const differs = claims.length > 1;
+  const differTarget =
+    claims.find((c) => c.status === "CONFLICTED") ??
+    claims.find((c) => c.status === "PROPOSED") ??
+    claims[0];
   return (
     <div>
       {differs ? (
-        <p className="text-xs font-semibold text-[color:var(--a-brand)]">
-          存在不同说法
-        </p>
+        onFocusClaim && differTarget ? (
+          <button
+            type="button"
+            className="alpha-print-hide text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => onFocusClaim(differTarget.id, differTarget.status)}
+          >
+            存在不同说法
+          </button>
+        ) : (
+          <p className="text-xs font-semibold text-[color:var(--a-brand)]">
+            存在不同说法
+          </p>
+        )
       ) : null}
       <ul className="space-y-0.5">
         {claims.map((c) => (
@@ -1303,17 +1360,33 @@ function ClaimValues({
               {c.value?.text ?? "—"}
             </span>
             {c.status !== "ACCEPTED" ? (
-              <span
-                className={`alpha-chip ${
-                  c.status === "CONFLICTED"
-                    ? "alpha-chip-conflicted"
-                    : "alpha-chip-proposed"
-                }`}
-              >
-                {CLAIM_STATUS_LABEL[
-                  c.status as keyof typeof CLAIM_STATUS_LABEL
-                ] ?? c.status}
-              </span>
+              onFocusClaim ? (
+                <button
+                  type="button"
+                  className={`alpha-print-hide alpha-chip ${
+                    c.status === "CONFLICTED"
+                      ? "alpha-chip-conflicted"
+                      : "alpha-chip-proposed"
+                  }`}
+                  onClick={() => onFocusClaim(c.id, c.status)}
+                >
+                  {CLAIM_STATUS_LABEL[
+                    c.status as keyof typeof CLAIM_STATUS_LABEL
+                  ] ?? c.status}
+                </button>
+              ) : (
+                <span
+                  className={`alpha-chip ${
+                    c.status === "CONFLICTED"
+                      ? "alpha-chip-conflicted"
+                      : "alpha-chip-proposed"
+                  }`}
+                >
+                  {CLAIM_STATUS_LABEL[
+                    c.status as keyof typeof CLAIM_STATUS_LABEL
+                  ] ?? c.status}
+                </span>
+              )
             ) : null}
             {sources[c.id]?.length ? (
               <span className="w-full text-xs text-[color:var(--a-muted)]">

@@ -352,6 +352,62 @@ test("明经胡氏：概览待确认直达对应资料卡片", async ({ page, ba
   ).toBeVisible();
 });
 
+test("明经胡氏：人物页待确认 chip 直达对应资料卡片", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物待确认（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "BIRTH_DATE", text: "约明嘉靖年间" },
+  ]);
+  const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "OCCUPATION",
+      value: { text: "万载知县，后升胶州刺史" },
+      originType: "MANUAL",
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const claimId = (created.body as { claim: { id: string } }).claim.id;
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await page
+    .locator("li")
+    .filter({ hasText: "万载知县，后升胶州刺史" })
+    .getByRole("button", { name: "待确认", exact: true })
+    .first()
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.getByRole("button", { name: /^待确认/ })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  await expect(page.locator(`[data-claim-id="${claimId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.locator(`[data-claim-id="${claimId}"]`).getByText("万载知县，后升胶州刺史")
+  ).toBeVisible();
+});
+
 test("明经胡氏：保存字辈后自动打开谱页来源表单", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

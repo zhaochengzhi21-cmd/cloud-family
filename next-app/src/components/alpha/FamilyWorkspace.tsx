@@ -383,6 +383,31 @@ export function FamilyWorkspace({
     nonce: number;
   } | null>(null);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`alpha-records-focus:${familyId}`);
+      if (!raw) return;
+      sessionStorage.removeItem(`alpha-records-focus:${familyId}`);
+      const parsed = JSON.parse(raw) as {
+        personId?: string;
+        claimId?: string;
+        statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+        nonce?: number;
+      };
+      if (parsed.personId && parsed.claimId) {
+        setRecordsFocus({
+          personId: parsed.personId,
+          claimId: parsed.claimId,
+          statusFilter: parsed.statusFilter,
+          nonce: parsed.nonce ?? Date.now(),
+        });
+        setTab("records");
+      }
+    } catch {
+      /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
   const openRecordsFor = useCallback(
     (
       personId: string,
