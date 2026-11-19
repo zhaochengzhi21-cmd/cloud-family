@@ -295,6 +295,19 @@ export function PersonProfile({
     router.push(workspaceHref);
   }
 
+  function openAddKin(role: "child" | "parent" | "spouse") {
+    try {
+      sessionStorage.setItem(
+        `alpha-add-kin:${familyId}`,
+        JSON.stringify({ personId, role })
+      );
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+    } catch {
+      /* private mode */
+    }
+    router.push(workspaceHref);
+  }
+
   if (loading && !person) {
     return (
       <p className="py-16 text-center text-[color:var(--a-muted)]" role="status">
@@ -501,9 +514,39 @@ export function PersonProfile({
           family.siblings.length +
           family.children.length ===
         0 ? (
-          <p className="alpha-panel border-dashed px-4 py-5 text-sm text-[color:var(--a-muted)]">
-            还没有记录家庭关系。在家族档案的「世系」里可以添加父母或配偶。
-          </p>
+          <div className="alpha-panel border-dashed px-4 py-5">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              还没有记录家庭关系。
+            </p>
+            {canEdit ? (
+              <div
+                className="mt-3 flex flex-wrap gap-2"
+                role="group"
+                aria-label="为这位家人添加亲人"
+              >
+                {(
+                  [
+                    ["child", "添加子女"],
+                    ["parent", "添加父母"],
+                    ["spouse", "添加配偶"],
+                  ] as const
+                ).map(([role, label]) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                    onClick={() => openAddKin(role)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+                有编辑权限的家人可以补充父母、配偶或子女。
+              </p>
+            )}
+          </div>
         ) : (
           <div className="space-y-3">
             <KinRow label="父母" people={family.parents} familyId={familyId} />
@@ -520,6 +563,30 @@ export function PersonProfile({
               familyId={familyId}
               orders={birthOrders}
             />
+            {canEdit ? (
+              <div
+                className="flex flex-wrap gap-2 pt-1"
+                role="group"
+                aria-label="继续添加亲人"
+              >
+                {(
+                  [
+                    ["child", "添加子女"],
+                    ["parent", "添加父母"],
+                    ["spouse", "添加配偶"],
+                  ] as const
+                ).map(([role, label]) => (
+                  <button
+                    key={role}
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => openAddKin(role)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </section>

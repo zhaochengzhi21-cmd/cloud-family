@@ -292,6 +292,31 @@ export function FamilyWorkspace({
     }
   }, [familyId]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`alpha-add-kin:${familyId}`);
+      if (!raw) return;
+      sessionStorage.removeItem(`alpha-add-kin:${familyId}`);
+      const parsed = JSON.parse(raw) as {
+        personId?: string;
+        role?: "child" | "parent" | "spouse";
+      };
+      if (
+        parsed.personId &&
+        (parsed.role === "child" ||
+          parsed.role === "parent" ||
+          parsed.role === "spouse")
+      ) {
+        setRelFocusPersonId(parsed.personId);
+        setKinRole(parsed.role);
+        setShowAddKin(true);
+        setTab("lineage");
+      }
+    } catch {
+      /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
   const openRecordsFor = useCallback(
     (personId: string, claimType?: string) => {
       try {

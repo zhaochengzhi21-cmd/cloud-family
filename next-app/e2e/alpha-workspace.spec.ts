@@ -606,6 +606,21 @@ async function runCoreJourney(
     timeout: 30_000,
   });
 
+  // Person page kin CTAs open the same add-kin modal
+  await page.goto(`/alpha/families/${familyId}/people/${yi.id}`);
+  await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await page
+    .getByRole("region", { name: "家人" })
+    .getByRole("button", { name: "添加配偶" })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(
+    page.getByRole("dialog", { name: /添加配偶/ })
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("dialog", { name: /添加配偶/ }).getByRole("button", { name: "关闭" }).click();
+
   // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
