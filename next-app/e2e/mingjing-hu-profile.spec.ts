@@ -136,6 +136,9 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   await expect(life.getByText("约明嘉靖年间")).toBeVisible();
   await expect(life.getByText("安徽黟县西递")).toBeVisible();
 
+  await expect(life.getByRole("heading", { name: "辈分" })).toBeVisible();
+  await expect(life.getByText("文")).toBeVisible();
+
   await expect(life.getByRole("heading", { name: "祖籍" })).toBeVisible();
   await expect(life.getByText("江西婺源考水")).toBeVisible();
 
@@ -221,6 +224,14 @@ test("明经胡氏：保存祖籍后链式展开职业表单", async ({ page, ba
   await expect(page.locator("#claim-type")).toHaveValue("ALIAS", {
     timeout: 15_000,
   });
+  await page.locator("#claim-text").fill("字子明");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(
+    page.getByText("已添加字号。接着可以记下一段故事或口述。")
+  ).toBeVisible();
+  await expect(page.locator("#claim-type")).toHaveValue("STORY", {
+    timeout: 15_000,
+  });
   await expect(page.getByText("万载知县，后升胶州刺史")).toBeVisible();
 });
 
@@ -247,6 +258,8 @@ test("明经胡氏：人物页显示字号，概览 chip 直达别名表单", as
   const life = page.getByRole("region", { name: "生平" });
   await expect(life.getByRole("heading", { name: "字号" })).toBeVisible();
   await expect(life.getByText("字季臣")).toBeVisible();
+  await expect(life.getByRole("heading", { name: "辈分" })).toBeVisible();
+  await expect(life.getByText("士")).toBeVisible();
 
   const wg = sample.wenGuang;
   const wenGuangId = await seedPerson(

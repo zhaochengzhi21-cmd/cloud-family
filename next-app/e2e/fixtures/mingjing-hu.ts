@@ -78,6 +78,10 @@ export const MINGJING_HU_SAMPLE = {
         text: "字季臣",
       },
       {
+        claimType: "GENERATION_WORD",
+        text: "士",
+      },
+      {
         claimType: "STORY",
         text: "北宋皇祐年间由婺源迁居西递，为西递明经胡氏始迁祖。",
         narrator: "据谱牒目录与地方公开叙述",
