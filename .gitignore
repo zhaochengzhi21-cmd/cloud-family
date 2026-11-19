@@ -43,3 +43,23 @@ next-env.d.ts
 push-retry.log
 alpha-ui-*.png
 .cursor/
+
+# agent / local scratch
+e2e-*.log
+*.log
+check_*.ps1
+temp_*.js
+temp_*.txt
+*_buildManifest.js
+chunk_analysis.json
+family_page_chunk.js
+cloud_*.html
+page_*.html
+response.html
+deploy_*.html
+deploy_check.html
+buildid.txt
+js_chunk_check.js
+skills-lock.json
+.next-app-local/
+next-app/.agents/
