@@ -1,9 +1,9 @@
 /**
- * Closed Alpha person-profile E2E seeded with public 西递明经胡氏 sample facts.
+ * Closed Alpha E2E seeded with public 西递明经胡氏 sample facts.
  * Disposable family only — not private living-person data.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import {
   requireV1Env,
   insertFakeUser,
@@ -38,39 +38,54 @@ test.afterAll(async () => {
   }
 });
 
-test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
-  page,
-  baseURL,
-}) => {
-  test.skip(!baseURL, "baseURL required");
-  const sample = MINGJING_HU_SAMPLE;
-  const ownerId = await insertFakeUser();
-  await loginAs(page, ownerId, baseURL!);
+type SeedClaim = {
+  claimType: string;
+  text: string;
+  narrator?: string;
+};
 
+async function createFamily(
+  page: Page,
+  baseURL: string,
+  displayName: string,
+  surname: string
+) {
+  const ownerId = await insertFakeUser();
+  await loginAs(page, ownerId, baseURL);
   await page.goto("/alpha/families");
   await page.getByRole("button", { name: /创建第一个家族档案|创建家族档案/ }).click();
-  await page.getByLabel("家族名称 *").fill(sample.familyDisplayName);
-  await page.getByLabel("姓氏（可选）").fill(sample.surname);
+  await page.getByLabel("家族名称 *").fill(displayName);
+  await page.getByLabel("姓氏（可选）").fill(surname);
   await page.getByRole("button", { name: "创建" }).click();
   await expect(page).toHaveURL(/\/alpha\/families\/[0-9a-f-]{36}/i);
-  const familyId = page.url().split("/").pop()!;
+  return page.url().split("/").pop()!;
+}
 
-  const wg = sample.wenGuang;
+async function seedPerson(
+  page: Page,
+  familyId: string,
+  person: {
+    preferredName: string;
+    gender: string;
+    livingStatus: string;
+  },
+  claims: readonly SeedClaim[]
+) {
   const personRes = await apiJson(page, `/api/v1/families/${familyId}/persons`, {
     method: "POST",
     body: {
-      preferredName: wg.preferredName,
-      gender: wg.gender,
-      livingStatus: wg.livingStatus,
+      preferredName: person.preferredName,
+      gender: person.gender,
+      livingStatus: person.livingStatus,
       privacyLevel: "INHERIT",
     },
   });
   expect(personRes.status, JSON.stringify(personRes.body)).toBe(201);
   const personId = (personRes.body as { person: { id: string } }).person.id;
 
-  for (const c of wg.claims) {
+  for (const c of claims) {
     const value =
-      c.claimType === "STORY" && "narrator" in c && c.narrator
+      c.claimType === "STORY" && c.narrator
         ? { text: c.text, narrator: c.narrator }
         : { text: c.text };
     const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
@@ -92,6 +107,24 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
     );
     expect(accepted.status, JSON.stringify(accepted.body)).toBe(200);
   }
+  return personId;
+}
+
+test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    sample.familyDisplayName,
+    sample.surname
+  );
+
+  const wg = sample.wenGuang;
+  const personId = await seedPerson(page, familyId, wg, wg.claims);
 
   await page.goto(`/alpha/families/${familyId}/people/${personId}`);
   await expect(
@@ -113,4 +146,76 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   await expect(life.getByText("约明万历年间")).toBeVisible();
 
   await expect(page.getByText(/文光刺史美名扬/)).toBeVisible();
+});
+
+test("明经胡氏：概览提示补职业，chip 直达资料表单", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·职业漏斗（测试）",
+    sample.surname
+  );
+
+  const sl = sample.shiLiang;
+  const personId = await seedPerson(page, familyId, sl, sl.claims);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const occStep = page.getByRole("listitem").filter({ hasText: "成员的职业" });
+  await expect(occStep).toContainText("补充 1 位成员的职业", {
+    timeout: 60_000,
+  });
+  await occStep
+    .getByRole("button", { name: `为${sl.preferredName}补充职业` })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.locator("#claim-type")).toHaveValue("OCCUPATION", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+});
+
+test("明经胡氏：保存祖籍后链式展开职业表单", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·祖籍链（测试）",
+    sample.surname
+  );
+
+  const wg = sample.wenGuang;
+  const personId = await seedPerson(
+    page,
+    familyId,
+    wg,
+    wg.claims.filter(
+      (c) => c.claimType === "BIRTH_DATE" || c.claimType === "BIRTH_PLACE"
+    )
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
+  await page.locator("#claim-type").selectOption("ANCESTRAL_PLACE");
+  await page.locator("#claim-text").fill("江西婺源考水");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(page.getByText("已添加祖籍。接着可以记下职业。")).toBeVisible();
+  await expect(page.locator("#claim-type")).toHaveValue("OCCUPATION", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+  await page.locator("#claim-text").fill("万载知县，后升胶州刺史");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(page.getByText("万载知县，后升胶州刺史")).toBeVisible();
 });

@@ -295,6 +295,16 @@ export function OverviewTab({
     );
   }, [overview, sortedPersons]);
 
+  /** Birth known but no occupation yet — gate like birth place. */
+  const missingOccupation = useMemo(() => {
+    if (!overview) return [];
+    return sortedPersons.filter(
+      (p) =>
+        overview.personStats[p.id]?.claimTypes.includes("BIRTH_DATE") &&
+        !overview.personStats[p.id]?.claimTypes.includes("OCCUPATION")
+    );
+  }, [overview, sortedPersons]);
+
   /** Has a generation from the graph, but no 字辈 claim yet. */
   const missingGenerationWord = useMemo(() => {
     if (!overview || !generationByPerson) return [];
@@ -453,6 +463,15 @@ export function OverviewTab({
       peopleAria: "补充祖籍",
     });
   }
+  if (overview && missingOccupation.length > 0) {
+    steps.push({
+      key: "occupation",
+      title: `补充 ${missingOccupation.length} 位成员的职业`,
+      body: "职事与身份便于认亲和核对旧谱，知县、商贾、务农等写清楚即可。",
+      people: canEdit ? missingOccupation.slice(0, 6) : undefined,
+      peopleAria: "补充职业",
+    });
+  }
   if (overview && missingGenerationWord.length > 0) {
     steps.push({
       key: "generationWord",
@@ -564,7 +583,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，在世状态与性别已确认，出生、出生地、祖籍、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，在世状态与性别已确认，出生、出生地、祖籍、职业、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -618,11 +637,13 @@ export function OverviewTab({
                                       ? "BURIAL_PLACE"
                                       : s.key === "ancestral"
                                         ? "ANCESTRAL_PLACE"
-                                        : s.key === "generationWord"
-                                          ? "GENERATION_WORD"
-                                          : s.key === "birthOrder"
-                                            ? "BIRTH_ORDER"
-                                            : undefined
+                                        : s.key === "occupation"
+                                          ? "OCCUPATION"
+                                          : s.key === "generationWord"
+                                            ? "GENERATION_WORD"
+                                            : s.key === "birthOrder"
+                                              ? "BIRTH_ORDER"
+                                              : undefined
                             );
                           }}
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
