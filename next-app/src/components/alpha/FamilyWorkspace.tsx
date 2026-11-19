@@ -354,7 +354,7 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     if (!flash) return;
-    const t = window.setTimeout(() => setFlash(""), 4500);
+    const t = window.setTimeout(() => setFlash(""), 8000);
     return () => window.clearTimeout(t);
   }, [flash]);
 

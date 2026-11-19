@@ -267,12 +267,12 @@ async function runCoreJourney(
   await page.locator("#claim-text").fill("一九九八年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("一九九八年")).toBeVisible();
-  await expect(
-    page.getByText("已添加去世信息。接着可以记下安葬地。")
-  ).toBeVisible();
   await expect(page.locator("#claim-type")).toHaveValue("BURIAL_PLACE", {
     timeout: 15_000,
   });
+  await expect(
+    page.getByText("已添加去世信息。接着可以记下安葬地。")
+  ).toBeVisible();
   await page.getByRole("button", { name: "收起" }).click();
   await page.getByRole("tab", { name: "概览" }).click();
   await expect(
