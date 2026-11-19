@@ -279,6 +279,27 @@ export function OverviewTab({
     );
   }, [relationships, sortedPersons]);
 
+  /** People with spouse or children who have no parents yet. */
+  const missingParents = useMemo(() => {
+    const withSpouse = new Set<string>();
+    const withChildren = new Set<string>();
+    const withParents = new Set<string>();
+    for (const r of relationships) {
+      if (r.type === "SPOUSE") {
+        withSpouse.add(r.fromPersonId);
+        withSpouse.add(r.toPersonId);
+      } else if (!r.type || PARENT_REL_TYPES.has(r.type)) {
+        withChildren.add(r.fromPersonId);
+        withParents.add(r.toPersonId);
+      }
+    }
+    return sortedPersons.filter(
+      (p) =>
+        (withSpouse.has(p.id) || withChildren.has(p.id)) &&
+        !withParents.has(p.id)
+    );
+  }, [relationships, sortedPersons]);
+
   const missingBirth = useMemo(() => {
     if (!overview) return [];
     return sortedPersons.filter(
@@ -474,6 +495,15 @@ export function OverviewTab({
       peopleAria: "补充子女",
     });
   }
+  if (missingParents.length > 0) {
+    steps.push({
+      key: "parents",
+      title: `补充 ${missingParents.length} 位已有亲人成员的父母`,
+      body: "已有配偶或子女的人补上父母，世系向上更完整。也可以先跳过。",
+      people: canEdit ? missingParents.slice(0, 6) : undefined,
+      peopleAria: "补充父母",
+    });
+  }
   if (overview && total > 0 && missingBirth.length > 0) {
     steps.push({
       key: "birth",
@@ -656,7 +686,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，有配偶的人也都补了子女，在世状态与性别已确认，出生、出生地、祖籍、职业、字号、故事、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，有配偶的人也都补了子女，有亲人的人也都补了父母，在世状态与性别已确认，出生、出生地、祖籍、职业、字号、故事、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地和资料来源。
               </p>
             ) : null}
           </div>
@@ -692,6 +722,10 @@ export function OverviewTab({
                             }
                             if (s.key === "children") {
                               onAddKin?.(p.id, "child");
+                              return;
+                            }
+                            if (s.key === "parents") {
+                              onAddKin?.(p.id, "parent");
                               return;
                             }
                             if (s.key === "living") {
