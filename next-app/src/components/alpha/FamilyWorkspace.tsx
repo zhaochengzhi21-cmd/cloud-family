@@ -3441,7 +3441,7 @@ function EditFamilyModal({
           />
         </div>
         <p className="text-xs text-[color:var(--a-muted)]">
-          可见性仍为「仅家族成员可见」。邀请家人加入的能力将在后续版本开放。
+          可见性仍为「仅家族成员可见」。可在概览页的「邀请家人」里生成链接或发邮件。
         </p>
         {confirmDiscard ? (
           <div className="space-y-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-warn-soft)] p-3">
