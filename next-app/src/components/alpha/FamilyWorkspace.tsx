@@ -1604,7 +1604,10 @@ function nextClaimAfterSave(
   return null;
 }
 
-function flashAfterClaimSave(followUp: string | null): string {
+function flashAfterClaimSave(
+  followUp: string | null,
+  savedType?: string
+): string {
   if (followUp === "BIRTH_PLACE") return "已添加出生信息。接着可以记下出生地。";
   if (followUp === "ANCESTRAL_PLACE")
     return "已添加出生地。接着可以记下祖籍。";
@@ -1614,6 +1617,8 @@ function flashAfterClaimSave(followUp: string | null): string {
     return "已添加字号。接着可以记下一段故事或口述。";
   if (followUp === "BURIAL_PLACE")
     return "已添加去世信息。接着可以记下安葬地。";
+  if (savedType === "STORY")
+    return "已添加故事。接着可以补上口述或谱页来源。";
   return "已添加人物资料。需要的话，可为这条补上来源。";
 }
 
@@ -1997,17 +2002,19 @@ function RecordsTab({
             onClaimSeedConsumed();
           }}
           onAuthError={onAuthError}
-          onDone={async (savedType) => {
+          onDone={async ({ claimType: savedType, claimId }) => {
             const followUp = nextClaimAfterSave(
               savedType,
               active.map((c) => c.claimType),
               selectedPerson?.livingStatus
             );
-            setFlash(flashAfterClaimSave(followUp));
+            setFlash(flashAfterClaimSave(followUp, savedType));
             setStatusFilter("ALL");
             await loadClaims();
             if (followUp) {
               setLocalSeed({ claimType: followUp, nonce: Date.now() });
+            } else if (savedType === "STORY") {
+              setOpenEvidenceClaimId(claimId);
             }
           }}
           onError={setError}
@@ -2236,7 +2243,10 @@ function AddClaimForm({
   familyId: string;
   personId: string;
   canReview: boolean;
-  onDone: (savedClaimType: string) => Promise<void>;
+  onDone: (saved: {
+    claimType: string;
+    claimId: string;
+  }) => Promise<void>;
   onError: (s: string) => void;
   onAuthError: (e: unknown) => boolean;
   /** On mobile-first surfaces, start collapsed to reduce density. */
@@ -2293,7 +2303,7 @@ function AddClaimForm({
     setBusy(true);
     setLocalError("");
     try {
-      await v1api.createClaim(familyId, {
+      const created = await v1api.createClaim(familyId, {
         subjectId: personId,
         claimType,
         value: isStory
@@ -2304,10 +2314,11 @@ function AddClaimForm({
           : { text: text.trim() },
       });
       const savedType = claimType;
+      const claimId = created.claim.id;
       setText("");
       setNarrator("");
       if (compact) setOpen(false);
-      await onDone(savedType);
+      await onDone({ claimType: savedType, claimId });
     } catch (err) {
       if (onAuthError(err)) return;
       const msg = userMessageForApiError(err);
@@ -4162,6 +4173,9 @@ function PersonDrawer({
     claimType: string;
     nonce: number;
   } | null>(null);
+  const [drawerOpenEvidenceClaimId, setDrawerOpenEvidenceClaimId] = useState<
+    string | null
+  >(null);
   useEffect(() => {
     if (!externalClaimSeed) return;
     setDrawerClaimSeed(externalClaimSeed);
@@ -4720,16 +4734,18 @@ function PersonDrawer({
               seedNonce={drawerClaimSeed?.nonce ?? null}
               onSeedConsumed={() => setDrawerClaimSeed(null)}
               onAuthError={onAuth}
-              onDone={async (savedType) => {
+              onDone={async ({ claimType: savedType, claimId }) => {
                 const followUp = nextClaimAfterSave(
                   savedType,
                   activeClaims.map((c) => c.claimType),
                   living
                 );
-                setLocalFlash(flashAfterClaimSave(followUp));
+                setLocalFlash(flashAfterClaimSave(followUp, savedType));
                 await loadClaims();
                 if (followUp) {
                   setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
+                } else if (savedType === "STORY") {
+                  setDrawerOpenEvidenceClaimId(claimId);
                 }
               }}
               onError={(msg) => {
@@ -4770,6 +4786,10 @@ function PersonDrawer({
                       claim={c}
                       canEdit={canEdit}
                       canReview={canReview}
+                      autoOpenEvidence={drawerOpenEvidenceClaimId === c.id}
+                      onAutoOpenEvidenceConsumed={() =>
+                        setDrawerOpenEvidenceClaimId(null)
+                      }
                       onAuthError={onAuth}
                       onChanged={loadClaims}
                       onError={(msg) => {

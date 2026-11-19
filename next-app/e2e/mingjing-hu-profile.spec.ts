@@ -208,6 +208,50 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   ).toBeVisible();
 });
 
+test("明经胡氏：保存故事后自动打开来源表单", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·故事来源（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.guanSan, [
+    { claimType: "BIRTH_DATE", text: "约清乾隆年间" },
+  ]);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await page
+    .getByRole("region", { name: "故事与口述" })
+    .getByRole("button", { name: "补充故事" })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#claim-type")).toHaveValue("STORY", {
+    timeout: 15_000,
+  });
+  const story =
+    sample.guanSan.claims.find((c) => c.claimType === "STORY")?.text ??
+    "江南六大首富之一。";
+  await page.locator("#claim-text").fill(story);
+  await page.locator("#claim-narrator").fill("据公开报道整理");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(
+    page.getByText("已添加故事。接着可以补上口述或谱页来源。")
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "保存来源" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator("#ev-type")).toHaveValue("ORAL_HISTORY");
+  await expect(page.locator(`[data-claim-id]`).filter({ hasText: story })).toBeVisible();
+});
+
 test("明经胡氏：人物页空故事区直达口述表单", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
