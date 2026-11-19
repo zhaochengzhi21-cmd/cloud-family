@@ -478,18 +478,39 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   await expect(page.getByText(/子女：.*胡元熙/)).toBeVisible();
   await expect(page.getByText("父母：胡贯三").first()).toBeVisible();
 
+  await page.goto(`/alpha/families/${familyId}/people/${fatherId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "胡贯三" })
+  ).toBeVisible({ timeout: 60_000 });
+  const fatherKin = page.getByRole("region", { name: "家人" });
+  await expect(
+    fatherKin.getByRole("button", { name: "补充配偶" })
+  ).toBeVisible();
+  await fatherKin.getByRole("button", { name: "补充配偶" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("世系", {
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("dialog", { name: /添加配偶/ })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("dialog")).toContainText("胡贯三");
+  await page.getByRole("dialog").getByRole("button", { name: "关闭" }).click();
+
   await page.goto(`/alpha/families/${familyId}/people/${childId}`);
   await expect(
     page.getByRole("heading", { level: 1, name: "胡元熙" })
   ).toBeVisible({ timeout: 60_000 });
+  const childKin = page.getByRole("region", { name: "家人" });
+  await expect(childKin.getByRole("button", { name: "补充配偶" })).toHaveCount(
+    0
+  );
   const life = page.getByRole("region", { name: "生平" });
   await expect(life.getByRole("heading", { name: "辈分" })).toBeVisible();
   await expect(life.getByText("三")).toBeVisible();
   await expect(life.getByRole("button", { name: "补充排行" })).toHaveCount(0);
   await expect(life.getByRole("button", { name: "补充字辈" })).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "家人" }).getByRole("link", { name: "胡贯三" })
-  ).toBeVisible();
+  await expect(childKin.getByRole("link", { name: "胡贯三" })).toBeVisible();
 
   await life.getByRole("button", { name: "补充字辈" }).click();
   await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
