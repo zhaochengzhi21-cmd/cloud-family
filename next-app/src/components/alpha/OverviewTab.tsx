@@ -14,7 +14,12 @@ import { FamilyInvites } from "@/components/alpha/FamilyInvites";
 import { FamilySources } from "@/components/alpha/FamilySources";
 import { gedcomFromExport } from "@/v1/export/gedcom";
 
-type Person = { id: string; preferredName: string; livingStatus?: string };
+type Person = {
+  id: string;
+  preferredName: string;
+  livingStatus?: string;
+  gender?: string;
+};
 type Rel = { fromPersonId: string; toPersonId: string; type?: string };
 
 const PARENT_REL_TYPES = new Set([
@@ -112,6 +117,7 @@ export function OverviewTab({
   onAddPerson,
   onAddRel,
   onAddKin,
+  onOpenPerson,
   onOpenRecords,
   onAuthError,
 }: {
@@ -127,6 +133,8 @@ export function OverviewTab({
   onAddPerson: () => void;
   onAddRel: () => void;
   onAddKin?: (personId: string, role: "parent" | "spouse") => void;
+  /** Open person drawer (e.g. to edit gender / living status). */
+  onOpenPerson?: (personId: string) => void;
   onOpenRecords: (personId: string, claimType?: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
@@ -294,6 +302,12 @@ export function OverviewTab({
     );
   }, [overview, generationByPerson, sortedPersons]);
 
+  const missingGender = useMemo(
+    () =>
+      sortedPersons.filter((p) => !p.gender || p.gender === "UNKNOWN"),
+    [sortedPersons]
+  );
+
   /** Children who share a parent with at least one sibling, but have no 排行. */
   const missingBirthOrder = useMemo(() => {
     if (!overview) return [];
@@ -446,6 +460,21 @@ export function OverviewTab({
       peopleAria: "补充排行",
     });
   }
+  // Gender is person basics (drawer), not a claim — only nudge after births are in.
+  if (
+    overview &&
+    missingGender.length > 0 &&
+    unconnected.length === 0 &&
+    missingBirth.length === 0
+  ) {
+    steps.push({
+      key: "gender",
+      title: `确认 ${missingGender.length} 位成员的性别`,
+      body: "性别还标成「不确定」的，在人物卡片里改一下，排谱和称呼会更顺。",
+      people: canEdit ? missingGender.slice(0, 6) : undefined,
+      peopleAria: "确认性别",
+    });
+  }
   if (pendingTotal > 0) {
     steps.push({
       key: "review",
@@ -514,7 +543,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍、字辈、兄弟姐妹排行与性别也齐了，已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -546,6 +575,10 @@ export function OverviewTab({
                             }
                             if (s.key === "spouse") {
                               onAddKin?.(p.id, "spouse");
+                              return;
+                            }
+                            if (s.key === "gender") {
+                              onOpenPerson?.(p.id);
                               return;
                             }
                             onOpenRecords(

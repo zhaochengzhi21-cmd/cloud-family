@@ -751,6 +751,45 @@ async function runCoreJourney(
   await expect(page.locator("#claim-text")).toBeFocused();
   await page.getByRole("button", { name: "收起" }).click();
 
+  // Fill remaining births so overview can nudge unknown gender
+  const graphForBirths = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/graph`
+  );
+  const allPersons = (
+    graphForBirths.body as {
+      graph: { persons: { id: string; preferredName: string }[] };
+    }
+  ).graph.persons;
+  for (const name of ["赵丁", "分支甲", "分支乙"]) {
+    const p = allPersons.find((x) => x.preferredName === name);
+    if (!p) continue;
+    const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+      method: "POST",
+      body: {
+        subjectType: "PERSON",
+        subjectId: p.id,
+        claimType: "BIRTH_DATE",
+        value: { text: "约民国年间" },
+        originType: "MANUAL",
+      },
+    });
+    expect(created.status).toBe(201);
+  }
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const genderStep = page.getByRole("listitem").filter({ hasText: "成员的性别" });
+  await expect(genderStep).toContainText(/确认 \d+ 位成员的性别/, {
+    timeout: 60_000,
+  });
+  await genderStep.getByRole("button", { name: "为赵甲确认性别" }).click();
+  const genderDrawer = page.getByRole("dialog");
+  await expect(genderDrawer.getByRole("heading", { name: "赵甲" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(genderDrawer.locator("#edit-gender")).toHaveValue("UNKNOWN");
+  await genderDrawer.getByRole("button", { name: "关闭" }).click();
+
   // Person page kin CTAs open the same add-kin modal
   await page.goto(`/alpha/families/${familyId}/people/${yi.id}`);
   await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
