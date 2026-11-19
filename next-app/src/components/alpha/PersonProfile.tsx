@@ -342,6 +342,7 @@ export function PersonProfile({
   const occupation = pickShown(claims, "OCCUPATION");
   const deathDate = pickShown(claims, "DEATH_DATE");
   const burial = pickShown(claims, "BURIAL_PLACE");
+  const stories = pickShown(claims, "STORY");
   const showDeath =
     person.livingStatus === "DECEASED" ||
     deathDate.length > 0 ||
@@ -563,7 +564,7 @@ export function PersonProfile({
         </section>
       ) : null}
 
-      {pickShown(claims, "STORY").length > 0 ? (
+      {stories.length > 0 ? (
         <section aria-labelledby="profile-stories" className="mb-8">
           <h2
             id="profile-stories"
@@ -572,7 +573,7 @@ export function PersonProfile({
             故事与口述
           </h2>
           <ul className="space-y-3">
-            {pickShown(claims, "STORY").map((c) => (
+            {stories.map((c) => (
               <li key={c.id} className="alpha-panel px-4 py-4">
                 <p className="whitespace-pre-wrap leading-relaxed text-[color:var(--a-ink)]">
                   {c.value?.text ?? "—"}
@@ -613,6 +614,37 @@ export function PersonProfile({
               </li>
             ))}
           </ul>
+          {canEdit ? (
+            <button
+              type="button"
+              className="alpha-print-hide mt-3 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => openRecords("STORY")}
+            >
+              再添一段故事
+            </button>
+          ) : null}
+        </section>
+      ) : canEdit && birthDate.length > 0 ? (
+        <section
+          aria-labelledby="profile-stories"
+          className="alpha-print-hide mb-8 rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-4"
+        >
+          <h2
+            id="profile-stories"
+            className="font-semibold text-[color:var(--a-brand)]"
+          >
+            故事与口述
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+            记下口碑、功绩或迁居缘起，一两段也可以。
+          </p>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary mt-3 !min-h-[36px] !px-3 !text-xs"
+            onClick={() => openRecords("STORY")}
+          >
+            补充故事
+          </button>
         </section>
       ) : null}
 

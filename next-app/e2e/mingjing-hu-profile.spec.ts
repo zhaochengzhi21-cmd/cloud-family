@@ -203,6 +203,46 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   const stories = page.getByRole("region", { name: "故事与口述" });
   await expect(stories.getByText(/文光刺史美名扬/)).toBeVisible();
   await expect(stories.getByText("讲述：据西递口碑整理")).toBeVisible();
+  await expect(
+    stories.getByRole("button", { name: "再添一段故事" })
+  ).toBeVisible();
+});
+
+test("明经胡氏：人物页空故事区直达口述表单", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·空故事（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.guanSan,
+    sample.guanSan.claims.filter(
+      (c) => c.claimType === "BIRTH_DATE" || c.claimType === "OCCUPATION"
+    )
+  );
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const stories = page.getByRole("region", { name: "故事与口述" });
+  await expect(stories.getByRole("button", { name: "补充故事" })).toBeVisible();
+  await stories.getByRole("button", { name: "补充故事" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.locator("#claim-type")).toHaveValue("STORY", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
 });
 
 test("明经胡氏：概览提示补故事，chip 直达口述表单", async ({
