@@ -181,6 +181,9 @@ export function FamilyWorkspace({
     claimType: string;
     nonce: number;
   } | null>(null);
+  const [drawerBasicsFocus, setDrawerBasicsFocus] = useState<
+    "living" | "gender" | null
+  >(null);
 
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "EDITOR";
   const canReview = role === "OWNER" || role === "ADMIN";
@@ -572,7 +575,10 @@ export function FamilyWorkspace({
               setKinRole(role);
               setShowAddKin(true);
             }}
-            onOpenPerson={(personId) => setSelectedPersonId(personId)}
+            onOpenPerson={(personId, basicsFocus) => {
+              setDrawerBasicsFocus(basicsFocus ?? null);
+              setSelectedPersonId(personId);
+            }}
             onOpenRecords={openRecordsFor}
             onAuthError={authRedirect}
           />
@@ -754,9 +760,12 @@ export function FamilyWorkspace({
           canReview={canReview}
           externalClaimSeed={drawerExternalSeed}
           onExternalClaimSeedConsumed={() => setDrawerExternalSeed(null)}
+          basicsFocus={drawerBasicsFocus}
+          onBasicsFocusConsumed={() => setDrawerBasicsFocus(null)}
           onClose={() => {
             setSelectedPersonId(null);
             setDrawerExternalSeed(null);
+            setDrawerBasicsFocus(null);
           }}
           onChanged={async () => {
             await load();
@@ -764,6 +773,7 @@ export function FamilyWorkspace({
           onRequestAddRel={() => {
             const pid = selectedPersonId;
             setSelectedPersonId(null);
+            setDrawerBasicsFocus(null);
             setTab("lineage");
             setRelFocusPersonId(pid);
             setShowAddRel(true);
@@ -771,6 +781,7 @@ export function FamilyWorkspace({
           onRequestAddKin={(role) => {
             const pid = selectedPersonId;
             setSelectedPersonId(null);
+            setDrawerBasicsFocus(null);
             setRelFocusPersonId(pid);
             setKinRole(role);
             setShowAddKin(true);
@@ -778,13 +789,18 @@ export function FamilyWorkspace({
           onShowInLineage={() => {
             const pid = selectedPersonId;
             setSelectedPersonId(null);
+            setDrawerBasicsFocus(null);
             setTab("lineage");
             setLineageFocusId(pid);
           }}
-          onOpenPerson={(id) => setSelectedPersonId(id)}
+          onOpenPerson={(id) => {
+            setDrawerBasicsFocus(null);
+            setSelectedPersonId(id);
+          }}
           onDeleted={async (name) => {
             setSelectedPersonId(null);
             setDrawerExternalSeed(null);
+            setDrawerBasicsFocus(null);
             setError("");
             setFlash(`已移除「${name}」`);
             await load();
@@ -4017,6 +4033,8 @@ function PersonDrawer({
   canReview,
   externalClaimSeed,
   onExternalClaimSeedConsumed,
+  basicsFocus = null,
+  onBasicsFocusConsumed,
   onClose,
   onChanged,
   onDeleted,
@@ -4038,6 +4056,8 @@ function PersonDrawer({
   canReview: boolean;
   externalClaimSeed?: { claimType: string; nonce: number } | null;
   onExternalClaimSeedConsumed?: () => void;
+  basicsFocus?: "living" | "gender" | null;
+  onBasicsFocusConsumed?: () => void;
   onClose: () => void;
   onChanged: () => Promise<void>;
   onDeleted: (name: string) => Promise<void>;
@@ -4067,6 +4087,16 @@ function PersonDrawer({
     setDrawerClaimSeed(externalClaimSeed);
     onExternalClaimSeedConsumed?.();
   }, [externalClaimSeed, onExternalClaimSeedConsumed]);
+  useEffect(() => {
+    if (!basicsFocus) return;
+    const id = basicsFocus === "living" ? "edit-living" : "edit-gender";
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(id) as HTMLSelectElement | null;
+      el?.focus();
+      onBasicsFocusConsumed?.();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [basicsFocus, person.id, onBasicsFocusConsumed]);
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);

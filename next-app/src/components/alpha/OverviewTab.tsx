@@ -134,7 +134,10 @@ export function OverviewTab({
   onAddRel: () => void;
   onAddKin?: (personId: string, role: "parent" | "spouse") => void;
   /** Open person drawer (e.g. to edit gender / living status). */
-  onOpenPerson?: (personId: string) => void;
+  onOpenPerson?: (
+    personId: string,
+    basicsFocus?: "living" | "gender"
+  ) => void;
   onOpenRecords: (personId: string, claimType?: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
@@ -308,6 +311,14 @@ export function OverviewTab({
     [sortedPersons]
   );
 
+  const missingLiving = useMemo(
+    () =>
+      sortedPersons.filter(
+        (p) => !p.livingStatus || p.livingStatus === "UNKNOWN"
+      ),
+    [sortedPersons]
+  );
+
   /** Children who share a parent with at least one sibling, but have no 排行. */
   const missingBirthOrder = useMemo(() => {
     if (!overview) return [];
@@ -460,6 +471,16 @@ export function OverviewTab({
       peopleAria: "补充排行",
     });
   }
+  // Living status unlocks death/burial capture — nudge once the tree is connected.
+  if (overview && missingLiving.length > 0 && unconnected.length === 0) {
+    steps.push({
+      key: "living",
+      title: `确认 ${missingLiving.length} 位成员是否在世`,
+      body: "还标成「不确定」的，在人物卡片里改成在世或已故；标为已故后才能提示补去世与安葬信息。",
+      people: canEdit ? missingLiving.slice(0, 6) : undefined,
+      peopleAria: "确认在世状态",
+    });
+  }
   // Gender is person basics (drawer), not a claim — only nudge after births are in.
   if (
     overview &&
@@ -543,7 +564,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍、字辈、兄弟姐妹排行与性别也齐了，已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，在世状态与性别已确认，出生、出生地、祖籍、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -577,8 +598,12 @@ export function OverviewTab({
                               onAddKin?.(p.id, "spouse");
                               return;
                             }
+                            if (s.key === "living") {
+                              onOpenPerson?.(p.id, "living");
+                              return;
+                            }
                             if (s.key === "gender") {
-                              onOpenPerson?.(p.id);
+                              onOpenPerson?.(p.id, "gender");
                               return;
                             }
                             onOpenRecords(

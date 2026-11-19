@@ -778,6 +778,22 @@ async function runCoreJourney(
   }
   await page.goto(`/alpha/families/${familyId}`);
   await page.getByRole("tab", { name: "概览" }).click();
+  const livingStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "是否在世" });
+  await expect(livingStep).toContainText(/确认 \d+ 位成员是否在世/, {
+    timeout: 60_000,
+  });
+  await livingStep.getByRole("button", { name: "为赵乙确认在世状态" }).click();
+  const livingDrawer = page.getByRole("dialog");
+  await expect(livingDrawer.getByRole("heading", { name: "赵乙" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(livingDrawer.locator("#edit-living")).toHaveValue("UNKNOWN");
+  await expect(livingDrawer.locator("#edit-living")).toBeFocused();
+  await livingDrawer.getByRole("button", { name: "关闭" }).click();
+
+  await page.getByRole("tab", { name: "概览" }).click();
   const genderStep = page.getByRole("listitem").filter({ hasText: "成员的性别" });
   await expect(genderStep).toContainText(/确认 \d+ 位成员的性别/, {
     timeout: 60_000,
@@ -788,6 +804,7 @@ async function runCoreJourney(
     timeout: 60_000,
   });
   await expect(genderDrawer.locator("#edit-gender")).toHaveValue("UNKNOWN");
+  await expect(genderDrawer.locator("#edit-gender")).toBeFocused();
   await genderDrawer.getByRole("button", { name: "关闭" }).click();
 
   // Person page kin CTAs open the same add-kin modal
