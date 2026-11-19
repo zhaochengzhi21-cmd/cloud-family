@@ -431,7 +431,10 @@ export function PersonProfile({
           />
           {generationWord.length > 0 ||
           birthOrder.length > 0 ||
-          (canEdit && generation != null && generationWord.length === 0) ? (
+          (canEdit && generation != null && generationWord.length === 0) ||
+          (canEdit &&
+            family.siblings.length > 0 &&
+            birthOrder.length === 0) ? (
             <TimelineEvent
               title="辈分"
               rows={[
@@ -443,9 +446,14 @@ export function PersonProfile({
                       ? { label: "补充字辈", claimType: "GENERATION_WORD" }
                       : undefined,
                 },
-                ...(birthOrder.length > 0
-                  ? [{ label: "排行", claims: birthOrder }]
-                  : []),
+                {
+                  label: "排行",
+                  claims: birthOrder,
+                  fill:
+                    family.siblings.length > 0 && birthOrder.length === 0
+                      ? { label: "补充排行", claimType: "BIRTH_ORDER" }
+                      : undefined,
+                },
               ]}
               sources={sources}
               canEdit={canEdit}

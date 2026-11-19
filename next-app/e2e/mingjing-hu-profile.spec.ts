@@ -442,15 +442,31 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
     sample.yuanXi,
     sample.yuanXi.claims
   );
-  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
-    method: "POST",
-    body: {
-      fromPersonId: fatherId,
-      toPersonId: childId,
-      relationshipType: "BIOLOGICAL_PARENT",
+  const siblingId = await seedPerson(
+    page,
+    familyId,
+    {
+      preferredName: "胡元锟",
+      gender: "MALE",
+      livingStatus: "DECEASED",
     },
-  });
-  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+    [{ claimType: "BIRTH_DATE", text: "约清嘉庆年间" }]
+  );
+  for (const child of [childId, siblingId]) {
+    const rel = await apiJson(
+      page,
+      `/api/v1/families/${familyId}/relationships`,
+      {
+        method: "POST",
+        body: {
+          fromPersonId: fatherId,
+          toPersonId: child,
+          relationshipType: "BIOLOGICAL_PARENT",
+        },
+      }
+    );
+    expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+  }
 
   await page.goto(`/alpha/families/${familyId}`);
   await page.getByRole("tab", { name: "世系" }).click();
@@ -459,8 +475,8 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   });
   await expect(page.getByRole("button", { name: /^胡贯三/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^胡元熙/ })).toBeVisible();
-  await expect(page.getByText("子女：胡元熙")).toBeVisible();
-  await expect(page.getByText("父母：胡贯三")).toBeVisible();
+  await expect(page.getByText(/子女：.*胡元熙/)).toBeVisible();
+  await expect(page.getByText("父母：胡贯三").first()).toBeVisible();
 
   await page.goto(`/alpha/families/${familyId}/people/${childId}`);
   await expect(
@@ -469,6 +485,7 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   const life = page.getByRole("region", { name: "生平" });
   await expect(life.getByRole("heading", { name: "辈分" })).toBeVisible();
   await expect(life.getByText("三")).toBeVisible();
+  await expect(life.getByRole("button", { name: "补充排行" })).toHaveCount(0);
   await expect(life.getByRole("button", { name: "补充字辈" })).toBeVisible();
   await expect(
     page.getByRole("region", { name: "家人" }).getByRole("link", { name: "胡贯三" })
@@ -481,6 +498,26 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   });
   await expect(page.locator("#records-person")).toHaveValue(childId);
   await expect(page.locator("#claim-type")).toHaveValue("GENERATION_WORD", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+  await page.getByRole("button", { name: "收起" }).click();
+
+  await page.goto(`/alpha/families/${familyId}/people/${siblingId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "胡元锟" })
+  ).toBeVisible({ timeout: 60_000 });
+  const siblingLife = page.getByRole("region", { name: "生平" });
+  await expect(
+    siblingLife.getByRole("button", { name: "补充排行" })
+  ).toBeVisible();
+  await siblingLife.getByRole("button", { name: "补充排行" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(siblingId);
+  await expect(page.locator("#claim-type")).toHaveValue("BIRTH_ORDER", {
     timeout: 15_000,
   });
   await expect(page.locator("#claim-text")).toBeFocused();
