@@ -138,7 +138,16 @@ export function OverviewTab({
     personId: string,
     basicsFocus?: "living" | "gender"
   ) => void;
-  onOpenRecords: (personId: string, claimType?: string) => void;
+  onOpenRecords: (
+    personId: string,
+    opts?:
+      | string
+      | {
+          claimType?: string;
+          focusClaimId?: string;
+          statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+        }
+  ) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
@@ -739,7 +748,13 @@ export function OverviewTab({
                 <li key={c.claimId}>
                   <button
                     type="button"
-                    onClick={() => onOpenRecords(c.personId)}
+                    onClick={() =>
+                      onOpenRecords(c.personId, {
+                        focusClaimId: c.claimId,
+                        statusFilter:
+                          c.status === "CONFLICTED" ? "CONFLICTED" : "PROPOSED",
+                      })
+                    }
                     className="alpha-panel alpha-panel-interactive flex w-full min-h-[56px] items-center justify-between gap-3 px-4 py-2 text-left"
                   >
                     <div className="min-w-0">

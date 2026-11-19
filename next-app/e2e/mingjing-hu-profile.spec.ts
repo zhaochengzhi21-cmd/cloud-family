@@ -305,6 +305,53 @@ test("明经胡氏：字辈表单可从行辈歌取字", async ({ page, baseURL 
   await expect(page.locator("#claim-text")).toHaveValue("清");
 });
 
+test("明经胡氏：概览待确认直达对应资料卡片", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·待确认（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "OCCUPATION",
+      value: { text: "万载知县，后升胶州刺史" },
+      originType: "MANUAL",
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const claimId = (created.body as { claim: { id: string } }).claim.id;
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const pending = page.getByRole("region", { name: /待确认资料/ });
+  await expect(pending).toBeVisible({ timeout: 60_000 });
+  await pending
+    .getByRole("button", { name: /胡文光.*职业|万载知县/ })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.getByRole("button", { name: /^待确认/ })).toHaveAttribute(
+    "aria-pressed",
+    "true"
+  );
+  await expect(page.locator(`[data-claim-id="${claimId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.locator(`[data-claim-id="${claimId}"]`).getByText("万载知县，后升胶州刺史")
+  ).toBeVisible();
+});
+
 test("明经胡氏：保存字辈后自动打开谱页来源表单", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

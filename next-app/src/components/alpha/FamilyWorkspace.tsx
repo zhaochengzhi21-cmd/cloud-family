@@ -354,15 +354,45 @@ export function FamilyWorkspace({
     }
   }, [familyId]);
 
+  const [recordsFocus, setRecordsFocus] = useState<{
+    personId: string;
+    claimId: string;
+    statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+    nonce: number;
+  } | null>(null);
+
   const openRecordsFor = useCallback(
-    (personId: string, claimType?: string) => {
+    (
+      personId: string,
+      opts?:
+        | string
+        | {
+            claimType?: string;
+            focusClaimId?: string;
+            statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+          }
+    ) => {
+      const resolved =
+        typeof opts === "string" ? { claimType: opts } : opts ?? {};
       try {
         sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       } catch {
         /* private mode */
       }
-      if (claimType) {
-        setClaimSeed({ personId, claimType, nonce: Date.now() });
+      if (resolved.claimType) {
+        setClaimSeed({
+          personId,
+          claimType: resolved.claimType,
+          nonce: Date.now(),
+        });
+      }
+      if (resolved.focusClaimId) {
+        setRecordsFocus({
+          personId,
+          claimId: resolved.focusClaimId,
+          statusFilter: resolved.statusFilter,
+          nonce: Date.now(),
+        });
       }
       setTab("records");
     },
@@ -678,6 +708,8 @@ export function FamilyWorkspace({
             onClaimSeedConsumed={() => setClaimSeed(null)}
             evidenceSeed={evidenceSeed}
             onEvidenceSeedConsumed={() => setEvidenceSeed(null)}
+            recordsFocus={recordsFocus}
+            onRecordsFocusConsumed={() => setRecordsFocus(null)}
             onAuthError={(e) => handleAuthRedirect(e, router)}
             onOpenPerson={(id) => setSelectedPersonId(id)}
             onGoMembers={() => setTab("members")}
@@ -1724,6 +1756,8 @@ function RecordsTab({
   onClaimSeedConsumed,
   evidenceSeed,
   onEvidenceSeedConsumed,
+  recordsFocus,
+  onRecordsFocusConsumed,
   onAuthError,
   onOpenPerson,
   onGoMembers,
@@ -1745,6 +1779,13 @@ function RecordsTab({
     nonce: number;
   } | null;
   onEvidenceSeedConsumed: () => void;
+  recordsFocus: {
+    personId: string;
+    claimId: string;
+    statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+    nonce: number;
+  } | null;
+  onRecordsFocusConsumed: () => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
   onGoMembers: () => void;
@@ -1838,8 +1879,17 @@ function RecordsTab({
     scrollIntoViewSafe(topRef.current, { block: "nearest" });
   }, [personId]);
 
+  const pendingStatusFilter = useRef<
+    "PROPOSED" | "CONFLICTED" | "ALL" | null
+  >(null);
+
   useEffect(() => {
-    setStatusFilter("ALL");
+    if (pendingStatusFilter.current) {
+      setStatusFilter(pendingStatusFilter.current);
+      pendingStatusFilter.current = null;
+    } else {
+      setStatusFilter("ALL");
+    }
     setTypeFilter("ALL");
   }, [personId]);
 
@@ -1873,6 +1923,44 @@ function RecordsTab({
       scrollIntoViewSafe(el, { block: "center" });
     }
   }, [openEvidenceClaimId, loading, claims]);
+
+  useEffect(() => {
+    if (!recordsFocus) return;
+    if (recordsFocus.statusFilter) {
+      pendingStatusFilter.current = recordsFocus.statusFilter;
+    }
+    if (persons.some((p) => p.id === recordsFocus.personId)) {
+      setPersonId(recordsFocus.personId);
+    }
+  }, [recordsFocus, persons]);
+
+  useEffect(() => {
+    if (!recordsFocus || loading) return;
+    if (personId !== recordsFocus.personId) return;
+    if (!claims.some((c) => c.id === recordsFocus.claimId)) return;
+    const claimId = recordsFocus.claimId;
+    if (recordsFocus.statusFilter) {
+      setStatusFilter(recordsFocus.statusFilter);
+    }
+    onRecordsFocusConsumed();
+    const t = window.setTimeout(() => {
+      const el = document.querySelector(`[data-claim-id="${claimId}"]`);
+      if (el instanceof HTMLElement) {
+        scrollIntoViewSafe(el, { block: "center" });
+        el.classList.add("ring-2", "ring-[color:var(--a-brand)]");
+        window.setTimeout(() => {
+          el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
+        }, 2400);
+      }
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [
+    recordsFocus,
+    onRecordsFocusConsumed,
+    claims,
+    loading,
+    personId,
+  ]);
 
   const active = claims.filter((c) => c.status !== "REJECTED");
   const selectedPerson = persons.find((p) => p.id === personId);
