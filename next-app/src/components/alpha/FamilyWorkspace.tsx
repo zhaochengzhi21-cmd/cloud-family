@@ -1530,6 +1530,24 @@ function LineageTab({
   );
 }
 
+/** After saving a vital fact, suggest the natural follow-up type if still missing. */
+function nextClaimAfterSave(
+  savedType: string,
+  presentTypes: string[],
+  livingStatus?: string
+): string | null {
+  const has = (t: string) => presentTypes.includes(t);
+  if (savedType === "BIRTH_DATE" && !has("BIRTH_PLACE")) return "BIRTH_PLACE";
+  if (
+    savedType === "DEATH_DATE" &&
+    livingStatus === "DECEASED" &&
+    !has("BURIAL_PLACE")
+  ) {
+    return "BURIAL_PLACE";
+  }
+  return null;
+}
+
 function ClaimStartCtas({
   livingStatus,
   presentTypes = [],
@@ -1855,10 +1873,24 @@ function RecordsTab({
             onClaimSeedConsumed();
           }}
           onAuthError={onAuthError}
-          onDone={async () => {
-            setFlash("已添加人物资料");
+          onDone={async (savedType) => {
+            const followUp = nextClaimAfterSave(
+              savedType,
+              active.map((c) => c.claimType),
+              selectedPerson?.livingStatus
+            );
+            setFlash(
+              followUp === "BIRTH_PLACE"
+                ? "已添加出生信息。接着可以记下出生地。"
+                : followUp === "BURIAL_PLACE"
+                  ? "已添加去世信息。接着可以记下安葬地。"
+                  : "已添加人物资料"
+            );
             setStatusFilter("ALL");
             await loadClaims();
+            if (followUp) {
+              setLocalSeed({ claimType: followUp, nonce: Date.now() });
+            }
           }}
           onError={setError}
         />
@@ -2035,7 +2067,7 @@ function AddClaimForm({
   familyId: string;
   personId: string;
   canReview: boolean;
-  onDone: () => Promise<void>;
+  onDone: (savedClaimType: string) => Promise<void>;
   onError: (s: string) => void;
   onAuthError: (e: unknown) => boolean;
   /** On mobile-first surfaces, start collapsed to reduce density. */
@@ -2102,10 +2134,11 @@ function AddClaimForm({
             }
           : { text: text.trim() },
       });
+      const savedType = claimType;
       setText("");
       setNarrator("");
       if (compact) setOpen(false);
-      await onDone();
+      await onDone(savedType);
     } catch (err) {
       if (onAuthError(err)) return;
       const msg = userMessageForApiError(err);
@@ -4494,9 +4527,23 @@ function PersonDrawer({
               seedNonce={drawerClaimSeed?.nonce ?? null}
               onSeedConsumed={() => setDrawerClaimSeed(null)}
               onAuthError={onAuth}
-              onDone={async () => {
-                setLocalFlash("已添加人物资料");
+              onDone={async (savedType) => {
+                const followUp = nextClaimAfterSave(
+                  savedType,
+                  activeClaims.map((c) => c.claimType),
+                  living
+                );
+                setLocalFlash(
+                  followUp === "BIRTH_PLACE"
+                    ? "已添加出生信息。接着可以记下出生地。"
+                    : followUp === "BURIAL_PLACE"
+                      ? "已添加去世信息。接着可以记下安葬地。"
+                      : "已添加人物资料"
+                );
                 await loadClaims();
+                if (followUp) {
+                  setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
+                }
               }}
               onError={(msg) => {
                 setLocalError(msg);
