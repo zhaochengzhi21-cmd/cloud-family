@@ -322,6 +322,17 @@ async function runCoreJourney(
   );
   await expect(moreClaims.getByRole("button", { name: "出生地" })).toBeVisible();
 
+  // Type filter (赵乙 already has 祖籍 + 出生信息)
+  const typeFilter = page.getByRole("group", { name: "按资料类型筛选" });
+  await expect(typeFilter).toBeVisible();
+  await typeFilter.getByRole("button", { name: /^祖籍/ }).click();
+  await expect(page.getByText("徽州")).toBeVisible();
+  await expect(page.getByText("民国十三年")).toHaveCount(0);
+  await expect(page.getByText(/显示 1 \/ 2 条资料/)).toBeVisible();
+  await page.getByRole("button", { name: "清除筛选" }).click();
+  await expect(page.getByText("民国十三年")).toBeVisible();
+  await expect(page.getByText("徽州")).toBeVisible();
+
   // Overview: progress + next steps + pending queue jumps to the person's records
   await page.getByRole("tab", { name: "概览" }).click();
   await expect(page.getByText("处理 3 条待确认资料")).toBeVisible();

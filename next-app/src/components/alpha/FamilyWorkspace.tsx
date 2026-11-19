@@ -1664,6 +1664,7 @@ function RecordsTab({
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PROPOSED" | "ACCEPTED" | "CONFLICTED"
   >("ALL");
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const topRef = useRef<HTMLDivElement>(null);
   const personReady = useRef(false);
 
@@ -1738,6 +1739,7 @@ function RecordsTab({
 
   useEffect(() => {
     setStatusFilter("ALL");
+    setTypeFilter("ALL");
   }, [personId]);
 
   useEffect(() => {
@@ -1759,10 +1761,29 @@ function RecordsTab({
   const conflictedCount = active.filter(
     (c) => c.status === "CONFLICTED"
   ).length;
+  const claimTypesPresent = useMemo(() => {
+    const types = [...new Set(active.map((c) => c.claimType))];
+    types.sort((a, b) =>
+      (CLAIM_TYPE_UI[a]?.label ?? a).localeCompare(
+        CLAIM_TYPE_UI[b]?.label ?? b,
+        "zh-CN"
+      )
+    );
+    return types;
+  }, [active]);
+
   const filteredActive = useMemo(() => {
-    if (statusFilter === "ALL") return active;
-    return active.filter((c) => c.status === statusFilter);
-  }, [active, statusFilter]);
+    let rows = active;
+    if (statusFilter !== "ALL") {
+      rows = rows.filter((c) => c.status === statusFilter);
+    }
+    if (typeFilter !== "ALL") {
+      rows = rows.filter((c) => c.claimType === typeFilter);
+    }
+    return rows;
+  }, [active, statusFilter, typeFilter]);
+
+  const filtersActive = statusFilter !== "ALL" || typeFilter !== "ALL";
 
   const grouped = useMemo(() => {
     const m = new Map<string, ClaimRow[]>();
@@ -1897,44 +1918,88 @@ function RecordsTab({
       ) : null}
 
       {active.length > 0 ? (
-        <div
-          className="mb-4 flex flex-wrap gap-2"
-          role="group"
-          aria-label="按资料状态筛选"
-        >
-          {(
-            [
-              ["ALL", "全部", active.length],
-              ["PROPOSED", "待确认", proposedCount],
-              ["ACCEPTED", "已确认", acceptedCount],
-              ["CONFLICTED", "不同说法", conflictedCount],
-            ] as const
-          ).map(([id, label, count]) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={statusFilter === id}
-              onClick={() => setStatusFilter(id)}
-              className={`alpha-btn !min-h-[36px] !px-3 !text-xs ${
-                statusFilter === id
-                  ? "alpha-btn-primary"
-                  : "alpha-btn-secondary"
-              }`}
+        <div className="mb-4 space-y-2">
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="按资料状态筛选"
+          >
+            {(
+              [
+                ["ALL", "全部", active.length],
+                ["PROPOSED", "待确认", proposedCount],
+                ["ACCEPTED", "已确认", acceptedCount],
+                ["CONFLICTED", "不同说法", conflictedCount],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={statusFilter === id}
+                onClick={() => setStatusFilter(id)}
+                className={`alpha-btn !min-h-[36px] !px-3 !text-xs ${
+                  statusFilter === id
+                    ? "alpha-btn-primary"
+                    : "alpha-btn-secondary"
+                }`}
+              >
+                {label}
+                {` ${count}`}
+              </button>
+            ))}
+          </div>
+          {claimTypesPresent.length > 1 ? (
+            <div
+              className="flex flex-wrap gap-2"
+              role="group"
+              aria-label="按资料类型筛选"
             >
-              {label}
-              {` ${count}`}
-            </button>
-          ))}
+              <button
+                type="button"
+                aria-pressed={typeFilter === "ALL"}
+                onClick={() => setTypeFilter("ALL")}
+                className={`alpha-btn !min-h-[36px] !px-3 !text-xs ${
+                  typeFilter === "ALL"
+                    ? "alpha-btn-primary"
+                    : "alpha-btn-secondary"
+                }`}
+              >
+                全部类型 {active.length}
+              </button>
+              {claimTypesPresent.map((t) => {
+                const count = active.filter((c) => c.claimType === t).length;
+                const label = CLAIM_TYPE_UI[t]?.label ?? t;
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={typeFilter === t}
+                    onClick={() => setTypeFilter(t)}
+                    className={`alpha-btn !min-h-[36px] !px-3 !text-xs ${
+                      typeFilter === t
+                        ? "alpha-btn-primary"
+                        : "alpha-btn-secondary"
+                    }`}
+                  >
+                    {label} {count}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      {statusFilter !== "ALL" && filteredActive.length > 0 ? (
+      {filtersActive && filteredActive.length > 0 ? (
         <p className="mb-3 text-sm text-[color:var(--a-muted)]" aria-live="polite">
           显示 {filteredActive.length} / {active.length} 条资料
           <button
             type="button"
             className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            onClick={() => setStatusFilter("ALL")}
+            onClick={() => {
+              setStatusFilter("ALL");
+              setTypeFilter("ALL");
+            }}
           >
             清除筛选
           </button>
@@ -2041,7 +2106,10 @@ function RecordsTab({
           <button
             type="button"
             className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
-            onClick={() => setStatusFilter("ALL")}
+            onClick={() => {
+              setStatusFilter("ALL");
+              setTypeFilter("ALL");
+            }}
           >
             查看全部
           </button>
