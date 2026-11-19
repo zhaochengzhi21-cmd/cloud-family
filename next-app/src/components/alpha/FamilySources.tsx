@@ -10,6 +10,10 @@ function isAudio(mime: string | null, type: string) {
   return Boolean(mime?.startsWith("audio/")) || type === "ORAL_HISTORY";
 }
 
+function isPhoto(mime: string | null, type: string) {
+  return Boolean(mime?.startsWith("image/")) || type === "PHOTO";
+}
+
 export function FamilySources({
   familyId,
   onAuthError,
@@ -21,6 +25,11 @@ export function FamilySources({
   const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO">("ALL");
   const [error, setError] = useState("");
   const [playing, setPlaying] = useState<{
+    id: string;
+    url: string;
+    title: string;
+  } | null>(null);
+  const [viewer, setViewer] = useState<{
     id: string;
     url: string;
     title: string;
@@ -44,9 +53,7 @@ export function FamilySources({
   const shown = useMemo(() => {
     if (!items) return [];
     if (filter === "PHOTO") {
-      return items.filter(
-        (e) => e.evidenceType === "PHOTO" || e.mimeType?.startsWith("image/")
-      );
+      return items.filter((e) => isPhoto(e.mimeType, e.evidenceType));
     }
     if (filter === "AUDIO") {
       return items.filter((e) => isAudio(e.mimeType, e.evidenceType));
@@ -54,15 +61,24 @@ export function FamilySources({
     return items;
   }, [items, filter]);
 
-  async function play(item: Item) {
+  async function openMedia(
+    item: Item,
+    kind: "audio" | "photo"
+  ) {
     if (!item.mediaObjectId) return;
     try {
       const r = await v1api.mediaRead(familyId, item.mediaObjectId);
-      setPlaying({
-        id: item.id,
-        url: r.read.url,
-        title: item.title || EVIDENCE_TYPE_UI[item.evidenceType] || "口述录音",
-      });
+      const title =
+        item.title ||
+        EVIDENCE_TYPE_UI[item.evidenceType] ||
+        (kind === "audio" ? "口述录音" : "照片");
+      if (kind === "audio") {
+        setViewer(null);
+        setPlaying({ id: item.id, url: r.read.url, title });
+      } else {
+        setPlaying(null);
+        setViewer({ id: item.id, url: r.read.url, title });
+      }
     } catch (e) {
       if (onAuthError(e)) return;
       setError(userMessageForApiError(e));
@@ -141,9 +157,18 @@ export function FamilySources({
                   <button
                     type="button"
                     className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                    onClick={() => void play(e)}
+                    onClick={() => void openMedia(e, "audio")}
                   >
                     收听
+                  </button>
+                ) : null}
+                {e.mediaObjectId && isPhoto(e.mimeType, e.evidenceType) ? (
+                  <button
+                    type="button"
+                    className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => void openMedia(e, "photo")}
+                  >
+                    查看
                   </button>
                 ) : null}
               </li>
@@ -173,6 +198,30 @@ export function FamilySources({
             >
               你的浏览器不支持音频播放。
             </audio>
+          </div>
+        ) : null}
+        {viewer ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={viewer.title}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setViewer(null)}
+          >
+            <button
+              type="button"
+              className="absolute right-4 top-4 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-[color:var(--a-ink)]"
+              onClick={() => setViewer(null)}
+            >
+              关闭
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={viewer.url}
+              alt={viewer.title}
+              className="max-h-[90vh] max-w-full rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         ) : null}
         {error ? (

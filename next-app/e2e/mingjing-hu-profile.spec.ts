@@ -12,6 +12,7 @@ import {
   tableCounts,
   closeDb,
   apiJson,
+  trackMedia,
 } from "./helpers/v1";
 import { MINGJING_HU_SAMPLE } from "./fixtures/mingjing-hu";
 
@@ -68,6 +69,32 @@ async function createFamily(
     timeout: 60_000,
   });
   return page.url().split("/").pop()!;
+}
+
+async function createFamilyOwned(
+  page: Page,
+  baseURL: string,
+  displayName: string,
+  surname: string
+) {
+  const ownerId = await insertFakeUser();
+  await loginAs(page, ownerId, baseURL);
+  await page.goto("/alpha/families");
+  await page.getByRole("button", { name: /创建第一个家族档案|创建家族档案/ }).click();
+  await page.getByLabel("家族名称 *").fill(displayName);
+  await page.getByLabel("姓氏（可选）").fill(surname);
+  const createResp = page.waitForResponse(
+    (r) =>
+      r.url().includes("/api/v1/families") &&
+      r.request().method() === "POST" &&
+      !r.url().includes("/persons")
+  );
+  await page.getByRole("button", { name: "创建" }).click();
+  expect((await createResp).ok(), "create family API").toBeTruthy();
+  await expect(page).toHaveURL(/\/alpha\/families\/[0-9a-f-]{36}/i, {
+    timeout: 60_000,
+  });
+  return { familyId: page.url().split("/").pop()!, ownerId };
 }
 
 async function seedPerson(
@@ -1062,6 +1089,82 @@ test("明经胡氏：概览有配偶无子女时 chip 打开添加子女", async
   const dialog = page.getByRole("dialog", { name: /添加子女/ });
   await expect(dialog).toBeVisible({ timeout: 60_000 });
   await expect(dialog).toContainText(sample.wenGuang.preferredName);
+});
+
+test("明经胡氏：资料来源库可查看照片", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·来源库照片（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  await page.getByRole("button", { name: "添加资料来源" }).first().click();
+  await page.locator("#ev-type").selectOption("PHOTO");
+  await page.getByLabel("来源标题（可选）").fill("西递牌坊旧影（测试）");
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "xidi-paifang.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await page.getByRole("button", { name: "保存来源" }).click();
+  await expect(page.getByText("西递牌坊旧影（测试）")).toBeVisible({
+    timeout: 90_000,
+  });
+
+  const claimBundle = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}/claims?includeRejected=true`
+  );
+  const claims = (
+    claimBundle.body as { claims: { id: string; status: string }[] }
+  ).claims;
+  const accepted = claims.find((c) => c.status === "ACCEPTED");
+  expect(accepted).toBeTruthy();
+  const detail = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${accepted!.id}`
+  );
+  const mediaId = (
+    detail.body as {
+      evidenceLinks: { evidence: { mediaObjectId: string | null } }[];
+    }
+  ).evidenceLinks
+    .map((l) => l.evidence.mediaObjectId)
+    .find(Boolean);
+  if (mediaId) trackMedia(familyId, mediaId, ownerId);
+
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(sourcesLib).toContainText("西递牌坊旧影（测试）", {
+    timeout: 60_000,
+  });
+  await sourcesLib
+    .locator("li")
+    .filter({ hasText: "西递牌坊旧影（测试）" })
+    .getByRole("button", { name: "查看" })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "西递牌坊旧影（测试）" });
+  await expect(dialog).toBeVisible({ timeout: 20_000 });
+  await expect(dialog.getByRole("img", { name: "西递牌坊旧影（测试）" })).toBeVisible();
+  await dialog.getByRole("button", { name: "关闭" }).click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test("明经胡氏：最近动态查看直达对应资料卡片", async ({ page, baseURL }) => {
