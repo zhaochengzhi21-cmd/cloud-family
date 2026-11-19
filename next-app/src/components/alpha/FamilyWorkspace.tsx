@@ -2297,6 +2297,11 @@ function RecordsTab({
                     setOpenEvidenceClaimId(null);
                     setOpenEvidenceType(null);
                   }}
+                  onOpenEvidenceAfterAccept={(id) => {
+                    setStatusFilter("ALL");
+                    setOpenEvidenceClaimId(id);
+                    setOpenEvidenceType(null);
+                  }}
                   onAuthError={onAuthError}
                   onChanged={loadClaims}
                   onError={setError}
@@ -2730,6 +2735,7 @@ function ClaimCard({
   autoOpenEvidence = false,
   seedEvidenceType = null,
   onAutoOpenEvidenceConsumed,
+  onOpenEvidenceAfterAccept,
   onChanged,
   onError,
   onFlash,
@@ -2742,6 +2748,7 @@ function ClaimCard({
   autoOpenEvidence?: boolean;
   seedEvidenceType?: string | null;
   onAutoOpenEvidenceConsumed?: () => void;
+  onOpenEvidenceAfterAccept?: (claimId: string) => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
   onFlash: (s: string) => void;
@@ -2826,8 +2833,23 @@ function ClaimCard({
               onClick={async () => {
                 try {
                   await v1api.acceptClaim(familyId, claim.id);
-                  onFlash("已确认这条资料");
+                  let unsourced = true;
+                  try {
+                    const b = await v1api.getClaim(familyId, claim.id);
+                    setBundle(b);
+                    unsourced = !(b.evidenceLinks?.length > 0);
+                  } catch {
+                    /* still treat as unsourced if refresh fails */
+                  }
+                  onFlash(
+                    unsourced && canEdit
+                      ? "已确认这条资料。接着可以补上谱页或其他来源。"
+                      : "已确认这条资料"
+                  );
                   await onChanged();
+                  if (unsourced && canEdit) {
+                    onOpenEvidenceAfterAccept?.(claim.id);
+                  }
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
@@ -5048,6 +5070,9 @@ function PersonDrawer({
                       autoOpenEvidence={drawerOpenEvidenceClaimId === c.id}
                       onAutoOpenEvidenceConsumed={() =>
                         setDrawerOpenEvidenceClaimId(null)
+                      }
+                      onOpenEvidenceAfterAccept={(id) =>
+                        setDrawerOpenEvidenceClaimId(id)
                       }
                       onAuthError={onAuth}
                       onChanged={loadClaims}
