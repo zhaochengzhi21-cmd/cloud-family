@@ -88,6 +88,64 @@ export const MINGJING_HU_SAMPLE = {
       },
     ],
   },
+  /** 二十四世祖胡贯三 — 公开报道中的徽商代表 */
+  guanSan: {
+    preferredName: "胡贯三",
+    gender: "MALE" as const,
+    livingStatus: "DECEASED" as const,
+    claims: [
+      {
+        claimType: "BIRTH_DATE",
+        text: "约清乾隆年间",
+      },
+      {
+        claimType: "BIRTH_PLACE",
+        text: "安徽黟县西递",
+      },
+      {
+        claimType: "ANCESTRAL_PLACE",
+        text: "江西婺源考水",
+      },
+      {
+        claimType: "OCCUPATION",
+        text: "徽商",
+      },
+      {
+        claimType: "STORY",
+        text: "江南六大首富之一；捐建碧阳书院、明经祠，并修造休祁黟三县道路百余里。",
+        narrator: "据公开报道整理",
+      },
+    ],
+  },
+  /** 二十五世祖胡元熙 — 胡贯三第三子（公开报道） */
+  yuanXi: {
+    preferredName: "胡元熙",
+    gender: "MALE" as const,
+    livingStatus: "DECEASED" as const,
+    claims: [
+      {
+        claimType: "BIRTH_DATE",
+        text: "约清嘉庆年间",
+      },
+      {
+        claimType: "BIRTH_PLACE",
+        text: "安徽黟县西递",
+      },
+      {
+        claimType: "BIRTH_ORDER",
+        text: "三",
+      },
+      {
+        claimType: "OCCUPATION",
+        text: "湖州、嘉兴、抚州等地知府",
+      },
+      {
+        claimType: "STORY",
+        text: "道光元年中举；道光二十二年集银重修歙县太平桥，历时八年。",
+        narrator: "据公开报道整理",
+      },
+    ],
+  },
   /** 道光《西递明经壬派排行》公开「行辈歌」节选，供字辈测试 */
   generationSongSnippet: "圣世长清，兆锡嘉名",
 } as const;

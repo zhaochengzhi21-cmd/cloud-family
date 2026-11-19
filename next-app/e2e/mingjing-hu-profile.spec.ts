@@ -56,8 +56,17 @@ async function createFamily(
   await page.getByRole("button", { name: /创建第一个家族档案|创建家族档案/ }).click();
   await page.getByLabel("家族名称 *").fill(displayName);
   await page.getByLabel("姓氏（可选）").fill(surname);
+  const createResp = page.waitForResponse(
+    (r) =>
+      r.url().includes("/api/v1/families") &&
+      r.request().method() === "POST" &&
+      !r.url().includes("/persons")
+  );
   await page.getByRole("button", { name: "创建" }).click();
-  await expect(page).toHaveURL(/\/alpha\/families\/[0-9a-f-]{36}/i);
+  expect((await createResp).ok(), "create family API").toBeTruthy();
+  await expect(page).toHaveURL(/\/alpha\/families\/[0-9a-f-]{36}/i, {
+    timeout: 60_000,
+  });
   return page.url().split("/").pop()!;
 }
 
@@ -154,6 +163,48 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   await expect(facts.getByText("未记录")).toHaveCount(0);
 
   await expect(page.getByText(/文光刺史美名扬/)).toBeVisible();
+
+  const stories = page.getByRole("region", { name: "故事与口述" });
+  await expect(stories.getByText(/文光刺史美名扬/)).toBeVisible();
+  await expect(stories.getByText("讲述：据西递口碑整理")).toBeVisible();
+});
+
+test("明经胡氏：概览提示补故事，chip 直达口述表单", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·故事漏斗（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.guanSan, [
+    { claimType: "BIRTH_DATE", text: "约清乾隆年间" },
+  ]);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const storyStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "故事或口述" });
+  await expect(storyStep).toContainText("补充 1 位成员的故事或口述", {
+    timeout: 60_000,
+  });
+  await storyStep
+    .getByRole("button", { name: `为${sample.guanSan.preferredName}补充故事` })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.locator("#claim-type")).toHaveValue("STORY", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
 });
 
 test("明经胡氏：概览提示补职业，chip 直达资料表单", async ({
@@ -291,4 +342,58 @@ test("明经胡氏：人物页显示字号，概览 chip 直达别名表单", as
     timeout: 15_000,
   });
   await expect(page.locator("#claim-text")).toBeFocused();
+});
+
+test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·父子世系（测试）",
+    sample.surname
+  );
+
+  const fatherId = await seedPerson(
+    page,
+    familyId,
+    sample.guanSan,
+    sample.guanSan.claims
+  );
+  const childId = await seedPerson(
+    page,
+    familyId,
+    sample.yuanXi,
+    sample.yuanXi.claims
+  );
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "世系" }).click();
+  await expect(page.getByRole("heading", { name: /第一代/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("button", { name: /^胡贯三/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^胡元熙/ })).toBeVisible();
+  await expect(page.getByText("子女：胡元熙")).toBeVisible();
+  await expect(page.getByText("父母：胡贯三")).toBeVisible();
+
+  await page.goto(`/alpha/families/${familyId}/people/${childId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "胡元熙" })
+  ).toBeVisible({ timeout: 60_000 });
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByRole("heading", { name: "辈分" })).toBeVisible();
+  await expect(life.getByText("三")).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "家人" }).getByRole("link", { name: "胡贯三" })
+  ).toBeVisible();
 });
