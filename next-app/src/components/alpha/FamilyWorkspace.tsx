@@ -1455,6 +1455,7 @@ function ClaimStartCtas({
 }) {
   const items: Array<{ type: string; label: string }> = [
     { type: "BIRTH_DATE", label: "记下出生信息" },
+    { type: "BIRTH_PLACE", label: "记下出生地" },
     { type: "ANCESTRAL_PLACE", label: "记下祖籍" },
     { type: "STORY", label: "记下故事" },
   ];

@@ -182,6 +182,15 @@ export function OverviewTab({
     );
   }, [overview, sortedPersons]);
 
+  const missingBirthPlace = useMemo(() => {
+    if (!overview) return [];
+    return sortedPersons.filter(
+      (p) =>
+        overview.personStats[p.id]?.claimTypes.includes("BIRTH_DATE") &&
+        !overview.personStats[p.id]?.claimTypes.includes("BIRTH_PLACE")
+    );
+  }, [overview, sortedPersons]);
+
   const missingDeath = useMemo(() => {
     if (!overview) return [];
     return sortedPersons.filter(
@@ -272,6 +281,15 @@ export function OverviewTab({
       body: "出生年代是排辈、核对来源最常用的线索，大概的年份也可以。",
       people: canEdit ? missingBirth.slice(0, 6) : undefined,
       peopleAria: "补充出生信息",
+    });
+  }
+  if (overview && missingBirthPlace.length > 0) {
+    steps.push({
+      key: "birthPlace",
+      title: `补充 ${missingBirthPlace.length} 位成员的出生地`,
+      body: "有了出生年代后，补上出生地，后人核对族谱页会更容易。",
+      people: canEdit ? missingBirthPlace.slice(0, 6) : undefined,
+      peopleAria: "补充出生地",
     });
   }
   if (overview && missingDeath.length > 0) {
@@ -368,7 +386,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，出生、祖籍与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
+                成员都已连入世系，出生、出生地、祖籍与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -398,13 +416,15 @@ export function OverviewTab({
                               p.id,
                               s.key === "birth"
                                 ? "BIRTH_DATE"
-                                : s.key === "death"
-                                  ? "DEATH_DATE"
-                                  : s.key === "burial"
-                                    ? "BURIAL_PLACE"
-                                    : s.key === "ancestral"
-                                      ? "ANCESTRAL_PLACE"
-                                      : undefined
+                                : s.key === "birthPlace"
+                                  ? "BIRTH_PLACE"
+                                  : s.key === "death"
+                                    ? "DEATH_DATE"
+                                    : s.key === "burial"
+                                      ? "BURIAL_PLACE"
+                                      : s.key === "ancestral"
+                                        ? "ANCESTRAL_PLACE"
+                                        : undefined
                             )
                           }
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"

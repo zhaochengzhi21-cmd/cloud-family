@@ -297,6 +297,10 @@ async function runCoreJourney(
   await page.getByRole("tab", { name: "概览" }).click();
   await expect(page.getByText("处理 3 条待确认资料")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的出生信息")).toBeVisible();
+  await expect(page.getByText("补充 1 位成员的出生地")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "为赵乙补充出生地" })
+  ).toBeVisible();
   await expect(page.getByText("补充 1 位已故成员的安葬地")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的祖籍")).toBeVisible();
   await expect(
@@ -366,6 +370,12 @@ async function runCoreJourney(
   await expect(xidiCard.getByText(/测试族谱/)).toBeVisible();
   await xidiCard.getByRole("button", { name: "确认这条资料" }).click();
   await expect(page.getByText("已确认").first()).toBeVisible();
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "成员的出生地" })
+  ).toHaveCount(0, { timeout: 60_000 });
+  await page.getByRole("tab", { name: "资料" }).click();
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
 
   await page.getByRole("button", { name: "+ 添加人物资料" }).click();
   await page.locator("#claim-type").selectOption("BIRTH_DATE");
