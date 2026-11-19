@@ -335,6 +335,8 @@ export function PersonProfile({
   const generation = generationByPerson[person.id];
   const birthDate = pickShown(claims, "BIRTH_DATE");
   const birthPlace = pickShown(claims, "BIRTH_PLACE");
+  const ancestral = pickShown(claims, "ANCESTRAL_PLACE");
+  const occupation = pickShown(claims, "OCCUPATION");
   const deathDate = pickShown(claims, "DEATH_DATE");
   const burial = pickShown(claims, "BURIAL_PLACE");
   const showDeath =
@@ -407,6 +409,20 @@ export function PersonProfile({
             ]}
             sources={sources}
           />
+          {ancestral.length > 0 ? (
+            <TimelineEvent
+              title="祖籍"
+              rows={[{ label: "地方", claims: ancestral }]}
+              sources={sources}
+            />
+          ) : null}
+          {occupation.length > 0 ? (
+            <TimelineEvent
+              title="职业"
+              rows={[{ label: "职事", claims: occupation }]}
+              sources={sources}
+            />
+          ) : null}
           {showDeath ? (
             <TimelineEvent
               title="去世"
