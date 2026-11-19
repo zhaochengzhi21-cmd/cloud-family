@@ -369,6 +369,35 @@ async function runCoreJourney(
   await expect(page.locator("#claim-text")).toBeFocused();
   await page.getByRole("button", { name: "收起" }).click();
   await page.getByRole("tab", { name: "概览" }).click();
+
+  // Birth → birth place → ancestral chain for 赵甲
+  await page.getByRole("button", { name: "为赵甲补充出生信息" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(jia.id);
+  await expect(page.locator("#claim-type")).toHaveValue("BIRTH_DATE", {
+    timeout: 15_000,
+  });
+  await page.locator("#claim-text").fill("同治三年");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(
+    page.getByText("已添加出生信息。接着可以记下出生地。")
+  ).toBeVisible();
+  await expect(page.locator("#claim-type")).toHaveValue("BIRTH_PLACE", {
+    timeout: 15_000,
+  });
+  await page.locator("#claim-text").fill("西递");
+  await page.getByRole("button", { name: "保存资料" }).click();
+  await expect(
+    page.getByText("已添加出生地。接着可以记下祖籍。")
+  ).toBeVisible();
+  await expect(page.locator("#claim-type")).toHaveValue("ANCESTRAL_PLACE", {
+    timeout: 15_000,
+  });
+  await page.getByRole("button", { name: "收起" }).click();
+  await page.getByRole("tab", { name: "概览" }).click();
+
   const feed = page.getByRole("region", { name: "最近动态" });
   await expect(feed).toContainText("你 为「赵乙」添加了出生信息");
   await expect(feed).toContainText("你 创建了家族档案");

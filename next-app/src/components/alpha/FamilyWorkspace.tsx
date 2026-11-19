@@ -1539,6 +1539,8 @@ function nextClaimAfterSave(
 ): string | null {
   const has = (t: string) => presentTypes.includes(t);
   if (savedType === "BIRTH_DATE" && !has("BIRTH_PLACE")) return "BIRTH_PLACE";
+  if (savedType === "BIRTH_PLACE" && !has("ANCESTRAL_PLACE"))
+    return "ANCESTRAL_PLACE";
   if (
     savedType === "DEATH_DATE" &&
     livingStatus === "DECEASED" &&
@@ -1547,6 +1549,15 @@ function nextClaimAfterSave(
     return "BURIAL_PLACE";
   }
   return null;
+}
+
+function flashAfterClaimSave(followUp: string | null): string {
+  if (followUp === "BIRTH_PLACE") return "已添加出生信息。接着可以记下出生地。";
+  if (followUp === "ANCESTRAL_PLACE")
+    return "已添加出生地。接着可以记下祖籍。";
+  if (followUp === "BURIAL_PLACE")
+    return "已添加去世信息。接着可以记下安葬地。";
+  return "已添加人物资料";
 }
 
 function ClaimStartCtas({
@@ -1909,13 +1920,7 @@ function RecordsTab({
               active.map((c) => c.claimType),
               selectedPerson?.livingStatus
             );
-            setFlash(
-              followUp === "BIRTH_PLACE"
-                ? "已添加出生信息。接着可以记下出生地。"
-                : followUp === "BURIAL_PLACE"
-                  ? "已添加去世信息。接着可以记下安葬地。"
-                  : "已添加人物资料"
-            );
+            setFlash(flashAfterClaimSave(followUp));
             setStatusFilter("ALL");
             await loadClaims();
             if (followUp) {
@@ -4610,13 +4615,7 @@ function PersonDrawer({
                   activeClaims.map((c) => c.claimType),
                   living
                 );
-                setLocalFlash(
-                  followUp === "BIRTH_PLACE"
-                    ? "已添加出生信息。接着可以记下出生地。"
-                    : followUp === "BURIAL_PLACE"
-                      ? "已添加去世信息。接着可以记下安葬地。"
-                      : "已添加人物资料"
-                );
+                setLocalFlash(flashAfterClaimSave(followUp));
                 await loadClaims();
                 if (followUp) {
                   setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
