@@ -1532,39 +1532,77 @@ function LineageTab({
 
 function ClaimStartCtas({
   livingStatus,
+  presentTypes = [],
+  variant = "start",
   onPick,
 }: {
   livingStatus?: string;
+  /** Claim types already on this person — chips for these are hidden. */
+  presentTypes?: string[];
+  variant?: "start" | "more";
   onPick: (claimType: string) => void;
 }) {
-  const items: Array<{ type: string; label: string }> = [
-    { type: "BIRTH_DATE", label: "记下出生信息" },
-    { type: "BIRTH_PLACE", label: "记下出生地" },
-    { type: "ANCESTRAL_PLACE", label: "记下祖籍" },
-    { type: "STORY", label: "记下故事" },
-  ];
-  if (livingStatus === "DECEASED") {
-    items.push(
-      { type: "DEATH_DATE", label: "记下去世信息" },
-      { type: "BURIAL_PLACE", label: "记下安葬地" }
-    );
-  }
+  const present = new Set(presentTypes);
+  const startLabels: Record<string, string> = {
+    BIRTH_DATE: "记下出生信息",
+    BIRTH_PLACE: "记下出生地",
+    ANCESTRAL_PLACE: "记下祖籍",
+    STORY: "记下故事",
+    DEATH_DATE: "记下去世信息",
+    BURIAL_PLACE: "记下安葬地",
+  };
+  const types = [
+    "BIRTH_DATE",
+    "BIRTH_PLACE",
+    "ANCESTRAL_PLACE",
+    "STORY",
+    ...(livingStatus === "DECEASED" ? ["DEATH_DATE", "BURIAL_PLACE"] : []),
+  ].filter((t) => !present.has(t));
+  if (types.length === 0) return null;
+
+  const items = types.map((type) => ({
+    type,
+    label:
+      variant === "more"
+        ? CLAIM_TYPE_UI[type]?.label ?? type
+        : startLabels[type] ?? type,
+  }));
+
   return (
     <div
-      className="mt-4 flex flex-wrap justify-center gap-2"
-      role="group"
-      aria-label="开始记录"
+      className={
+        variant === "more"
+          ? "mt-4 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+          : "mt-4"
+      }
     >
-      {items.map((i) => (
-        <button
-          key={i.type}
-          type="button"
-          className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
-          onClick={() => onPick(i.type)}
-        >
-          {i.label}
-        </button>
-      ))}
+      {variant === "more" ? (
+        <p className="mb-2 text-sm font-semibold text-[color:var(--a-brand)]">
+          还可以补充
+        </p>
+      ) : null}
+      <div
+        className={`flex flex-wrap gap-2 ${
+          variant === "start" ? "justify-center" : ""
+        }`}
+        role="group"
+        aria-label={variant === "more" ? "还可以补充" : "开始记录"}
+      >
+        {items.map((i) => (
+          <button
+            key={i.type}
+            type="button"
+            className={`alpha-btn alpha-btn-secondary ${
+              variant === "more"
+                ? "!min-h-[36px] !px-3 !text-xs"
+                : "!min-h-[40px] !text-sm"
+            }`}
+            onClick={() => onPick(i.type)}
+          >
+            {i.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1948,6 +1986,17 @@ function RecordsTab({
             />
           ) : null}
         </div>
+      ) : null}
+
+      {!loading && active.length > 0 && canEdit ? (
+        <ClaimStartCtas
+          variant="more"
+          livingStatus={selectedPerson?.livingStatus}
+          presentTypes={[...new Set(active.map((c) => c.claimType))]}
+          onPick={(claimType) =>
+            setLocalSeed({ claimType, nonce: Date.now() })
+          }
+        />
       ) : null}
 
       {!loading &&
@@ -4531,6 +4580,16 @@ function PersonDrawer({
                 />
               ) : null}
             </div>
+          ) : null}
+          {!claimsLoading && activeClaims.length > 0 && canEdit ? (
+            <ClaimStartCtas
+              variant="more"
+              livingStatus={living}
+              presentTypes={[...new Set(activeClaims.map((c) => c.claimType))]}
+              onPick={(claimType) =>
+                setDrawerClaimSeed({ claimType, nonce: Date.now() })
+              }
+            />
           ) : null}
 
           {canEdit ? (

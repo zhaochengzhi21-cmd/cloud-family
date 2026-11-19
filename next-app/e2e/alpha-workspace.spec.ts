@@ -305,6 +305,19 @@ async function runCoreJourney(
   await expect(page.getByText("待确认").first()).toBeVisible();
   await expect(page.getByText("民国十三年")).toBeVisible();
 
+  // Partial-fill: remaining claim-type chips (not birth again)
+  const moreClaims = page.getByRole("group", { name: "还可以补充" });
+  await expect(moreClaims).toBeVisible();
+  await expect(moreClaims.getByRole("button", { name: "出生信息" })).toHaveCount(
+    0
+  );
+  await moreClaims.getByRole("button", { name: "出生地" }).click();
+  await expect(page.locator("#claim-type")).toHaveValue("BIRTH_PLACE", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+  await page.getByRole("button", { name: "收起" }).click();
+
   // Overview: progress + next steps + pending queue jumps to the person's records
   await page.getByRole("tab", { name: "概览" }).click();
   await expect(page.getByText("处理 3 条待确认资料")).toBeVisible();
