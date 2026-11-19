@@ -558,6 +558,7 @@ export function FamilyWorkspace({
             persons={persons}
             relationships={relationships}
             componentCount={componentCount}
+            generationByPerson={generationByPerson}
             dataVersion={dataVersion}
             canEdit={canEdit}
             canReview={canReview}
@@ -1565,6 +1566,8 @@ function ClaimStartCtas({
     BIRTH_DATE: "记下出生信息",
     BIRTH_PLACE: "记下出生地",
     ANCESTRAL_PLACE: "记下祖籍",
+    GENERATION_WORD: "记下字辈",
+    BIRTH_ORDER: "记下排行",
     ALIAS: "记下别名",
     OCCUPATION: "记下职业",
     STORY: "记下故事",
@@ -1575,6 +1578,8 @@ function ClaimStartCtas({
     "BIRTH_DATE",
     "BIRTH_PLACE",
     "ANCESTRAL_PLACE",
+    "GENERATION_WORD",
+    "BIRTH_ORDER",
     "ALIAS",
     "OCCUPATION",
     "STORY",

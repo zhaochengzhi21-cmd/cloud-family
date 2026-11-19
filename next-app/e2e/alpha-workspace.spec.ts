@@ -328,6 +328,8 @@ async function runCoreJourney(
     0
   );
   await expect(moreClaims.getByRole("button", { name: "出生地" })).toBeVisible();
+  await expect(moreClaims.getByRole("button", { name: "字辈" })).toBeVisible();
+  await expect(moreClaims.getByRole("button", { name: "排行" })).toBeVisible();
   await expect(moreClaims.getByRole("button", { name: "别名" })).toBeVisible();
   await expect(moreClaims.getByRole("button", { name: "职业" })).toBeVisible();
 
@@ -352,9 +354,21 @@ async function runCoreJourney(
   ).toBeVisible();
   await expect(page.getByText("补充 1 位已故成员的安葬地")).toBeVisible();
   await expect(page.getByText("补充 1 位成员的祖籍")).toBeVisible();
+  await expect(page.getByText("补充 2 位成员的字辈")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "为赵甲补充出生信息" })
   ).toBeVisible();
+  await page.getByRole("button", { name: "为赵乙补充字辈" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(yi.id);
+  await expect(page.locator("#claim-type")).toHaveValue("GENERATION_WORD", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+  await page.getByRole("button", { name: "收起" }).click();
+  await page.getByRole("tab", { name: "概览" }).click();
   const feed = page.getByRole("region", { name: "最近动态" });
   await expect(feed).toContainText("你 为「赵乙」添加了出生信息");
   await expect(feed).toContainText("你 创建了家族档案");

@@ -105,6 +105,7 @@ export function OverviewTab({
   persons,
   relationships,
   componentCount,
+  generationByPerson,
   dataVersion,
   canEdit,
   canReview,
@@ -118,6 +119,7 @@ export function OverviewTab({
   persons: Person[];
   relationships: Rel[];
   componentCount: number;
+  generationByPerson?: Record<string, number>;
   /** Bumps whenever the workspace reloads so the summary stays in sync. */
   dataVersion: number;
   canEdit: boolean;
@@ -282,6 +284,16 @@ export function OverviewTab({
     );
   }, [overview, sortedPersons]);
 
+  /** Has a generation from the graph, but no 字辈 claim yet. */
+  const missingGenerationWord = useMemo(() => {
+    if (!overview || !generationByPerson) return [];
+    return sortedPersons.filter(
+      (p) =>
+        generationByPerson[p.id] != null &&
+        !overview.personStats[p.id]?.claimTypes.includes("GENERATION_WORD")
+    );
+  }, [overview, generationByPerson, sortedPersons]);
+
   const acceptedTotal = useMemo(() => {
     if (!overview) return 0;
     return Object.values(overview.personStats).reduce(
@@ -393,6 +405,15 @@ export function OverviewTab({
       peopleAria: "补充祖籍",
     });
   }
+  if (overview && missingGenerationWord.length > 0) {
+    steps.push({
+      key: "generationWord",
+      title: `补充 ${missingGenerationWord.length} 位成员的字辈`,
+      body: "有了世代后，补上字辈，世系标题与打印版家谱会按辈分更清楚。同辈常用同一个字。",
+      people: canEdit ? missingGenerationWord.slice(0, 6) : undefined,
+      peopleAria: "补充字辈",
+    });
+  }
   if (pendingTotal > 0) {
     steps.push({
       key: "review",
@@ -461,7 +482,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍、字辈与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、排行、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -507,7 +528,9 @@ export function OverviewTab({
                                       ? "BURIAL_PLACE"
                                       : s.key === "ancestral"
                                         ? "ANCESTRAL_PLACE"
-                                        : undefined
+                                        : s.key === "generationWord"
+                                          ? "GENERATION_WORD"
+                                          : undefined
                             );
                           }}
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
