@@ -579,6 +579,33 @@ async function runCoreJourney(
   await expect(page.locator(".alpha-nav")).toBeHidden();
   await page.emulateMedia({ media: "screen" });
 
+  // Add kin from drawer: new child + seed birth form
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "世系" }).click();
+  await page.getByRole("button", { name: /^赵乙/ }).click();
+  const kinDrawer = page.getByRole("dialog");
+  await kinDrawer.getByRole("button", { name: "添加子女" }).click();
+  const kinModal = page.getByRole("dialog", { name: /添加子女/ });
+  await kinModal.getByLabel("姓名 / 常用称呼 *").fill("赵丙");
+  await kinModal.getByRole("button", { name: "添加并建立关系" }).click();
+  await expect(page.getByText(/已添加「赵丙」并建立关系/)).toBeVisible({
+    timeout: 60_000,
+  });
+  const bingDrawer = page.getByRole("dialog");
+  await expect(bingDrawer.getByRole("heading", { name: "赵丙" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(bingDrawer.locator("#claim-type")).toHaveValue("BIRTH_DATE", {
+    timeout: 15_000,
+  });
+  await bingDrawer.locator("#claim-text").fill("民国四十年");
+  await bingDrawer.getByRole("button", { name: "保存资料" }).click();
+  await expect(bingDrawer.getByText("民国四十年")).toBeVisible();
+  await bingDrawer.getByRole("button", { name: "关闭" }).click();
+  await expect(page.getByRole("button", { name: /^赵丙/ })).toBeVisible({
+    timeout: 30_000,
+  });
+
   // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();

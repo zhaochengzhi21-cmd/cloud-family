@@ -171,8 +171,16 @@ export function FamilyWorkspace({
   const [lineageFocusId, setLineageFocusId] = useState<string | null>(null);
   const [showAddPerson, setShowAddPerson] = useState(false);
   const [showAddRel, setShowAddRel] = useState(false);
+  const [showAddKin, setShowAddKin] = useState(false);
   const [showEditFamily, setShowEditFamily] = useState(false);
   const [relFocusPersonId, setRelFocusPersonId] = useState<string | null>(null);
+  const [kinRole, setKinRole] = useState<"child" | "parent" | "spouse">(
+    "child"
+  );
+  const [drawerExternalSeed, setDrawerExternalSeed] = useState<{
+    claimType: string;
+    nonce: number;
+  } | null>(null);
 
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "EDITOR";
   const canReview = role === "OWNER" || role === "ADMIN";
@@ -668,6 +676,39 @@ export function FamilyWorkspace({
         />
       ) : null}
 
+      {showAddKin && relFocusPersonId ? (
+        <AddKinModal
+          familyId={familyId}
+          persons={persons}
+          focusPersonId={relFocusPersonId}
+          initialRole={kinRole}
+          onClose={() => {
+            setShowAddKin(false);
+            setRelFocusPersonId(null);
+          }}
+          onDone={async (result) => {
+            setShowAddKin(false);
+            setRelFocusPersonId(null);
+            setError("");
+            setFlash(
+              result.createdName
+                ? `已添加「${result.createdName}」并建立关系`
+                : "已添加家庭关系"
+            );
+            await load();
+            if (result.newPersonId) {
+              setDrawerExternalSeed({
+                claimType: result.seedClaimType,
+                nonce: Date.now(),
+              });
+              setSelectedPersonId(result.newPersonId);
+            }
+          }}
+          onError={(msg) => setError(msg)}
+          onAuth={(e) => handleAuthRedirect(e, router)}
+        />
+      ) : null}
+
       {selectedPersonId && personMap.get(selectedPersonId) ? (
         <PersonDrawer
           familyId={familyId}
@@ -679,7 +720,12 @@ export function FamilyWorkspace({
           personMap={personMap}
           canEdit={canEdit}
           canReview={canReview}
-          onClose={() => setSelectedPersonId(null)}
+          externalClaimSeed={drawerExternalSeed}
+          onExternalClaimSeedConsumed={() => setDrawerExternalSeed(null)}
+          onClose={() => {
+            setSelectedPersonId(null);
+            setDrawerExternalSeed(null);
+          }}
           onChanged={async () => {
             await load();
           }}
@@ -690,6 +736,13 @@ export function FamilyWorkspace({
             setRelFocusPersonId(pid);
             setShowAddRel(true);
           }}
+          onRequestAddKin={(role) => {
+            const pid = selectedPersonId;
+            setSelectedPersonId(null);
+            setRelFocusPersonId(pid);
+            setKinRole(role);
+            setShowAddKin(true);
+          }}
           onShowInLineage={() => {
             const pid = selectedPersonId;
             setSelectedPersonId(null);
@@ -699,6 +752,7 @@ export function FamilyWorkspace({
           onOpenPerson={(id) => setSelectedPersonId(id)}
           onDeleted={async (name) => {
             setSelectedPersonId(null);
+            setDrawerExternalSeed(null);
             setError("");
             setFlash(`已移除「${name}」`);
             await load();
@@ -3160,6 +3214,329 @@ function AddPersonModal({
   );
 }
 
+type KinRole = "child" | "parent" | "spouse";
+
+function AddKinModal({
+  familyId,
+  persons,
+  focusPersonId,
+  initialRole,
+  onClose,
+  onDone,
+  onError,
+  onAuth,
+}: {
+  familyId: string;
+  persons: GraphPerson[];
+  focusPersonId: string;
+  initialRole: KinRole;
+  onClose: () => void;
+  onDone: (result: {
+    newPersonId?: string;
+    createdName?: string;
+    seedClaimType: string;
+  }) => Promise<void>;
+  onError: (s: string) => void;
+  onAuth: (e: unknown) => boolean;
+}) {
+  const focus = persons.find((p) => p.id === focusPersonId);
+  const focusName = focus?.preferredName ?? "成员";
+  const [role, setRole] = useState<KinRole>(initialRole);
+  const [source, setSource] = useState<"new" | "existing">("new");
+  const [name, setName] = useState("");
+  const [living, setLiving] = useState("UNKNOWN");
+  const [gender, setGender] = useState("UNKNOWN");
+  const [otherId, setOtherId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  const others = useMemo(
+    () =>
+      persons
+        .filter((p) => p.id !== focusPersonId)
+        .slice()
+        .sort((a, b) =>
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+        ),
+    [persons, focusPersonId]
+  );
+
+  useEffect(() => {
+    setRole(initialRole);
+  }, [initialRole]);
+
+  useEffect(() => {
+    if (source === "new") nameRef.current?.focus();
+  }, [source, role]);
+
+  useEffect(() => {
+    if (source === "existing" && !otherId && others[0]) {
+      setOtherId(others[0].id);
+    }
+  }, [source, otherId, others]);
+
+  const roleLabel =
+    role === "child" ? "子女" : role === "parent" ? "父母" : "配偶";
+
+  const preview = useMemo(() => {
+    if (source === "new") {
+      const n = name.trim() || "新成员";
+      if (role === "child") return `将记录：${focusName} 是 ${n} 的父母`;
+      if (role === "parent") return `将记录：${n} 是 ${focusName} 的父母`;
+      return `将记录：${focusName} 与 ${n} 为配偶`;
+    }
+    const other = persons.find((p) => p.id === otherId);
+    if (!other) return "";
+    if (role === "child")
+      return `将记录：${focusName} 是 ${other.preferredName} 的父母`;
+    if (role === "parent")
+      return `将记录：${other.preferredName} 是 ${focusName} 的父母`;
+    return `将记录：${focusName} 与 ${other.preferredName} 为配偶`;
+  }, [source, name, role, focusName, otherId, persons]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setLocalError("");
+    try {
+      let relatedId = otherId;
+      let createdName: string | undefined;
+      let newPersonId: string | undefined;
+      let livingStatus = living;
+
+      if (source === "new") {
+        const trimmed = name.trim();
+        if (!trimmed) {
+          setLocalError("请填写姓名或常用称呼。");
+          return;
+        }
+        const created = await v1api.createPerson(familyId, {
+          preferredName: trimmed,
+          gender,
+          livingStatus: living,
+        });
+        relatedId = created.person.id;
+        newPersonId = created.person.id;
+        createdName = created.person.preferredName;
+        livingStatus = created.person.livingStatus;
+      } else {
+        if (!relatedId || relatedId === focusPersonId) {
+          setLocalError("请选择另一位家人。");
+          return;
+        }
+      }
+
+      if (role === "child") {
+        await v1api.createRelationship(familyId, {
+          fromPersonId: focusPersonId,
+          toPersonId: relatedId,
+          relationshipType: "BIOLOGICAL_PARENT",
+        });
+      } else if (role === "parent") {
+        await v1api.createRelationship(familyId, {
+          fromPersonId: relatedId,
+          toPersonId: focusPersonId,
+          relationshipType: "BIOLOGICAL_PARENT",
+        });
+      } else {
+        await v1api.createRelationship(familyId, {
+          fromPersonId: focusPersonId,
+          toPersonId: relatedId,
+          relationshipType: "SPOUSE",
+        });
+      }
+
+      await onDone({
+        newPersonId,
+        createdName,
+        seedClaimType:
+          livingStatus === "DECEASED" ? "DEATH_DATE" : "BIRTH_DATE",
+      });
+    } catch (err) {
+      if (onAuth(err)) return;
+      const msg = userMessageForApiError(err);
+      setLocalError(msg);
+      onError(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canUseExisting = others.length > 0;
+
+  return (
+    <ModalShell
+      title={`为「${focusName}」添加${roleLabel}`}
+      onClose={onClose}
+      allowClose={!busy}
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {localError ? (
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {localError}
+          </p>
+        ) : null}
+
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="亲属角色"
+        >
+          {(
+            [
+              ["child", "添加子女"],
+              ["parent", "添加父母"],
+              ["spouse", "添加配偶"],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={role === k}
+              className={`alpha-chip !min-h-[36px] font-semibold ${
+                role === k ? "!bg-[color:var(--a-brand-soft)]" : ""
+              }`}
+              onClick={() => setRole(k)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div
+          className="flex gap-2"
+          role="group"
+          aria-label="添加方式"
+        >
+          <button
+            type="button"
+            className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
+              source === "new" ? "alpha-btn-primary" : "alpha-btn-secondary"
+            }`}
+            onClick={() => setSource("new")}
+          >
+            新建成员
+          </button>
+          <button
+            type="button"
+            className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
+              source === "existing"
+                ? "alpha-btn-primary"
+                : "alpha-btn-secondary"
+            }`}
+            disabled={!canUseExisting}
+            onClick={() => canUseExisting && setSource("existing")}
+          >
+            选用已有
+          </button>
+        </div>
+
+        {source === "new" ? (
+          <>
+            <div>
+              <label htmlFor="kin-name" className="alpha-label">
+                姓名 / 常用称呼 *
+              </label>
+              <input
+                ref={nameRef}
+                id="kin-name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="alpha-input"
+                placeholder="例如：赵丙"
+              />
+            </div>
+            <div>
+              <label htmlFor="kin-living" className="alpha-label">
+                是否仍在世
+              </label>
+              <select
+                id="kin-living"
+                value={living}
+                onChange={(e) => setLiving(e.target.value)}
+                className="alpha-input"
+              >
+                <option value="UNKNOWN">不确定</option>
+                <option value="LIVING">在世</option>
+                <option value="DECEASED">已故</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="kin-gender" className="alpha-label">
+                性别（可选）
+              </label>
+              <select
+                id="kin-gender"
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="alpha-input"
+              >
+                <option value="UNKNOWN">未填写</option>
+                <option value="MALE">男</option>
+                <option value="FEMALE">女</option>
+                <option value="OTHER">其他</option>
+              </select>
+            </div>
+          </>
+        ) : (
+          <div>
+            <label htmlFor="kin-other" className="alpha-label">
+              选择家人
+            </label>
+            <select
+              id="kin-other"
+              value={otherId}
+              onChange={(e) => setOtherId(e.target.value)}
+              className="alpha-input"
+              required
+            >
+              {others.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.preferredName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {preview ? (
+          <p className="text-sm text-[color:var(--a-brand)]" role="status">
+            {preview}
+          </p>
+        ) : null}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            className="alpha-btn alpha-btn-secondary flex-1"
+          >
+            取消
+          </button>
+          <button
+            type="submit"
+            disabled={
+              busy ||
+              (source === "new" ? !name.trim() : !otherId) ||
+              !preview
+            }
+            className="alpha-btn alpha-btn-primary flex-1"
+          >
+            {busy
+              ? "保存中…"
+              : source === "new"
+                ? "添加并建立关系"
+                : "建立关系"}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
+  );
+}
+
 function AddRelationshipModal({
   familyId,
   persons,
@@ -3443,10 +3820,13 @@ function PersonDrawer({
   personMap,
   canEdit,
   canReview,
+  externalClaimSeed,
+  onExternalClaimSeedConsumed,
   onClose,
   onChanged,
   onDeleted,
   onRequestAddRel,
+  onRequestAddKin,
   onShowInLineage,
   onOpenPerson,
   onError,
@@ -3461,10 +3841,13 @@ function PersonDrawer({
   personMap: Map<string, GraphPerson>;
   canEdit: boolean;
   canReview: boolean;
+  externalClaimSeed?: { claimType: string; nonce: number } | null;
+  onExternalClaimSeedConsumed?: () => void;
   onClose: () => void;
   onChanged: () => Promise<void>;
   onDeleted: (name: string) => Promise<void>;
   onRequestAddRel: () => void;
+  onRequestAddKin: (role: KinRole) => void;
   onShowInLineage: () => void;
   onOpenPerson: (id: string) => void;
   onError: (s: string) => void;
@@ -3478,6 +3861,11 @@ function PersonDrawer({
     claimType: string;
     nonce: number;
   } | null>(null);
+  useEffect(() => {
+    if (!externalClaimSeed) return;
+    setDrawerClaimSeed(externalClaimSeed);
+    onExternalClaimSeedConsumed?.();
+  }, [externalClaimSeed, onExternalClaimSeedConsumed]);
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -3936,6 +4324,35 @@ function PersonDrawer({
               暂无关系。建立父母/配偶关系后，世系页会按代展示。
             </p>
           )}
+          {canEdit ? (
+            <div
+              className="mt-3 flex flex-wrap gap-2"
+              role="group"
+              aria-label="为这位家人添加亲人"
+            >
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                onClick={() => onRequestAddKin("child")}
+              >
+                添加子女
+              </button>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                onClick={() => onRequestAddKin("parent")}
+              >
+                添加父母
+              </button>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                onClick={() => onRequestAddKin("spouse")}
+              >
+                添加配偶
+              </button>
+            </div>
+          ) : null}
           <div className="mt-2 flex flex-wrap gap-3">
             {canEdit ? (
               <button
@@ -3943,7 +4360,7 @@ function PersonDrawer({
                 className="text-sm font-semibold text-[color:var(--a-brand)]"
                 onClick={onRequestAddRel}
               >
-                {relRows.length ? "再添加一条关系" : "去添加家庭关系"}
+                {relRows.length ? "再添加一条关系" : "选用已有成员建立关系"}
               </button>
             ) : null}
             <button
