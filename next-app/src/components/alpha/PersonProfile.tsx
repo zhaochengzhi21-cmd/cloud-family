@@ -428,13 +428,6 @@ export function PersonProfile({
             canEdit={canEdit}
             onFill={openRecords}
           />
-          {alias.length > 0 ? (
-            <TimelineEvent
-              title="字号"
-              rows={[{ label: "称呼", claims: alias }]}
-              sources={sources}
-            />
-          ) : null}
           {generationWord.length > 0 || birthOrder.length > 0 ? (
             <TimelineEvent
               title="辈分"
@@ -449,18 +442,61 @@ export function PersonProfile({
               sources={sources}
             />
           ) : null}
-          {ancestral.length > 0 ? (
+          {ancestral.length > 0 ||
+          (canEdit && birthPlace.length > 0 && ancestral.length === 0) ? (
             <TimelineEvent
               title="祖籍"
-              rows={[{ label: "地方", claims: ancestral }]}
+              rows={[
+                {
+                  label: "地方",
+                  claims: ancestral,
+                  fill:
+                    ancestral.length === 0
+                      ? { label: "补充祖籍", claimType: "ANCESTRAL_PLACE" }
+                      : undefined,
+                },
+              ]}
               sources={sources}
+              canEdit={canEdit}
+              onFill={openRecords}
             />
           ) : null}
-          {occupation.length > 0 ? (
+          {occupation.length > 0 ||
+          (canEdit && ancestral.length > 0 && occupation.length === 0) ? (
             <TimelineEvent
               title="职业"
-              rows={[{ label: "职事", claims: occupation }]}
+              rows={[
+                {
+                  label: "职事",
+                  claims: occupation,
+                  fill:
+                    occupation.length === 0
+                      ? { label: "补充职业", claimType: "OCCUPATION" }
+                      : undefined,
+                },
+              ]}
               sources={sources}
+              canEdit={canEdit}
+              onFill={openRecords}
+            />
+          ) : null}
+          {alias.length > 0 ||
+          (canEdit && occupation.length > 0 && alias.length === 0) ? (
+            <TimelineEvent
+              title="字号"
+              rows={[
+                {
+                  label: "称呼",
+                  claims: alias,
+                  fill:
+                    alias.length === 0
+                      ? { label: "补充字号", claimType: "ALIAS" }
+                      : undefined,
+                },
+              ]}
+              sources={sources}
+              canEdit={canEdit}
+              onFill={openRecords}
             />
           ) : null}
           {showDeath ? (

@@ -154,11 +154,30 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   await expect(life.getByRole("heading", { name: "职业" })).toBeVisible();
   await expect(life.getByText("万载知县，后升胶州刺史")).toBeVisible();
 
-  await expect(life.getByRole("heading", { name: "去世" })).toBeVisible();
-  await expect(life.getByText("约明万历年间")).toBeVisible();
-  await expect(life.getByText("未记录")).toHaveCount(0);
-  await expect(life.getByRole("button", { name: "补充安葬地" })).toBeVisible();
-  await life.getByRole("button", { name: "补充安葬地" }).click();
+  await expect(life.getByRole("heading", { name: "字号" })).toBeVisible();
+  await expect(life.getByRole("button", { name: "补充字号" })).toBeVisible();
+  await life.getByRole("button", { name: "补充字号" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.locator("#claim-type")).toHaveValue("ALIAS", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+  await page.getByRole("button", { name: "收起" }).click();
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: wg.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const life2 = page.getByRole("region", { name: "生平" });
+  await expect(life2.getByRole("heading", { name: "去世" })).toBeVisible();
+  await expect(life2.getByText("约明万历年间")).toBeVisible();
+  await expect(life2.getByText("未记录")).toHaveCount(0);
+  await expect(life2.getByRole("button", { name: "补充安葬地" })).toBeVisible();
+  await life2.getByRole("button", { name: "补充安葬地" }).click();
   await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
   await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
     timeout: 60_000,
