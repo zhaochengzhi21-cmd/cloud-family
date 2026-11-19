@@ -885,6 +885,68 @@ test("明经胡氏：有配偶无子女时提示补充子女", async ({ page, ba
   );
 });
 
+test("明经胡氏：人物页不确定在世/性别直达抽屉焦点", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·确认基本信息（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    {
+      preferredName: sample.guanSan.preferredName,
+      gender: "UNKNOWN",
+      livingStatus: "UNKNOWN",
+    },
+    [{ claimType: "BIRTH_DATE", text: "约清嘉庆年间" }]
+  );
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.guanSan.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "确认在世状态" })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "确认性别" })).toBeVisible();
+
+  await page.getByRole("button", { name: "确认在世状态" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  const livingDrawer = page.getByRole("dialog");
+  await expect(
+    livingDrawer.getByRole("heading", { name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(livingDrawer.locator("#edit-living")).toHaveValue("UNKNOWN");
+  await expect(livingDrawer.locator("#edit-living")).toBeFocused();
+  await livingDrawer.getByRole("button", { name: "关闭" }).click();
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.guanSan.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "确认性别" }).click();
+  const genderDrawer = page.getByRole("dialog");
+  await expect(
+    genderDrawer.getByRole("heading", { name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(genderDrawer.locator("#edit-gender")).toHaveValue("UNKNOWN");
+  await expect(genderDrawer.locator("#edit-gender")).toBeFocused();
+});
+
 test("明经胡氏：概览有配偶无子女时 chip 打开添加子女", async ({
   page,
   baseURL,

@@ -329,6 +329,19 @@ export function PersonProfile({
     router.push(workspaceHref);
   }
 
+  function openPersonBasics(focus: "living" | "gender") {
+    try {
+      sessionStorage.setItem(
+        `alpha-person-basics:${familyId}`,
+        JSON.stringify({ personId, focus })
+      );
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+    } catch {
+      /* private mode */
+    }
+    router.push(workspaceHref);
+  }
+
   if (loading && !person) {
     return (
       <p className="py-16 text-center text-[color:var(--a-muted)]" role="status">
@@ -432,6 +445,25 @@ export function PersonProfile({
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
             >
               补充或修改资料
+            </button>
+          ) : null}
+          {canEdit &&
+          (!person.livingStatus || person.livingStatus === "UNKNOWN") ? (
+            <button
+              type="button"
+              onClick={() => openPersonBasics("living")}
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            >
+              确认在世状态
+            </button>
+          ) : null}
+          {canEdit && (!person.gender || person.gender === "UNKNOWN") ? (
+            <button
+              type="button"
+              onClick={() => openPersonBasics("gender")}
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            >
+              确认性别
             </button>
           ) : null}
           <button

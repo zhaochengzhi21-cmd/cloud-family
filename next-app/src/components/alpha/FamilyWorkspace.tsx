@@ -354,6 +354,28 @@ export function FamilyWorkspace({
     }
   }, [familyId]);
 
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`alpha-person-basics:${familyId}`);
+      if (!raw) return;
+      sessionStorage.removeItem(`alpha-person-basics:${familyId}`);
+      const parsed = JSON.parse(raw) as {
+        personId?: string;
+        focus?: "living" | "gender";
+      };
+      if (
+        parsed.personId &&
+        (parsed.focus === "living" || parsed.focus === "gender")
+      ) {
+        setDrawerBasicsFocus(parsed.focus);
+        setSelectedPersonId(parsed.personId);
+        setTab("lineage");
+      }
+    } catch {
+      /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
   const [recordsFocus, setRecordsFocus] = useState<{
     personId: string;
     claimId: string;
