@@ -566,6 +566,11 @@ export function FamilyWorkspace({
               setRelFocusPersonId(null);
               setShowAddRel(true);
             }}
+            onAddKin={(personId, role) => {
+              setRelFocusPersonId(personId);
+              setKinRole(role);
+              setShowAddKin(true);
+            }}
             onOpenRecords={openRecordsFor}
             onAuthError={authRedirect}
           />

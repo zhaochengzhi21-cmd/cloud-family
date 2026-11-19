@@ -210,6 +210,21 @@ async function runCoreJourney(
     page.getByRole("heading", { name: /第二代/ })
   ).toBeVisible({ timeout: 20_000 });
 
+  // Overview next-step: parent with children but no spouse
+  await page.getByRole("tab", { name: "概览" }).click();
+  const spouseStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "已有子女成员的配偶" });
+  await expect(spouseStep).toContainText("补充 1 位已有子女成员的配偶", {
+    timeout: 60_000,
+  });
+  await spouseStep.getByRole("button", { name: "为赵甲补充配偶" }).click();
+  const spouseModal = page.getByRole("dialog", { name: /添加配偶/ });
+  await expect(spouseModal).toBeVisible();
+  await expect(spouseModal).toContainText("赵甲");
+  await spouseModal.getByRole("button", { name: "关闭" }).click();
+  await page.getByRole("tab", { name: "世系" }).click();
+
   // Overview next-step: deceased without death date
   const graphForDeath = await apiJson(
     page,

@@ -15,7 +15,13 @@ import { FamilySources } from "@/components/alpha/FamilySources";
 import { gedcomFromExport } from "@/v1/export/gedcom";
 
 type Person = { id: string; preferredName: string; livingStatus?: string };
-type Rel = { fromPersonId: string; toPersonId: string };
+type Rel = { fromPersonId: string; toPersonId: string; type?: string };
+
+const PARENT_REL_TYPES = new Set([
+  "BIOLOGICAL_PARENT",
+  "ADOPTIVE_PARENT",
+  "STEP_PARENT",
+]);
 
 type Overview = Awaited<ReturnType<typeof v1api.getOverview>>["overview"];
 type ActivityItem = Awaited<
@@ -111,6 +117,7 @@ export function OverviewTab({
   canReview,
   onAddPerson,
   onAddRel,
+  onAddKin,
   onOpenRecords,
   onAuthError,
 }: {
@@ -124,6 +131,7 @@ export function OverviewTab({
   canReview: boolean;
   onAddPerson: () => void;
   onAddRel: () => void;
+  onAddKin?: (personId: string, role: "spouse") => void;
   onOpenRecords: (personId: string, claimType?: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
@@ -173,6 +181,23 @@ export function OverviewTab({
       linked.add(r.toPersonId);
     }
     return sortedPersons.filter((p) => !linked.has(p.id));
+  }, [relationships, sortedPersons]);
+
+  /** Parents of someone who have no SPOUSE edge yet. */
+  const missingSpouse = useMemo(() => {
+    const parents = new Set<string>();
+    const withSpouse = new Set<string>();
+    for (const r of relationships) {
+      if (r.type === "SPOUSE") {
+        withSpouse.add(r.fromPersonId);
+        withSpouse.add(r.toPersonId);
+      } else if (!r.type || PARENT_REL_TYPES.has(r.type)) {
+        parents.add(r.fromPersonId);
+      }
+    }
+    return sortedPersons.filter(
+      (p) => parents.has(p.id) && !withSpouse.has(p.id)
+    );
   }, [relationships, sortedPersons]);
 
   const missingBirth = useMemo(() => {
@@ -272,6 +297,15 @@ export function OverviewTab({
       action: canEdit
         ? { label: "添加家庭关系", onClick: onAddRel }
         : undefined,
+    });
+  }
+  if (missingSpouse.length > 0) {
+    steps.push({
+      key: "spouse",
+      title: `补充 ${missingSpouse.length} 位已有子女成员的配偶`,
+      body: "已有子女的人补上配偶，世系和打印版家谱会更完整。也可以先跳过。",
+      people: canEdit ? missingSpouse.slice(0, 6) : undefined,
+      peopleAria: "补充配偶",
     });
   }
   if (overview && total > 0 && missingBirth.length > 0) {
@@ -386,7 +420,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，出生、出生地、祖籍与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -411,7 +445,11 @@ export function OverviewTab({
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            if (s.key === "spouse") {
+                              onAddKin?.(p.id, "spouse");
+                              return;
+                            }
                             onOpenRecords(
                               p.id,
                               s.key === "birth"
@@ -425,8 +463,8 @@ export function OverviewTab({
                                       : s.key === "ancestral"
                                         ? "ANCESTRAL_PLACE"
                                         : undefined
-                            )
-                          }
+                            );
+                          }}
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
                           aria-label={`为${p.preferredName}${s.peopleAria ?? "补充资料"}`}
                         >
