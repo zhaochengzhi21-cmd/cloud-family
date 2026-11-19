@@ -1482,6 +1482,69 @@ test("明经胡氏：概览有亲人无父母时 chip 打开添加父母", async
   await expect(dialog).toContainText(sample.wenGuang.preferredName);
 });
 
+test("明经胡氏：来源库详情与动态查看展开说明", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·来源详情（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("GENEALOGY_PAGE");
+  await birthCard.getByLabel("来源标题（可选）").fill("西递明经胡氏族谱摘录（测试）");
+  await birthCard.getByLabel("出处位置（可选）").fill("卷二·文光公");
+  await birthCard
+    .getByLabel("来源说明（可选）")
+    .fill("据公开谱牒目录整理，仅作 Closed Alpha 测试。");
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("西递明经胡氏族谱摘录（测试）")).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  const row = sourcesLib
+    .locator("li")
+    .filter({ hasText: "西递明经胡氏族谱摘录（测试）" });
+  await expect(row).toBeVisible({ timeout: 60_000 });
+  await row.getByRole("button", { name: "详情" }).click();
+  await expect(row.getByText("据公开谱牒目录整理")).toBeVisible();
+  await expect(row.getByText("出处：卷二·文光公")).toBeVisible();
+
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await feed
+    .locator("li")
+    .filter({ hasText: "资料来源" })
+    .getByRole("button", { name: "查看" })
+    .click();
+  await expect(
+    sourcesLib
+      .locator("li")
+      .filter({ hasText: "西递明经胡氏族谱摘录（测试）" })
+      .getByText("据公开谱牒目录整理")
+  ).toBeVisible({ timeout: 20_000 });
+});
+
 test("明经胡氏：资料卡照片可内联查看", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

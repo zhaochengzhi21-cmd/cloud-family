@@ -1126,6 +1126,7 @@ function ClaimSources({
     title: string;
   } | null>(null);
   const [mediaError, setMediaError] = useState("");
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   async function openMedia(l: EvidenceLink, kind: "photo" | "audio") {
     const mediaId = l.evidence.mediaObjectId;
@@ -1155,29 +1156,48 @@ function ClaimSources({
         {links.map((l) => {
           const mid = l.evidence.mediaObjectId;
           const type = l.evidence.evidenceType;
+          const hasDetail = Boolean(l.evidence.description);
           return (
-            <li
-              key={l.evidence.id}
-              className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
-            >
-              <span>来源：{sourceText(l)}</span>
-              {mid && isAudioEvidence(type) ? (
-                <button
-                  type="button"
-                  className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                  onClick={() => void openMedia(l, "audio")}
-                >
-                  收听
-                </button>
-              ) : null}
-              {mid && isPhotoEvidence(type) ? (
-                <button
-                  type="button"
-                  className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                  onClick={() => void openMedia(l, "photo")}
-                >
-                  查看
-                </button>
+            <li key={l.evidence.id} className="space-y-1">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span>来源：{sourceText(l)}</span>
+                {hasDetail ? (
+                  <button
+                    type="button"
+                    className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    aria-expanded={detailId === l.evidence.id}
+                    onClick={() =>
+                      setDetailId((id) =>
+                        id === l.evidence.id ? null : l.evidence.id
+                      )
+                    }
+                  >
+                    详情
+                  </button>
+                ) : null}
+                {mid && isAudioEvidence(type) ? (
+                  <button
+                    type="button"
+                    className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => void openMedia(l, "audio")}
+                  >
+                    收听
+                  </button>
+                ) : null}
+                {mid && isPhotoEvidence(type) ? (
+                  <button
+                    type="button"
+                    className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => void openMedia(l, "photo")}
+                  >
+                    查看
+                  </button>
+                ) : null}
+              </div>
+              {detailId === l.evidence.id && l.evidence.description ? (
+                <p className="whitespace-pre-wrap text-[color:var(--a-ink)]">
+                  {l.evidence.description}
+                </p>
               ) : null}
             </li>
           );

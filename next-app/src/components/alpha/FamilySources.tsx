@@ -50,6 +50,7 @@ export function FamilySources({
     title: string;
   } | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [linksById, setLinksById] = useState<Record<string, EvidenceLink[]>>(
     {}
   );
@@ -150,6 +151,8 @@ export function FamilySources({
         } else if (isAudio(item.mimeType, item.evidenceType)) {
           void openMedia(item, "audio");
         }
+      } else if (item.description || item.sourceDateText || item.sourceLocator) {
+        setDetailId(item.id);
       }
       onFocusEvidenceConsumed?.();
     }, 50);
@@ -239,25 +242,62 @@ export function FamilySources({
                       )}
                     </p>
                   </div>
-                  {e.mediaObjectId && isAudio(e.mimeType, e.evidenceType) ? (
-                    <button
-                      type="button"
-                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                      onClick={() => void openMedia(e, "audio")}
-                    >
-                      收听
-                    </button>
-                  ) : null}
-                  {e.mediaObjectId && isPhoto(e.mimeType, e.evidenceType) ? (
-                    <button
-                      type="button"
-                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                      onClick={() => void openMedia(e, "photo")}
-                    >
-                      查看
-                    </button>
-                  ) : null}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {e.description || e.sourceDateText ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        aria-expanded={detailId === e.id}
+                        onClick={() =>
+                          setDetailId((id) => (id === e.id ? null : e.id))
+                        }
+                      >
+                        详情
+                      </button>
+                    ) : null}
+                    {e.mediaObjectId && isAudio(e.mimeType, e.evidenceType) ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={() => void openMedia(e, "audio")}
+                      >
+                        收听
+                      </button>
+                    ) : null}
+                    {e.mediaObjectId && isPhoto(e.mimeType, e.evidenceType) ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={() => void openMedia(e, "photo")}
+                      >
+                        查看
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+                {detailId === e.id ? (
+                  <div className="mt-2 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-2 text-xs text-[color:var(--a-muted)]">
+                    {e.description ? (
+                      <p className="whitespace-pre-wrap text-[color:var(--a-ink)]">
+                        {e.description}
+                      </p>
+                    ) : null}
+                    {e.sourceDateText ? (
+                      <p className={e.description ? "mt-1" : undefined}>
+                        年代 / 日期：{e.sourceDateText}
+                      </p>
+                    ) : null}
+                    {e.sourceLocator ? (
+                      <p
+                        className={
+                          e.description || e.sourceDateText ? "mt-1" : undefined
+                        }
+                      >
+                        出处：{e.sourceLocator}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {expandedId === e.id ? (
                   <div className="mt-2">
                     {linksLoadingId === e.id ? (
