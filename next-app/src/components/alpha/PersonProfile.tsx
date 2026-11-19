@@ -369,16 +369,30 @@ export function PersonProfile({
     deathDate.length > 0 ||
     burial.length > 0;
 
-  function openPhotoEvidence() {
-    const anchor =
+  function evidenceAnchorClaim() {
+    return (
       birthDate[0] ??
       claims.find((c) => c.status !== "REJECTED" && c.claimType !== "STORY") ??
-      claims.find((c) => c.status !== "REJECTED");
+      claims.find((c) => c.status !== "REJECTED")
+    );
+  }
+
+  function openPhotoEvidence() {
+    const anchor = evidenceAnchorClaim();
     if (!anchor) {
       openRecords("BIRTH_DATE");
       return;
     }
     openEvidence(anchor.id, "PHOTO");
+  }
+
+  function openAudioEvidence() {
+    const anchor = evidenceAnchorClaim();
+    if (!anchor) {
+      openRecords("BIRTH_DATE");
+      return;
+    }
+    openEvidence(anchor.id, "ORAL_HISTORY");
   }
 
   return (
@@ -613,6 +627,28 @@ export function PersonProfile({
 
       {audios.length > 0 ? (
         <AudioWall familyId={familyId} audios={audios} />
+      ) : canEdit && birthDate.length > 0 ? (
+        <section
+          aria-labelledby="profile-audios"
+          className="alpha-print-hide mb-8 rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-4"
+        >
+          <h2
+            id="profile-audios"
+            className="font-semibold text-[color:var(--a-brand)]"
+          >
+            口述录音
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+            录一段口述或旧录音，后人听得到本人的声音。
+          </p>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary mt-3 !min-h-[36px] !px-3 !text-xs"
+            onClick={openAudioEvidence}
+          >
+            补充录音
+          </button>
+        </section>
       ) : null}
 
       {FACT_TYPES.some((t) => pickShown(claims, t).length > 0) ? (
