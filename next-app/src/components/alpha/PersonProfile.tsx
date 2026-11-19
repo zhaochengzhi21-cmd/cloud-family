@@ -729,6 +729,25 @@ export function PersonProfile({
                 </button>
               </div>
             ) : null}
+            {canEdit &&
+            family.parents.length === 0 &&
+            family.spouses.length +
+              family.siblings.length +
+              family.children.length >
+              0 ? (
+              <div className="alpha-print-hide rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-3">
+                <p className="text-sm text-[color:var(--a-muted)]">
+                  还没有父母记录，有线索的话可以补上。
+                </p>
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary mt-2 !min-h-[36px] !px-3 !text-xs"
+                  onClick={() => openAddKin("parent")}
+                >
+                  补充父母
+                </button>
+              </div>
+            ) : null}
             <KinRow label="父母" people={family.parents} familyId={familyId} />
             <KinRow label="配偶" people={family.spouses} familyId={familyId} />
             <KinRow
