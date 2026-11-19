@@ -1128,16 +1128,34 @@ function ClaimSources({
   const [mediaError, setMediaError] = useState("");
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  async function openMedia(l: EvidenceLink, kind: "photo" | "audio") {
+  async function openMedia(
+    l: EvidenceLink,
+    kind: "photo" | "audio" | "file"
+  ) {
     const mediaId = l.evidence.mediaObjectId;
     if (!mediaId) return;
     setMediaError("");
     try {
       const r = await v1api.mediaRead(familyId, mediaId);
+      const mime = r.media.mimeType ?? "";
       const title =
         l.evidence.title ||
         EVIDENCE_TYPE_UI[l.evidence.evidenceType] ||
-        (kind === "audio" ? "口述录音" : "照片");
+        (kind === "audio" ? "口述录音" : kind === "photo" ? "照片" : "附件");
+      if (kind === "file") {
+        if (mime.startsWith("image/")) {
+          setPlaying(null);
+          setViewer({ url: r.read.url, title });
+          return;
+        }
+        if (mime.startsWith("audio/")) {
+          setViewer(null);
+          setPlaying({ url: r.read.url, title });
+          return;
+        }
+        window.open(r.read.url, "_blank", "noopener,noreferrer");
+        return;
+      }
       if (kind === "audio") {
         setViewer(null);
         setPlaying({ url: r.read.url, title });
@@ -1191,6 +1209,15 @@ function ClaimSources({
                     onClick={() => void openMedia(l, "photo")}
                   >
                     查看
+                  </button>
+                ) : null}
+                {mid && !isPhotoEvidence(type) && !isAudioEvidence(type) ? (
+                  <button
+                    type="button"
+                    className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => void openMedia(l, "file")}
+                  >
+                    打开
                   </button>
                 ) : null}
               </div>

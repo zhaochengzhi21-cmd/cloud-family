@@ -84,15 +84,30 @@ export function FamilySources({
 
   async function openMedia(
     item: Item,
-    kind: "audio" | "photo"
+    kind: "audio" | "photo" | "file"
   ) {
     if (!item.mediaObjectId) return;
     try {
       const r = await v1api.mediaRead(familyId, item.mediaObjectId);
+      const mime = r.media.mimeType ?? "";
       const title =
         item.title ||
         EVIDENCE_TYPE_UI[item.evidenceType] ||
-        (kind === "audio" ? "口述录音" : "照片");
+        (kind === "audio" ? "口述录音" : kind === "photo" ? "照片" : "附件");
+      if (kind === "file") {
+        if (mime.startsWith("image/")) {
+          setPlaying(null);
+          setViewer({ id: item.id, url: r.read.url, title });
+          return;
+        }
+        if (mime.startsWith("audio/")) {
+          setViewer(null);
+          setPlaying({ id: item.id, url: r.read.url, title });
+          return;
+        }
+        window.open(r.read.url, "_blank", "noopener,noreferrer");
+        return;
+      }
       if (kind === "audio") {
         setViewer(null);
         setPlaying({ id: item.id, url: r.read.url, title });
@@ -150,6 +165,8 @@ export function FamilySources({
           void openMedia(item, "photo");
         } else if (isAudio(item.mimeType, item.evidenceType)) {
           void openMedia(item, "audio");
+        } else {
+          void openMedia(item, "file");
         }
       } else if (item.description || item.sourceDateText || item.sourceLocator) {
         setDetailId(item.id);
@@ -271,6 +288,17 @@ export function FamilySources({
                         onClick={() => void openMedia(e, "photo")}
                       >
                         查看
+                      </button>
+                    ) : null}
+                    {e.mediaObjectId &&
+                    !isPhoto(e.mimeType, e.evidenceType) &&
+                    !isAudio(e.mimeType, e.evidenceType) ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={() => void openMedia(e, "file")}
+                      >
+                        打开
                       </button>
                     ) : null}
                   </div>

@@ -1482,6 +1482,121 @@ test("明经胡氏：概览有亲人无父母时 chip 打开添加父母", async
   await expect(dialog).toContainText(sample.wenGuang.preferredName);
 });
 
+test("明经胡氏：资料卡来源详情显示说明", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·资料卡详情（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("GENEALOGY_PAGE");
+  await birthCard.getByLabel("来源标题（可选）").fill("资料卡说明来源（测试）");
+  await birthCard
+    .getByLabel("来源说明（可选）")
+    .fill("西递口碑与谱牒互证，仅作测试。");
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("资料卡说明来源（测试）")).toBeVisible({
+    timeout: 60_000,
+  });
+  await birthCard.getByRole("button", { name: "详情" }).click();
+  await expect(birthCard.getByText("西递口碑与谱牒互证")).toBeVisible();
+});
+
+test("明经胡氏：来源库可打开非图片附件", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·来源附件（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("OTHER");
+  await birthCard.getByLabel("来源标题（可选）").fill("谱牒目录 PDF（测试）");
+  // Minimal PDF
+  const pdf = Buffer.from(
+    "%PDF-1.1\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n",
+    "utf8"
+  );
+  await birthCard.locator('input[type="file"]').setInputFiles({
+    name: "谱牒目录.pdf",
+    mimeType: "application/pdf",
+    buffer: pdf,
+  });
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("谱牒目录 PDF（测试）")).toBeVisible({
+    timeout: 90_000,
+  });
+
+  const claimId = await birthCard.getAttribute("data-claim-id");
+  expect(claimId).toBeTruthy();
+  const detail = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}`
+  );
+  const mediaId = (
+    detail.body as {
+      evidenceLinks: { evidence: { mediaObjectId: string | null } }[];
+    }
+  ).evidenceLinks
+    .map((l) => l.evidence.mediaObjectId)
+    .find(Boolean);
+  expect(mediaId, JSON.stringify(detail.body)).toBeTruthy();
+  trackMedia(familyId, mediaId!, ownerId);
+
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  const row = sourcesLib.locator("li").filter({ hasText: "谱牒目录 PDF（测试）" });
+  await expect(row).toBeVisible({ timeout: 60_000 });
+  await expect(row.getByRole("button", { name: "打开" })).toBeVisible();
+  const mediaRead = page.waitForResponse(
+    (r) =>
+      r.url().includes(`/media/${mediaId}`) &&
+      r.request().method() === "GET" &&
+      !r.url().includes("finalize")
+  );
+  // Popup may be about:blank / download depending on PDF handling — assert read API succeeds.
+  page.once("popup", (p) => {
+    void p.close().catch(() => undefined);
+  });
+  await row.getByRole("button", { name: "打开" }).click();
+  expect((await mediaRead).ok()).toBeTruthy();
+});
+
 test("明经胡氏：来源库详情与动态查看展开说明", async ({
   page,
   baseURL,

@@ -2765,6 +2765,7 @@ function ClaimCard({
     null
   );
   const [removingBusy, setRemovingBusy] = useState(false);
+  const [evidenceDetailId, setEvidenceDetailId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -2922,22 +2923,56 @@ function ClaimCard({
               className="flex flex-wrap items-start justify-between gap-2 text-[color:var(--a-muted)]"
             >
               <div className="min-w-0 flex-1">
-                <span className="font-semibold text-[color:var(--a-ink)]">
-                  {EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源"}
-                </span>
-                {l.evidence.title ? ` · ${l.evidence.title}` : ""}
-                {l.evidence.sourceLocator
-                  ? ` · ${l.evidence.sourceLocator}`
-                  : ""}
-                {l.evidence.mediaObjectId ? (
-                  <MediaInlineControl
-                    familyId={familyId}
-                    mediaId={l.evidence.mediaObjectId}
-                    evidenceType={l.evidence.evidenceType}
-                    title={l.evidence.title}
-                    onAuthError={onAuthError}
-                    onError={onError}
-                  />
+                <div>
+                  <span className="font-semibold text-[color:var(--a-ink)]">
+                    {EVIDENCE_TYPE_UI[l.evidence.evidenceType] ?? "来源"}
+                  </span>
+                  {l.evidence.title ? ` · ${l.evidence.title}` : ""}
+                  {l.evidence.sourceLocator
+                    ? ` · ${l.evidence.sourceLocator}`
+                    : ""}
+                  {l.evidence.description || l.evidence.sourceDateText ? (
+                    <button
+                      type="button"
+                      className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      aria-expanded={evidenceDetailId === l.evidence.id}
+                      onClick={() =>
+                        setEvidenceDetailId((id) =>
+                          id === l.evidence.id ? null : l.evidence.id
+                        )
+                      }
+                    >
+                      详情
+                    </button>
+                  ) : null}
+                  {l.evidence.mediaObjectId ? (
+                    <MediaInlineControl
+                      familyId={familyId}
+                      mediaId={l.evidence.mediaObjectId}
+                      evidenceType={l.evidence.evidenceType}
+                      title={l.evidence.title}
+                      onAuthError={onAuthError}
+                      onError={onError}
+                    />
+                  ) : null}
+                </div>
+                {evidenceDetailId === l.evidence.id ? (
+                  <div className="mt-2 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-2 text-xs text-[color:var(--a-muted)]">
+                    {l.evidence.description ? (
+                      <p className="whitespace-pre-wrap text-[color:var(--a-ink)]">
+                        {l.evidence.description}
+                      </p>
+                    ) : null}
+                    {l.evidence.sourceDateText ? (
+                      <p
+                        className={
+                          l.evidence.description ? "mt-1" : undefined
+                        }
+                      >
+                        年代 / 日期：{l.evidence.sourceDateText}
+                      </p>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
               {canReview ? (
