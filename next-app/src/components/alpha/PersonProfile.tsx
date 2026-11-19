@@ -277,6 +277,7 @@ export function PersonProfile({
     try {
       sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
+      sessionStorage.removeItem(`alpha-records-evidence-seed:${familyId}`);
       if (claimType) {
         sessionStorage.setItem(
           `alpha-records-claim-seed:${familyId}`,
@@ -289,6 +290,25 @@ export function PersonProfile({
       } else {
         sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
       }
+    } catch {
+      /* private mode */
+    }
+    router.push(workspaceHref);
+  }
+
+  function openEvidence(claimId: string) {
+    try {
+      sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
+      sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
+      sessionStorage.setItem(
+        `alpha-records-evidence-seed:${familyId}`,
+        JSON.stringify({
+          personId,
+          claimId,
+          nonce: Date.now(),
+        })
+      );
     } catch {
       /* private mode */
     }
@@ -428,6 +448,7 @@ export function PersonProfile({
             sources={sources}
             canEdit={canEdit}
             onFill={openRecords}
+            onAddSource={openEvidence}
           />
           {generationWord.length > 0 ||
           birthOrder.length > 0 ||
@@ -458,6 +479,7 @@ export function PersonProfile({
               sources={sources}
               canEdit={canEdit}
               onFill={openRecords}
+              onAddSource={openEvidence}
             />
           ) : null}
           {ancestral.length > 0 ||
@@ -477,6 +499,7 @@ export function PersonProfile({
               sources={sources}
               canEdit={canEdit}
               onFill={openRecords}
+              onAddSource={openEvidence}
             />
           ) : null}
           {occupation.length > 0 ||
@@ -496,6 +519,7 @@ export function PersonProfile({
               sources={sources}
               canEdit={canEdit}
               onFill={openRecords}
+              onAddSource={openEvidence}
             />
           ) : null}
           {alias.length > 0 ||
@@ -515,6 +539,7 @@ export function PersonProfile({
               sources={sources}
               canEdit={canEdit}
               onFill={openRecords}
+              onAddSource={openEvidence}
             />
           ) : null}
           {showDeath ? (
@@ -541,6 +566,7 @@ export function PersonProfile({
               sources={sources}
               canEdit={canEdit}
               onFill={openRecords}
+              onAddSource={openEvidence}
             />
           ) : null}
         </ol>
@@ -572,7 +598,12 @@ export function PersonProfile({
                     {CLAIM_TYPE_UI[t]?.label ?? t}
                   </dt>
                   <dd className="min-w-0 flex-1">
-                    <ClaimValues claims={rows} sources={sources} />
+                    <ClaimValues
+                      claims={rows}
+                      sources={sources}
+                      canEdit={canEdit}
+                      onAddSource={openEvidence}
+                    />
                   </dd>
                 </div>
               );
@@ -614,6 +645,14 @@ export function PersonProfile({
                       )
                       .join("；")}
                   </p>
+                ) : canEdit ? (
+                  <button
+                    type="button"
+                    className="alpha-print-hide mt-2 text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => openEvidence(c.id)}
+                  >
+                    补来源
+                  </button>
                 ) : null}
                 {c.status !== "ACCEPTED" ? (
                   <span
@@ -854,12 +893,14 @@ function TimelineEvent({
   sources,
   canEdit = false,
   onFill,
+  onAddSource,
 }: {
   title: string;
   rows: TimelineRow[];
   sources: SourcesByClaim;
   canEdit?: boolean;
   onFill?: (claimType: string) => void;
+  onAddSource?: (claimId: string) => void;
 }) {
   const visible = rows.filter(
     (r) => r.claims.length > 0 || (canEdit && r.fill && onFill)
@@ -883,7 +924,12 @@ function TimelineEvent({
             </dt>
             <dd className="min-w-0 flex-1">
               {r.claims.length > 0 ? (
-                <ClaimValues claims={r.claims} sources={sources} />
+                <ClaimValues
+                  claims={r.claims}
+                  sources={sources}
+                  canEdit={canEdit}
+                  onAddSource={onAddSource}
+                />
               ) : r.fill && onFill ? (
                 <button
                   type="button"
@@ -1128,9 +1174,13 @@ function PhotoWall({
 function ClaimValues({
   claims,
   sources,
+  canEdit = false,
+  onAddSource,
 }: {
   claims: Claim[];
   sources: SourcesByClaim;
+  canEdit?: boolean;
+  onAddSource?: (claimId: string) => void;
 }) {
   if (claims.length === 0) {
     return <span className="text-sm text-[color:var(--a-muted)]">未记录</span>;
@@ -1166,6 +1216,14 @@ function ClaimValues({
               <span className="w-full text-xs text-[color:var(--a-muted)]">
                 来源：{sources[c.id].map(sourceText).join("；")}
               </span>
+            ) : canEdit && onAddSource ? (
+              <button
+                type="button"
+                className="alpha-print-hide text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => onAddSource(c.id)}
+              >
+                补来源
+              </button>
             ) : null}
           </li>
         ))}

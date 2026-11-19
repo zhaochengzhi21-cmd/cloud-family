@@ -565,6 +565,45 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   await expect(page.locator("#claim-text")).toBeFocused();
 });
 
+test("明经胡氏：人物页补来源直达资料表单", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·补来源（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter(
+      (c) =>
+        c.claimType === "BIRTH_DATE" ||
+        c.claimType === "OCCUPATION" ||
+        c.claimType === "STORY"
+    )
+  );
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByRole("button", { name: "补来源" }).first()).toBeVisible();
+  await life.getByRole("button", { name: "补来源" }).first().click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.getByRole("button", { name: "保存来源" })).toBeVisible({
+    timeout: 20_000,
+  });
+});
+
 test("明经胡氏：有配偶无子女时提示补充子女", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

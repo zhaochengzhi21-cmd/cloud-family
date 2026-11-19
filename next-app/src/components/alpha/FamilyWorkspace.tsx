@@ -269,6 +269,11 @@ export function FamilyWorkspace({
     claimType: string;
     nonce: number;
   } | null>(null);
+  const [evidenceSeed, setEvidenceSeed] = useState<{
+    personId: string;
+    claimId: string;
+    nonce: number;
+  } | null>(null);
 
   useEffect(() => {
     try {
@@ -286,6 +291,31 @@ export function FamilyWorkspace({
         setClaimSeed({
           personId: parsed.personId,
           claimType: parsed.claimType,
+          nonce: parsed.nonce ?? Date.now(),
+        });
+        setTab("records");
+      }
+    } catch {
+      /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(
+        `alpha-records-evidence-seed:${familyId}`
+      );
+      if (!raw) return;
+      sessionStorage.removeItem(`alpha-records-evidence-seed:${familyId}`);
+      const parsed = JSON.parse(raw) as {
+        personId?: string;
+        claimId?: string;
+        nonce?: number;
+      };
+      if (parsed.personId && parsed.claimId) {
+        setEvidenceSeed({
+          personId: parsed.personId,
+          claimId: parsed.claimId,
           nonce: parsed.nonce ?? Date.now(),
         });
         setTab("records");
@@ -642,6 +672,8 @@ export function FamilyWorkspace({
             role={role}
             claimSeed={claimSeed}
             onClaimSeedConsumed={() => setClaimSeed(null)}
+            evidenceSeed={evidenceSeed}
+            onEvidenceSeedConsumed={() => setEvidenceSeed(null)}
             onAuthError={(e) => handleAuthRedirect(e, router)}
             onOpenPerson={(id) => setSelectedPersonId(id)}
             onGoMembers={() => setTab("members")}
@@ -1679,6 +1711,8 @@ function RecordsTab({
   role,
   claimSeed,
   onClaimSeedConsumed,
+  evidenceSeed,
+  onEvidenceSeedConsumed,
   onAuthError,
   onOpenPerson,
   onGoMembers,
@@ -1693,6 +1727,8 @@ function RecordsTab({
   role: Role;
   claimSeed: { personId: string; claimType: string; nonce: number } | null;
   onClaimSeedConsumed: () => void;
+  evidenceSeed: { personId: string; claimId: string; nonce: number } | null;
+  onEvidenceSeedConsumed: () => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
   onGoMembers: () => void;
@@ -1706,6 +1742,9 @@ function RecordsTab({
     claimType: string;
     nonce: number;
   } | null>(null);
+  const [openEvidenceClaimId, setOpenEvidenceClaimId] = useState<string | null>(
+    null
+  );
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PROPOSED" | "ACCEPTED" | "CONFLICTED"
   >("ALL");
@@ -1797,6 +1836,25 @@ function RecordsTab({
       });
     }
   }, [claimSeed, persons]);
+
+  useEffect(() => {
+    if (!evidenceSeed) return;
+    if (persons.some((p) => p.id === evidenceSeed.personId)) {
+      setPersonId(evidenceSeed.personId);
+      setOpenEvidenceClaimId(evidenceSeed.claimId);
+      onEvidenceSeedConsumed();
+    }
+  }, [evidenceSeed, persons, onEvidenceSeedConsumed]);
+
+  useEffect(() => {
+    if (!openEvidenceClaimId || loading) return;
+    const el = document.querySelector(
+      `[data-claim-id="${openEvidenceClaimId}"]`
+    );
+    if (el instanceof HTMLElement) {
+      scrollIntoViewSafe(el, { block: "center" });
+    }
+  }, [openEvidenceClaimId, loading, claims]);
 
   const active = claims.filter((c) => c.status !== "REJECTED");
   const selectedPerson = persons.find((p) => p.id === personId);
@@ -2076,6 +2134,10 @@ function RecordsTab({
                   claim={c}
                   canEdit={canEdit}
                   canReview={canReview}
+                  autoOpenEvidence={openEvidenceClaimId === c.id}
+                  onAutoOpenEvidenceConsumed={() =>
+                    setOpenEvidenceClaimId(null)
+                  }
                   onAuthError={onAuthError}
                   onChanged={loadClaims}
                   onError={setError}
@@ -2406,6 +2468,8 @@ function ClaimCard({
   claim,
   canEdit,
   canReview,
+  autoOpenEvidence = false,
+  onAutoOpenEvidenceConsumed,
   onChanged,
   onError,
   onFlash,
@@ -2415,6 +2479,8 @@ function ClaimCard({
   claim: ClaimRow;
   canEdit: boolean;
   canReview: boolean;
+  autoOpenEvidence?: boolean;
+  onAutoOpenEvidenceConsumed?: () => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
   onFlash: (s: string) => void;
@@ -2444,6 +2510,12 @@ function ClaimCard({
     };
   }, [familyId, claim.id]);
 
+  useEffect(() => {
+    if (!autoOpenEvidence || !canEdit) return;
+    setShowEvidence(true);
+    onAutoOpenEvidenceConsumed?.();
+  }, [autoOpenEvidence, canEdit, onAutoOpenEvidenceConsumed]);
+
   const statusLabel =
     CLAIM_STATUS_LABEL[claim.status as keyof typeof CLAIM_STATUS_LABEL] ??
     claim.status;
@@ -2457,7 +2529,7 @@ function ClaimCard({
           : "alpha-chip alpha-chip-proposed";
 
   return (
-    <li className="alpha-panel p-3">
+    <li className="alpha-panel p-3" data-claim-id={claim.id}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           {claim.claimType === "STORY" ? (
