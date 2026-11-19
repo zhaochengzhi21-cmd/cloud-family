@@ -429,18 +429,27 @@ export function PersonProfile({
             canEdit={canEdit}
             onFill={openRecords}
           />
-          {generationWord.length > 0 || birthOrder.length > 0 ? (
+          {generationWord.length > 0 ||
+          birthOrder.length > 0 ||
+          (canEdit && generation != null && generationWord.length === 0) ? (
             <TimelineEvent
               title="辈分"
               rows={[
-                ...(generationWord.length > 0
-                  ? [{ label: "字辈", claims: generationWord }]
-                  : []),
+                {
+                  label: "字辈",
+                  claims: generationWord,
+                  fill:
+                    generation != null && generationWord.length === 0
+                      ? { label: "补充字辈", claimType: "GENERATION_WORD" }
+                      : undefined,
+                },
                 ...(birthOrder.length > 0
                   ? [{ label: "排行", claims: birthOrder }]
                   : []),
               ]}
               sources={sources}
+              canEdit={canEdit}
+              onFill={openRecords}
             />
           ) : null}
           {ancestral.length > 0 ||

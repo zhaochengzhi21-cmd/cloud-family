@@ -469,7 +469,19 @@ test("明经胡氏：胡贯三—胡元熙父子世系与排行", async ({ page,
   const life = page.getByRole("region", { name: "生平" });
   await expect(life.getByRole("heading", { name: "辈分" })).toBeVisible();
   await expect(life.getByText("三")).toBeVisible();
+  await expect(life.getByRole("button", { name: "补充字辈" })).toBeVisible();
   await expect(
     page.getByRole("region", { name: "家人" }).getByRole("link", { name: "胡贯三" })
   ).toBeVisible();
+
+  await life.getByRole("button", { name: "补充字辈" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(childId);
+  await expect(page.locator("#claim-type")).toHaveValue("GENERATION_WORD", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
 });
