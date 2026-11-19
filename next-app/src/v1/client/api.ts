@@ -285,6 +285,7 @@ export const v1api = {
         claimId?: string;
         claimType?: string;
         relationshipType?: string;
+        evidenceId?: string;
         evidenceType?: string;
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),

@@ -54,6 +54,7 @@ export type ActivityItem = {
   claimId?: string;
   claimType?: string;
   relationshipType?: string;
+  evidenceId?: string;
   evidenceType?: string;
 };
 
@@ -128,6 +129,7 @@ export async function getFamilyActivity(
       case "EVIDENCE_CREATED":
         items.push({
           ...base,
+          evidenceId: r.entityId ?? undefined,
           evidenceType: metaString(r.metadataJson, "evidenceType"),
         });
         break;

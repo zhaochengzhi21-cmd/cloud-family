@@ -17,9 +17,13 @@ function isPhoto(mime: string | null, type: string) {
 export function FamilySources({
   familyId,
   onAuthError,
+  focusEvidenceId = null,
+  onFocusEvidenceConsumed,
 }: {
   familyId: string;
   onAuthError: (e: unknown) => boolean;
+  focusEvidenceId?: string | null;
+  onFocusEvidenceConsumed?: () => void;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
   const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO">("ALL");
@@ -85,6 +89,39 @@ export function FamilySources({
     }
   }
 
+  useEffect(() => {
+    if (!focusEvidenceId || !items) return;
+    const item = items.find((e) => e.id === focusEvidenceId);
+    if (!item) {
+      onFocusEvidenceConsumed?.();
+      return;
+    }
+    setFilter("ALL");
+    const t = window.setTimeout(() => {
+      const el = document.querySelector(
+        `[data-evidence-id="${focusEvidenceId}"]`
+      );
+      if (el instanceof HTMLElement) {
+        el.scrollIntoView({ block: "center", behavior: "smooth" });
+        el.classList.add("ring-2", "ring-[color:var(--a-brand)]");
+        window.setTimeout(() => {
+          el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
+        }, 2400);
+      }
+      if (item.mediaObjectId) {
+        if (isPhoto(item.mimeType, item.evidenceType)) {
+          void openMedia(item, "photo");
+        } else if (isAudio(item.mimeType, item.evidenceType)) {
+          void openMedia(item, "audio");
+        }
+      }
+      onFocusEvidenceConsumed?.();
+    }, 50);
+    return () => window.clearTimeout(t);
+    // openMedia is stable enough for this focus path; avoid re-firing on every render
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusEvidenceId, items, onFocusEvidenceConsumed]);
+
   if (error && !items) {
     return (
       <p role="alert" className="text-sm text-[color:var(--a-danger)]">
@@ -141,7 +178,8 @@ export function FamilySources({
             {shown.map((e) => (
               <li
                 key={e.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
+                data-evidence-id={e.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg py-2.5 text-sm"
               >
                 <div className="min-w-0">
                   <p className="font-semibold text-[color:var(--a-ink)]">

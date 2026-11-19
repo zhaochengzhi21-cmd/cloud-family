@@ -1286,6 +1286,91 @@ test("明经胡氏：资料来源库可查看照片", async ({ page, baseURL }) 
   await expect(dialog).toHaveCount(0);
 });
 
+test("明经胡氏：最近动态查看来源直达资料来源库", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·动态查看来源（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("PHOTO");
+  await birthCard.getByLabel("来源标题（可选）").fill("西递牌坊动态（测试）");
+  const png = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+    "base64"
+  );
+  await birthCard.locator('input[type="file"]').setInputFiles({
+    name: "paifang-activity.png",
+    mimeType: "image/png",
+    buffer: png,
+  });
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("西递牌坊动态（测试）")).toBeVisible({
+    timeout: 90_000,
+  });
+
+  const claimId = await birthCard.getAttribute("data-claim-id");
+  expect(claimId).toBeTruthy();
+  const detail = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}`
+  );
+  const evidenceId = (
+    detail.body as {
+      evidenceLinks: {
+        evidence: { id: string; mediaObjectId: string | null };
+      }[];
+    }
+  ).evidenceLinks[0]?.evidence.id;
+  const mediaId = (
+    detail.body as {
+      evidenceLinks: { evidence: { mediaObjectId: string | null } }[];
+    }
+  ).evidenceLinks
+    .map((l) => l.evidence.mediaObjectId)
+    .find(Boolean);
+  expect(evidenceId, JSON.stringify(detail.body)).toBeTruthy();
+  if (mediaId) trackMedia(familyId, mediaId, ownerId);
+
+  await page.getByRole("tab", { name: "概览" }).click();
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await expect(feed).toBeVisible({ timeout: 60_000 });
+  await expect(feed).toContainText("资料来源");
+  await feed
+    .locator("li")
+    .filter({ hasText: "资料来源" })
+    .getByRole("button", { name: "查看" })
+    .click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(
+    sourcesLib.locator(`[data-evidence-id="${evidenceId}"]`)
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.getByRole("dialog", { name: "西递牌坊动态（测试）" })
+  ).toBeVisible({ timeout: 20_000 });
+});
+
 test("明经胡氏：最近动态查看直达对应资料卡片", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

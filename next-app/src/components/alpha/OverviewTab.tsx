@@ -153,6 +153,7 @@ export function OverviewTab({
   const [overview, setOverview] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoadError("");
@@ -915,6 +916,19 @@ export function OverviewTab({
                         </button>
                       </>
                     ) : null}
+                    {item.eventType === "EVIDENCE_CREATED" &&
+                    item.evidenceId ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => setFocusEvidenceId(item.evidenceId!)}
+                        >
+                          查看
+                        </button>
+                      </>
+                    ) : null}
                   </p>
                   <time
                     dateTime={item.at}
@@ -934,7 +948,12 @@ export function OverviewTab({
       ) : null}
 
       {persons.length > 0 ? (
-        <FamilySources familyId={familyId} onAuthError={onAuthError} />
+        <FamilySources
+          familyId={familyId}
+          onAuthError={onAuthError}
+          focusEvidenceId={focusEvidenceId}
+          onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
+        />
       ) : null}
 
       {persons.length > 0 ? (
