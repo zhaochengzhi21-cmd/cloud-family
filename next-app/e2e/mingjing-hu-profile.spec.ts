@@ -208,6 +208,38 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   ).toBeVisible();
 });
 
+test("明经胡氏：人物页空照片区直达照片来源表单", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·空照片（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.guanSan, [
+    { claimType: "BIRTH_DATE", text: "约清乾隆年间" },
+  ]);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  const photos = page.getByRole("region", { name: "照片" });
+  await expect(photos.getByRole("button", { name: "补充照片" })).toBeVisible();
+  await photos.getByRole("button", { name: "补充照片" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.getByRole("button", { name: "保存来源" })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.locator("#ev-type")).toHaveValue("PHOTO");
+});
+
 test("明经胡氏：字辈表单可从行辈歌取字", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

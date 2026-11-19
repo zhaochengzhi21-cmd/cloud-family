@@ -273,6 +273,7 @@ export function FamilyWorkspace({
   const [evidenceSeed, setEvidenceSeed] = useState<{
     personId: string;
     claimId: string;
+    evidenceType?: string;
     nonce: number;
   } | null>(null);
 
@@ -311,12 +312,14 @@ export function FamilyWorkspace({
       const parsed = JSON.parse(raw) as {
         personId?: string;
         claimId?: string;
+        evidenceType?: string;
         nonce?: number;
       };
       if (parsed.personId && parsed.claimId) {
         setEvidenceSeed({
           personId: parsed.personId,
           claimId: parsed.claimId,
+          evidenceType: parsed.evidenceType,
           nonce: parsed.nonce ?? Date.now(),
         });
         setTab("records");
@@ -1733,7 +1736,12 @@ function RecordsTab({
   role: Role;
   claimSeed: { personId: string; claimType: string; nonce: number } | null;
   onClaimSeedConsumed: () => void;
-  evidenceSeed: { personId: string; claimId: string; nonce: number } | null;
+  evidenceSeed: {
+    personId: string;
+    claimId: string;
+    evidenceType?: string;
+    nonce: number;
+  } | null;
   onEvidenceSeedConsumed: () => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
@@ -1751,6 +1759,7 @@ function RecordsTab({
   const [openEvidenceClaimId, setOpenEvidenceClaimId] = useState<string | null>(
     null
   );
+  const [openEvidenceType, setOpenEvidenceType] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<
     "ALL" | "PROPOSED" | "ACCEPTED" | "CONFLICTED"
   >("ALL");
@@ -1848,6 +1857,7 @@ function RecordsTab({
     if (persons.some((p) => p.id === evidenceSeed.personId)) {
       setPersonId(evidenceSeed.personId);
       setOpenEvidenceClaimId(evidenceSeed.claimId);
+      setOpenEvidenceType(evidenceSeed.evidenceType ?? null);
       onEvidenceSeedConsumed();
     }
   }, [evidenceSeed, persons, onEvidenceSeedConsumed]);
@@ -2143,9 +2153,13 @@ function RecordsTab({
                   canEdit={canEdit}
                   canReview={canReview}
                   autoOpenEvidence={openEvidenceClaimId === c.id}
-                  onAutoOpenEvidenceConsumed={() =>
-                    setOpenEvidenceClaimId(null)
+                  seedEvidenceType={
+                    openEvidenceClaimId === c.id ? openEvidenceType : null
                   }
+                  onAutoOpenEvidenceConsumed={() => {
+                    setOpenEvidenceClaimId(null);
+                    setOpenEvidenceType(null);
+                  }}
                   onAuthError={onAuthError}
                   onChanged={loadClaims}
                   onError={setError}
@@ -2577,6 +2591,7 @@ function ClaimCard({
   canEdit,
   canReview,
   autoOpenEvidence = false,
+  seedEvidenceType = null,
   onAutoOpenEvidenceConsumed,
   onChanged,
   onError,
@@ -2588,6 +2603,7 @@ function ClaimCard({
   canEdit: boolean;
   canReview: boolean;
   autoOpenEvidence?: boolean;
+  seedEvidenceType?: string | null;
   onAutoOpenEvidenceConsumed?: () => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
@@ -2598,6 +2614,9 @@ function ClaimCard({
     ReturnType<typeof v1api.getClaim>
   > | null>(null);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [forcedEvidenceType, setForcedEvidenceType] = useState<string | null>(
+    null
+  );
   const [removingEvidenceId, setRemovingEvidenceId] = useState<string | null>(
     null
   );
@@ -2620,9 +2639,10 @@ function ClaimCard({
 
   useEffect(() => {
     if (!autoOpenEvidence || !canEdit) return;
+    if (seedEvidenceType) setForcedEvidenceType(seedEvidenceType);
     setShowEvidence(true);
     onAutoOpenEvidenceConsumed?.();
-  }, [autoOpenEvidence, canEdit, onAutoOpenEvidenceConsumed]);
+  }, [autoOpenEvidence, canEdit, seedEvidenceType, onAutoOpenEvidenceConsumed]);
 
   const statusLabel =
     CLAIM_STATUS_LABEL[claim.status as keyof typeof CLAIM_STATUS_LABEL] ??
@@ -2834,11 +2854,16 @@ function ClaimCard({
             bundle?.evidenceLinks.map((l) => l.evidence.id) ?? []
           }
           defaultEvidenceType={
-            claim.claimType === "STORY" ? "ORAL_HISTORY" : "GENEALOGY_PAGE"
+            forcedEvidenceType ||
+            (claim.claimType === "STORY" ? "ORAL_HISTORY" : "GENEALOGY_PAGE")
           }
-          onClose={() => setShowEvidence(false)}
+          onClose={() => {
+            setShowEvidence(false);
+            setForcedEvidenceType(null);
+          }}
           onDone={async () => {
             setShowEvidence(false);
+            setForcedEvidenceType(null);
             onFlash("已添加资料来源");
             const b = await v1api.getClaim(familyId, claim.id);
             setBundle(b);

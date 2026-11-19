@@ -296,7 +296,7 @@ export function PersonProfile({
     router.push(workspaceHref);
   }
 
-  function openEvidence(claimId: string) {
+  function openEvidence(claimId: string, evidenceType?: string) {
     try {
       sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
@@ -306,6 +306,7 @@ export function PersonProfile({
         JSON.stringify({
           personId,
           claimId,
+          evidenceType: evidenceType || undefined,
           nonce: Date.now(),
         })
       );
@@ -367,6 +368,18 @@ export function PersonProfile({
     person.livingStatus === "DECEASED" ||
     deathDate.length > 0 ||
     burial.length > 0;
+
+  function openPhotoEvidence() {
+    const anchor =
+      birthDate[0] ??
+      claims.find((c) => c.status !== "REJECTED" && c.claimType !== "STORY") ??
+      claims.find((c) => c.status !== "REJECTED");
+    if (!anchor) {
+      openRecords("BIRTH_DATE");
+      return;
+    }
+    openEvidence(anchor.id, "PHOTO");
+  }
 
   return (
     <article className="alpha-fade-in py-2">
@@ -574,6 +587,28 @@ export function PersonProfile({
 
       {photos.length > 0 ? (
         <PhotoWall familyId={familyId} photos={photos} />
+      ) : canEdit && birthDate.length > 0 ? (
+        <section
+          aria-labelledby="profile-photos"
+          className="alpha-print-hide mb-8 rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-4"
+        >
+          <h2
+            id="profile-photos"
+            className="font-semibold text-[color:var(--a-brand)]"
+          >
+            照片
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+            补一张人像、旧照或谱页照片，后人认亲会更容易。
+          </p>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary mt-3 !min-h-[36px] !px-3 !text-xs"
+            onClick={openPhotoEvidence}
+          >
+            补充照片
+          </button>
+        </section>
       ) : null}
 
       {audios.length > 0 ? (
