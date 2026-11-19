@@ -148,6 +148,11 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   await expect(life.getByRole("heading", { name: "去世" })).toBeVisible();
   await expect(life.getByText("约明万历年间")).toBeVisible();
 
+  const facts = page.getByRole("region", { name: "档案" });
+  await expect(facts.getByText("文")).toBeVisible();
+  await expect(facts.getByText("万载知县，后升胶州刺史")).toBeVisible();
+  await expect(facts.getByText("未记录")).toHaveCount(0);
+
   await expect(page.getByText(/文光刺史美名扬/)).toBeVisible();
 });
 

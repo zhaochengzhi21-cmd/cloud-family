@@ -468,26 +468,32 @@ export function PersonProfile({
         <AudioWall familyId={familyId} audios={audios} />
       ) : null}
 
-      <section aria-labelledby="profile-facts" className="mb-8">
-        <h2
-          id="profile-facts"
-          className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-        >
-          档案
-        </h2>
-        <dl className="alpha-panel divide-y divide-[color:var(--a-brand-line)]">
-          {FACT_TYPES.map((t) => (
-            <div key={t} className="flex gap-4 px-4 py-3">
-              <dt className="w-16 shrink-0 text-sm text-[color:var(--a-muted)]">
-                {CLAIM_TYPE_UI[t]?.label ?? t}
-              </dt>
-              <dd className="min-w-0 flex-1">
-                <ClaimValues claims={pickShown(claims, t)} sources={sources} />
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+      {FACT_TYPES.some((t) => pickShown(claims, t).length > 0) ? (
+        <section aria-labelledby="profile-facts" className="mb-8">
+          <h2
+            id="profile-facts"
+            className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            档案
+          </h2>
+          <dl className="alpha-panel divide-y divide-[color:var(--a-brand-line)]">
+            {FACT_TYPES.map((t) => {
+              const rows = pickShown(claims, t);
+              if (rows.length === 0) return null;
+              return (
+                <div key={t} className="flex gap-4 px-4 py-3">
+                  <dt className="w-16 shrink-0 text-sm text-[color:var(--a-muted)]">
+                    {CLAIM_TYPE_UI[t]?.label ?? t}
+                  </dt>
+                  <dd className="min-w-0 flex-1">
+                    <ClaimValues claims={rows} sources={sources} />
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </section>
+      ) : null}
 
       {pickShown(claims, "STORY").length > 0 ? (
         <section aria-labelledby="profile-stories" className="mb-8">
