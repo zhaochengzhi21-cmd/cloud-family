@@ -1574,7 +1574,7 @@ function flashAfterClaimSave(followUp: string | null): string {
     return "已添加出生地。接着可以记下祖籍。";
   if (followUp === "BURIAL_PLACE")
     return "已添加去世信息。接着可以记下安葬地。";
-  return "已添加人物资料";
+  return "已添加人物资料。需要的话，可为这条补上来源。";
 }
 
 function ClaimStartCtas({
