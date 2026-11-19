@@ -23,6 +23,7 @@ import {
   PRODUCT,
   ROLE_LABEL,
   generationLabel,
+  generationSongChars,
   generationWordsByGeneration,
 } from "@/v1/ui/copy";
 import {
@@ -2263,6 +2264,8 @@ function AddClaimForm({
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(!compact);
   const [localError, setLocalError] = useState("");
+  const [generationSong, setGenerationSong] = useState("");
+  const [showSongEditor, setShowSongEditor] = useState(false);
   const textRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const isStory = claimType === "STORY";
   const wantWords = Boolean(generationByPerson) && claimType === "GENERATION_WORD";
@@ -2278,6 +2281,37 @@ function AddClaimForm({
       ).get(myGeneration) ?? []
     );
   }, [wantWords, wordsByPerson, generationByPerson, myGeneration, personId]);
+  const songChars = useMemo(
+    () => generationSongChars(generationSong),
+    [generationSong]
+  );
+
+  useEffect(() => {
+    if (claimType !== "GENERATION_WORD") return;
+    try {
+      setGenerationSong(
+        localStorage.getItem(`alpha-generation-song:${familyId}`) ?? ""
+      );
+    } catch {
+      setGenerationSong("");
+    }
+  }, [claimType, familyId]);
+
+  useEffect(() => {
+    if (claimType !== "GENERATION_WORD") return;
+    try {
+      if (generationSong.trim()) {
+        localStorage.setItem(
+          `alpha-generation-song:${familyId}`,
+          generationSong
+        );
+      } else {
+        localStorage.removeItem(`alpha-generation-song:${familyId}`);
+      }
+    } catch {
+      /* private mode */
+    }
+  }, [claimType, familyId, generationSong]);
 
   useEffect(() => {
     setLocalError("");
@@ -2455,6 +2489,69 @@ function AddClaimForm({
                   </span>
                 </button>
               ))}
+            </div>
+          ) : null}
+          {claimType === "GENERATION_WORD" ? (
+            <div className="mt-3 space-y-2">
+              {songChars.length > 0 ? (
+                <div
+                  className="flex flex-wrap items-center gap-2 text-sm"
+                  role="group"
+                  aria-label="行辈歌字"
+                >
+                  <span className="text-[color:var(--a-muted)]">行辈歌：</span>
+                  {songChars.map((ch) => (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => {
+                        setText(ch);
+                        textRef.current?.focus();
+                      }}
+                      className="alpha-chip !min-h-[32px] font-semibold"
+                    >
+                      {ch}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => setShowSongEditor((v) => !v)}
+                  >
+                    {showSongEditor ? "收起行辈歌" : "改行辈歌"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => setShowSongEditor(true)}
+                >
+                  粘贴行辈歌，从中取一字
+                </button>
+              )}
+              {showSongEditor || songChars.length === 0 ? (
+                <div>
+                  <label htmlFor="generation-song" className="alpha-label">
+                    行辈歌（可选）
+                  </label>
+                  <textarea
+                    id="generation-song"
+                    rows={2}
+                    value={generationSong}
+                    onChange={(e) => {
+                      setGenerationSong(e.target.value);
+                      setShowSongEditor(true);
+                    }}
+                    placeholder="例如：圣世长清，兆锡嘉名"
+                    className="alpha-input !min-h-[3.5rem] resize-y !py-2"
+                    maxLength={400}
+                  />
+                  <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+                    只保存在本机，方便从歌里点选字辈。
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>

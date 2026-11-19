@@ -190,3 +190,16 @@ export function generationLabel(gen: number): string {
   if (gen >= 1 && gen <= 10) return `第${cn[gen]}代`;
   return `第${gen}代`;
 }
+
+/** Unique CJK characters from a pasted 行辈歌 (drops punctuation / spaces). */
+export function generationSongChars(snippet: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const ch of snippet) {
+    if (!/[\u4e00-\u9fff]/.test(ch)) continue;
+    if (seen.has(ch)) continue;
+    seen.add(ch);
+    out.push(ch);
+  }
+  return out;
+}

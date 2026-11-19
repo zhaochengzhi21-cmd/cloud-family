@@ -208,6 +208,39 @@ test("明经胡氏公开史料：人物页生平显示祖籍与职业", async ({
   ).toBeVisible();
 });
 
+test("明经胡氏：字辈表单可从行辈歌取字", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·行辈歌（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.yuanXi,
+    sample.yuanXi.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  await page.getByRole("button", { name: "+ 添加人物资料" }).click();
+  await page.locator("#claim-type").selectOption("GENERATION_WORD");
+  await page
+    .getByRole("button", { name: "粘贴行辈歌，从中取一字" })
+    .click();
+  await page
+    .locator("#generation-song")
+    .fill(sample.generationSongSnippet);
+  await expect(page.getByRole("group", { name: "行辈歌字" })).toBeVisible();
+  await page.getByRole("group", { name: "行辈歌字" }).getByRole("button", { name: "清" }).click();
+  await expect(page.locator("#claim-text")).toHaveValue("清");
+});
+
 test("明经胡氏：保存故事后自动打开来源表单", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
