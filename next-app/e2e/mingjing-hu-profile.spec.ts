@@ -1481,3 +1481,68 @@ test("明经胡氏：概览有亲人无父母时 chip 打开添加父母", async
   await expect(dialog).toBeVisible({ timeout: 60_000 });
   await expect(dialog).toContainText(sample.wenGuang.preferredName);
 });
+
+test("明经胡氏：来源库已用于可直达关联资料卡片", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·来源关联（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  const claimId = await birthCard.getAttribute("data-claim-id");
+  expect(claimId).toBeTruthy();
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("GENEALOGY_PAGE");
+  await birthCard.getByLabel("来源标题（可选）").fill("明经胡氏壬派宗谱（测试）");
+  await birthCard.getByLabel("出处位置（可选）").fill("卷首");
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("明经胡氏壬派宗谱（测试）")).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(sourcesLib).toContainText("明经胡氏壬派宗谱（测试）", {
+    timeout: 60_000,
+  });
+  await sourcesLib
+    .locator("li")
+    .filter({ hasText: "明经胡氏壬派宗谱（测试）" })
+    .getByRole("button", { name: /已用于 \d+ 条资料/ })
+    .click();
+  await sourcesLib
+    .getByRole("button", {
+      name: `${sample.wenGuang.preferredName} · 出生`,
+    })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  await expect(page.locator(`[data-claim-id="${claimId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.locator(`[data-claim-id="${claimId}"]`).getByText("约明嘉靖年间")
+  ).toBeVisible();
+});

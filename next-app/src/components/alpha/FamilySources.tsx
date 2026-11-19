@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EVIDENCE_TYPE_UI } from "@/v1/ui/copy";
+import { CLAIM_TYPE_UI, EVIDENCE_TYPE_UI } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 
 type Item = Awaited<ReturnType<typeof v1api.listEvidence>>["evidence"][number];
+type EvidenceLink = Awaited<
+  ReturnType<typeof v1api.listEvidenceLinks>
+>["links"][number];
 
 function isAudio(mime: string | null, type: string) {
   return Boolean(mime?.startsWith("audio/")) || type === "ORAL_HISTORY";
@@ -17,11 +20,19 @@ function isPhoto(mime: string | null, type: string) {
 export function FamilySources({
   familyId,
   onAuthError,
+  onOpenRecords,
   focusEvidenceId = null,
   onFocusEvidenceConsumed,
 }: {
   familyId: string;
   onAuthError: (e: unknown) => boolean;
+  onOpenRecords?: (
+    personId: string,
+    opts?: {
+      focusClaimId?: string;
+      statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+    }
+  ) => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
 }) {
@@ -38,6 +49,11 @@ export function FamilySources({
     url: string;
     title: string;
   } | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [linksById, setLinksById] = useState<Record<string, EvidenceLink[]>>(
+    {}
+  );
+  const [linksLoadingId, setLinksLoadingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -86,6 +102,26 @@ export function FamilySources({
     } catch (e) {
       if (onAuthError(e)) return;
       setError(userMessageForApiError(e));
+    }
+  }
+
+  async function toggleLinks(evidenceId: string) {
+    if (expandedId === evidenceId) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(evidenceId);
+    if (linksById[evidenceId]) return;
+    setLinksLoadingId(evidenceId);
+    try {
+      const r = await v1api.listEvidenceLinks(familyId, evidenceId);
+      setLinksById((prev) => ({ ...prev, [evidenceId]: r.links }));
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setError(userMessageForApiError(e));
+      setExpandedId(null);
+    } finally {
+      setLinksLoadingId(null);
     }
   }
 
@@ -179,35 +215,93 @@ export function FamilySources({
               <li
                 key={e.id}
                 data-evidence-id={e.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg py-2.5 text-sm"
+                className="rounded-lg py-2.5 text-sm"
               >
-                <div className="min-w-0">
-                  <p className="font-semibold text-[color:var(--a-ink)]">
-                    {EVIDENCE_TYPE_UI[e.evidenceType] ?? "来源"}
-                    {e.title ? ` · ${e.title}` : ""}
-                  </p>
-                  <p className="text-xs text-[color:var(--a-muted)]">
-                    {e.sourceLocator ? `${e.sourceLocator} · ` : ""}
-                    已用于 {e.linkCount} 条资料
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[color:var(--a-ink)]">
+                      {EVIDENCE_TYPE_UI[e.evidenceType] ?? "来源"}
+                      {e.title ? ` · ${e.title}` : ""}
+                    </p>
+                    <p className="text-xs text-[color:var(--a-muted)]">
+                      {e.sourceLocator ? `${e.sourceLocator} · ` : ""}
+                      {e.linkCount > 0 && onOpenRecords ? (
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          aria-expanded={expandedId === e.id}
+                          onClick={() => void toggleLinks(e.id)}
+                        >
+                          已用于 {e.linkCount} 条资料
+                        </button>
+                      ) : (
+                        <>已用于 {e.linkCount} 条资料</>
+                      )}
+                    </p>
+                  </div>
+                  {e.mediaObjectId && isAudio(e.mimeType, e.evidenceType) ? (
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => void openMedia(e, "audio")}
+                    >
+                      收听
+                    </button>
+                  ) : null}
+                  {e.mediaObjectId && isPhoto(e.mimeType, e.evidenceType) ? (
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => void openMedia(e, "photo")}
+                    >
+                      查看
+                    </button>
+                  ) : null}
                 </div>
-                {e.mediaObjectId && isAudio(e.mimeType, e.evidenceType) ? (
-                  <button
-                    type="button"
-                    className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                    onClick={() => void openMedia(e, "audio")}
-                  >
-                    收听
-                  </button>
-                ) : null}
-                {e.mediaObjectId && isPhoto(e.mimeType, e.evidenceType) ? (
-                  <button
-                    type="button"
-                    className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                    onClick={() => void openMedia(e, "photo")}
-                  >
-                    查看
-                  </button>
+                {expandedId === e.id ? (
+                  <div className="mt-2">
+                    {linksLoadingId === e.id ? (
+                      <p className="text-xs text-[color:var(--a-muted)]">
+                        正在加载关联资料…
+                      </p>
+                    ) : (linksById[e.id] ?? []).length === 0 ? (
+                      <p className="text-xs text-[color:var(--a-muted)]">
+                        暂无可见的关联资料。
+                      </p>
+                    ) : (
+                      <div
+                        className="flex flex-wrap gap-2"
+                        role="group"
+                        aria-label="关联资料"
+                      >
+                        {(linksById[e.id] ?? []).map((link) => {
+                          const typeLabel =
+                            CLAIM_TYPE_UI[link.claimType]?.label ??
+                            link.claimType;
+                          return (
+                            <button
+                              key={link.claimId}
+                              type="button"
+                              className="alpha-btn alpha-btn-secondary !min-h-[32px] !px-3 !text-xs"
+                              onClick={() =>
+                                onOpenRecords?.(link.personId, {
+                                  focusClaimId: link.claimId,
+                                  statusFilter:
+                                    link.status === "CONFLICTED"
+                                      ? "CONFLICTED"
+                                      : link.status === "PROPOSED"
+                                        ? "PROPOSED"
+                                        : "ALL",
+                                })
+                              }
+                            >
+                              {link.personName} · {typeLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 ) : null}
               </li>
             ))}
@@ -258,7 +352,7 @@ export function FamilySources({
               src={viewer.url}
               alt={viewer.title}
               className="max-h-[90vh] max-w-full rounded-lg object-contain"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(ev) => ev.stopPropagation()}
             />
           </div>
         ) : null}

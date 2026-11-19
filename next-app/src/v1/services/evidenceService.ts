@@ -309,6 +309,69 @@ export async function getEvidence(
   return evidenceRepo.mapEvidenceDto(row);
 }
 
+export type EvidenceClaimLinkItem = {
+  claimId: string;
+  claimType: string;
+  status: string;
+  personId: string;
+  personName: string;
+};
+
+/** Readable PERSON claims this evidence is linked to (newest links first). */
+export async function listEvidenceClaimLinks(
+  familyId: string,
+  evidenceId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db }
+): Promise<EvidenceClaimLinkItem[]> {
+  const database = dbOrDefault(options?.db);
+  const auth = await authorizeFamilyAction(
+    familyId,
+    actorContext,
+    "READ_FAMILY",
+    { db: database }
+  ).catch(mapPerm);
+  if (auth.decision !== "ALLOW") {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+
+  const row = await evidenceRepo.findActiveEvidenceById(database, evidenceId);
+  if (!row || row.familyId !== familyId) {
+    throw new EvidenceDomainError("EVIDENCE_NOT_FOUND");
+  }
+  const ok = await canReadEvidenceInternal(row, actorContext, { db: database });
+  if (!ok) {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+
+  const { canReadClaim } = await import("@/v1/services/claimService");
+  const { findActivePersonById } = await import(
+    "@/v1/repositories/personRepository"
+  );
+  const links = await evidenceRepo.listActiveLinksForEvidence(
+    database,
+    evidenceId
+  );
+  const out: EvidenceClaimLinkItem[] = [];
+  for (const link of links) {
+    const claim = await claimRepo.findActiveClaimById(database, link.claimId);
+    if (!claim || claim.familyId !== familyId) continue;
+    if (claim.subjectType !== "PERSON") continue;
+    const readable = await canReadClaim(claim, actorContext, { db: database });
+    if (!readable) continue;
+    const person = await findActivePersonById(database, claim.subjectId);
+    if (!person) continue;
+    out.push({
+      claimId: claim.id,
+      claimType: claim.claimType,
+      status: claim.status,
+      personId: person.id,
+      personName: person.preferredName,
+    });
+  }
+  return out;
+}
+
 export type FamilyEvidenceItem = EvidenceDto & {
   mimeType: string | null;
   linkCount: number;

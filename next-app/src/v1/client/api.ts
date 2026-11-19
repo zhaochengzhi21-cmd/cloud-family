@@ -563,6 +563,17 @@ export const v1api = {
       { method: "DELETE", body: {} }
     ),
 
+  listEvidenceLinks: (familyId: string, evidenceId: string) =>
+    v1Fetch<{
+      links: Array<{
+        claimId: string;
+        claimType: string;
+        status: string;
+        personId: string;
+        personName: string;
+      }>;
+    }>(`/api/v1/families/${familyId}/evidence/${evidenceId}`),
+
   linkEvidence: (
     familyId: string,
     claimId: string,

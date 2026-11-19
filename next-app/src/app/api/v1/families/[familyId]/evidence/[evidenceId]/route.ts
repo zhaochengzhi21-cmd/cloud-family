@@ -2,7 +2,10 @@ import { NextRequest } from "next/server";
 import { beginWorkspaceRequest } from "@/v1/http/workspaceContext";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { okJson } from "@/v1/http/response";
-import { deleteEvidence } from "@/v1/services/evidenceService";
+import {
+  deleteEvidence,
+  listEvidenceClaimLinks,
+} from "@/v1/services/evidenceService";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -12,6 +15,35 @@ const paramsSchema = z.object({
   familyId: z.string().uuid(),
   evidenceId: z.string().uuid(),
 });
+
+/** GET — claims this source is linked to (for sources library deep-links). */
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { familyId: string; evidenceId: string } }
+) {
+  const started = await beginWorkspaceRequest(req, { mutation: false });
+  if (!started.ok) return started.response;
+  const { ctx } = started;
+  const p = paramsSchema.safeParse(params);
+  if (!p.success) return invalidRequest();
+
+  try {
+    const links = await listEvidenceClaimLinks(
+      p.data.familyId,
+      p.data.evidenceId,
+      ctx.actorContext,
+      { db: ctx.db }
+    );
+    return okJson({ links });
+  } catch (e) {
+    return mapDomainErrorToResponse(e, {
+      userId: ctx.userId,
+      familyId: p.data.familyId,
+      db: ctx.db,
+      readPath: true,
+    });
+  }
+}
 
 export async function DELETE(
   req: NextRequest,

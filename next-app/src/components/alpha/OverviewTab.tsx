@@ -951,6 +951,7 @@ export function OverviewTab({
         <FamilySources
           familyId={familyId}
           onAuthError={onAuthError}
+          onOpenRecords={onOpenRecords}
           focusEvidenceId={focusEvidenceId}
           onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
         />
