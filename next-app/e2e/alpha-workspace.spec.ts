@@ -93,9 +93,17 @@ async function runCoreJourney(
   await expect(page.getByText("赵甲")).toBeVisible();
   await expect(page.getByText("赵乙")).toBeVisible();
 
-  // Overview now asks for relationships
+  // Overview now asks for relationships — chips open AddKin(parent)
   await page.getByRole("tab", { name: "概览" }).click();
   await expect(page.getByText("为 2 位成员建立关系")).toBeVisible();
+  const connectStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "为 2 位成员建立关系" });
+  await connectStep.getByRole("button", { name: "为赵乙建立关系" }).click();
+  const connectKin = page.getByRole("dialog", { name: /添加父母/ });
+  await expect(connectKin).toBeVisible();
+  await expect(connectKin).toContainText("赵乙");
+  await connectKin.getByRole("button", { name: "关闭" }).click();
 
   // Flow 04 — relationship + generation from server
   await page.getByRole("tab", { name: "世系" }).click();

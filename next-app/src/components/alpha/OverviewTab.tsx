@@ -100,13 +100,6 @@ function activityPieces(item: ActivityItem): Piece[] | null {
   }
 }
 
-const NAME_PREVIEW = 3;
-
-function previewNames(names: string[]): string {
-  if (names.length <= NAME_PREVIEW) return names.join("、");
-  return `${names.slice(0, NAME_PREVIEW).join("、")} 等 ${names.length} 位`;
-}
-
 export function OverviewTab({
   familyId,
   persons,
@@ -131,7 +124,7 @@ export function OverviewTab({
   canReview: boolean;
   onAddPerson: () => void;
   onAddRel: () => void;
-  onAddKin?: (personId: string, role: "spouse") => void;
+  onAddKin?: (personId: string, role: "parent" | "spouse") => void;
   onOpenRecords: (personId: string, claimType?: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
@@ -284,10 +277,9 @@ export function OverviewTab({
     steps.push({
       key: "connect",
       title: `为 ${unconnected.length} 位成员建立关系`,
-      body: `${previewNames(unconnected.map((p) => p.preferredName))} 还没有父母或配偶关系，暂时无法排进世代。`,
-      action: canEdit
-        ? { label: "添加家庭关系", onClick: onAddRel }
-        : undefined,
+      body: "还没有父母或配偶关系，暂时无法排进世代。点人名可为 TA 添加父母（也可在弹窗里改成配偶或子女）。",
+      people: canEdit ? unconnected.slice(0, 6) : undefined,
+      peopleAria: "建立关系",
     });
   } else if (componentCount > 1) {
     steps.push({
@@ -446,6 +438,10 @@ export function OverviewTab({
                           key={p.id}
                           type="button"
                           onClick={() => {
+                            if (s.key === "connect") {
+                              onAddKin?.(p.id, "parent");
+                              return;
+                            }
                             if (s.key === "spouse") {
                               onAddKin?.(p.id, "spouse");
                               return;
