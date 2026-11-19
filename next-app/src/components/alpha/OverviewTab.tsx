@@ -132,7 +132,7 @@ export function OverviewTab({
   canReview: boolean;
   onAddPerson: () => void;
   onAddRel: () => void;
-  onAddKin?: (personId: string, role: "parent" | "spouse") => void;
+  onAddKin?: (personId: string, role: "parent" | "spouse" | "child") => void;
   /** Open person drawer (e.g. to edit gender / living status). */
   onOpenPerson?: (
     personId: string,
@@ -259,6 +259,23 @@ export function OverviewTab({
     }
     return sortedPersons.filter(
       (p) => parents.has(p.id) && !withSpouse.has(p.id)
+    );
+  }, [relationships, sortedPersons]);
+
+  /** People with a spouse who have no children yet. */
+  const missingChildren = useMemo(() => {
+    const withSpouse = new Set<string>();
+    const withChildren = new Set<string>();
+    for (const r of relationships) {
+      if (r.type === "SPOUSE") {
+        withSpouse.add(r.fromPersonId);
+        withSpouse.add(r.toPersonId);
+      } else if (!r.type || PARENT_REL_TYPES.has(r.type)) {
+        withChildren.add(r.fromPersonId);
+      }
+    }
+    return sortedPersons.filter(
+      (p) => withSpouse.has(p.id) && !withChildren.has(p.id)
     );
   }, [relationships, sortedPersons]);
 
@@ -448,6 +465,15 @@ export function OverviewTab({
       peopleAria: "补充配偶",
     });
   }
+  if (missingChildren.length > 0) {
+    steps.push({
+      key: "children",
+      title: `补充 ${missingChildren.length} 位已有配偶成员的子女`,
+      body: "已有配偶的人补上子女，世系和打印版家谱会更完整。也可以先跳过。",
+      people: canEdit ? missingChildren.slice(0, 6) : undefined,
+      peopleAria: "补充子女",
+    });
+  }
   if (overview && total > 0 && missingBirth.length > 0) {
     steps.push({
       key: "birth",
@@ -630,7 +656,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，在世状态与性别已确认，出生、出生地、祖籍、职业、字号、故事、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，有配偶的人也都补了子女，在世状态与性别已确认，出生、出生地、祖籍、职业、字号、故事、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地和资料来源。
               </p>
             ) : null}
           </div>
@@ -662,6 +688,10 @@ export function OverviewTab({
                             }
                             if (s.key === "spouse") {
                               onAddKin?.(p.id, "spouse");
+                              return;
+                            }
+                            if (s.key === "children") {
+                              onAddKin?.(p.id, "child");
                               return;
                             }
                             if (s.key === "living") {

@@ -884,3 +884,64 @@ test("明经胡氏：有配偶无子女时提示补充子女", async ({ page, ba
     sample.wenGuang.preferredName
   );
 });
+
+test("明经胡氏：概览有配偶无子女时 chip 打开添加子女", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·概览子女（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+  const spouseId = await seedPerson(
+    page,
+    familyId,
+    {
+      preferredName: "汪孺人",
+      gender: "FEMALE",
+      livingStatus: "DECEASED",
+    },
+    [{ claimType: "BIRTH_DATE", text: "约明嘉靖年间" }]
+  );
+  const spouseRel = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/relationships`,
+    {
+      method: "POST",
+      body: {
+        fromPersonId: personId,
+        toPersonId: spouseId,
+        relationshipType: "SPOUSE",
+      },
+    }
+  );
+  expect(spouseRel.status, JSON.stringify(spouseRel.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const childrenStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "已有配偶成员的子女" });
+  await expect(childrenStep).toContainText("已有配偶成员的子女", {
+    timeout: 60_000,
+  });
+  await childrenStep
+    .getByRole("button", {
+      name: `为${sample.wenGuang.preferredName}补充子女`,
+    })
+    .click();
+  const dialog = page.getByRole("dialog", { name: /添加子女/ });
+  await expect(dialog).toBeVisible({ timeout: 60_000 });
+  await expect(dialog).toContainText(sample.wenGuang.preferredName);
+});
