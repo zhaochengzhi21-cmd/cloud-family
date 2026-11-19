@@ -294,6 +294,29 @@ export function OverviewTab({
     );
   }, [overview, generationByPerson, sortedPersons]);
 
+  /** Children who share a parent with at least one sibling, but have no 排行. */
+  const missingBirthOrder = useMemo(() => {
+    if (!overview) return [];
+    const childrenByParent = new Map<string, string[]>();
+    for (const r of relationships) {
+      if (r.type && !PARENT_REL_TYPES.has(r.type)) continue;
+      if (r.type === "SPOUSE") continue;
+      const list = childrenByParent.get(r.fromPersonId) ?? [];
+      list.push(r.toPersonId);
+      childrenByParent.set(r.fromPersonId, list);
+    }
+    const withSiblings = new Set<string>();
+    for (const kids of childrenByParent.values()) {
+      if (kids.length < 2) continue;
+      for (const id of kids) withSiblings.add(id);
+    }
+    return sortedPersons.filter(
+      (p) =>
+        withSiblings.has(p.id) &&
+        !overview.personStats[p.id]?.claimTypes.includes("BIRTH_ORDER")
+    );
+  }, [overview, relationships, sortedPersons]);
+
   const acceptedTotal = useMemo(() => {
     if (!overview) return 0;
     return Object.values(overview.personStats).reduce(
@@ -414,6 +437,15 @@ export function OverviewTab({
       peopleAria: "补充字辈",
     });
   }
+  if (overview && missingBirthOrder.length > 0) {
+    steps.push({
+      key: "birthOrder",
+      title: `补充 ${missingBirthOrder.length} 位兄弟姐妹的排行`,
+      body: "同一父母下有多位子女时，补上长/次/三…，人物页与打印版的子女顺序会更清楚。",
+      people: canEdit ? missingBirthOrder.slice(0, 6) : undefined,
+      peopleAria: "补充排行",
+    });
+  }
   if (pendingTotal > 0) {
     steps.push({
       key: "review",
@@ -482,7 +514,7 @@ export function OverviewTab({
             </p>
             {overview ? (
               <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍、字辈与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、排行、故事和资料来源。
+                成员都已连入世系，有子女的人也都补了配偶，出生、出生地、祖籍、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地、故事和资料来源。
               </p>
             ) : null}
           </div>
@@ -530,7 +562,9 @@ export function OverviewTab({
                                         ? "ANCESTRAL_PLACE"
                                         : s.key === "generationWord"
                                           ? "GENERATION_WORD"
-                                          : undefined
+                                          : s.key === "birthOrder"
+                                            ? "BIRTH_ORDER"
+                                            : undefined
                             );
                           }}
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"

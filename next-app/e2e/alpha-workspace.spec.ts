@@ -698,6 +698,59 @@ async function runCoreJourney(
     timeout: 30_000,
   });
 
+  // Second child under 赵乙 → overview asks for sibling 排行
+  const dingCreate = await apiJson(page, `/api/v1/families/${familyId}/persons`, {
+    method: "POST",
+    body: {
+      preferredName: "赵丁",
+      gender: "UNKNOWN",
+      livingStatus: "UNKNOWN",
+      privacyLevel: "INHERIT",
+    },
+  });
+  expect([200, 201]).toContain(dingCreate.status);
+  const dingId = (dingCreate.body as { person: { id: string } }).person.id;
+  const dingRel = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/relationships`,
+    {
+      method: "POST",
+      body: {
+        fromPersonId: yi.id,
+        toPersonId: dingId,
+        relationshipType: "BIOLOGICAL_PARENT",
+      },
+    }
+  );
+  expect(dingRel.status).toBe(201);
+  const graphForOrder = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/graph`
+  );
+  const bingPerson = (
+    graphForOrder.body as {
+      graph: { persons: { id: string; preferredName: string }[] };
+    }
+  ).graph.persons.find((p) => p.preferredName === "赵丙")!;
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const orderStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "兄弟姐妹的排行" });
+  await expect(orderStep).toContainText("补充 2 位兄弟姐妹的排行", {
+    timeout: 60_000,
+  });
+  await orderStep.getByRole("button", { name: "为赵丙补充排行" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(bingPerson.id);
+  await expect(page.locator("#claim-type")).toHaveValue("BIRTH_ORDER", {
+    timeout: 15_000,
+  });
+  await expect(page.locator("#claim-text")).toBeFocused();
+  await page.getByRole("button", { name: "收起" }).click();
+
   // Person page kin CTAs open the same add-kin modal
   await page.goto(`/alpha/families/${familyId}/people/${yi.id}`);
   await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
