@@ -176,6 +176,53 @@ export function OverviewTab({
     return sortedPersons.filter((p) => !linked.has(p.id));
   }, [relationships, sortedPersons]);
 
+  /** One person from each smaller connected component (for branch-merge chips). */
+  const branchReps = useMemo(() => {
+    if (componentCount <= 1) return [];
+    const adj = new Map<string, string[]>();
+    for (const p of sortedPersons) adj.set(p.id, []);
+    for (const r of relationships) {
+      adj.get(r.fromPersonId)?.push(r.toPersonId);
+      adj.get(r.toPersonId)?.push(r.fromPersonId);
+    }
+    const seen = new Set<string>();
+    const comps: Person[][] = [];
+    for (const p of sortedPersons) {
+      if (seen.has(p.id)) continue;
+      const queue = [p];
+      seen.add(p.id);
+      const comp: Person[] = [];
+      while (queue.length) {
+        const cur = queue.pop()!;
+        comp.push(cur);
+        for (const nid of adj.get(cur.id) ?? []) {
+          if (seen.has(nid)) continue;
+          seen.add(nid);
+          const np = sortedPersons.find((x) => x.id === nid);
+          if (np) queue.push(np);
+        }
+      }
+      comps.push(comp);
+    }
+    if (comps.length <= 1) return [];
+    comps.sort(
+      (a, b) =>
+        b.length - a.length ||
+        a[0].preferredName.localeCompare(b[0].preferredName, "zh-CN")
+    );
+    return comps
+      .slice(1)
+      .map(
+        (c) =>
+          c
+            .slice()
+            .sort((a, b) =>
+              a.preferredName.localeCompare(b.preferredName, "zh-CN")
+            )[0]
+      )
+      .slice(0, 6);
+  }, [componentCount, relationships, sortedPersons]);
+
   /** Parents of someone who have no SPOUSE edge yet. */
   const missingSpouse = useMemo(() => {
     const parents = new Set<string>();
@@ -285,7 +332,9 @@ export function OverviewTab({
     steps.push({
       key: "branches",
       title: `连接 ${componentCount} 个家族分支`,
-      body: "档案里有几支还没有连在一起，补上一条关系就能合成一棵树。",
+      body: "档案里有几支还没有连在一起。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。",
+      people: canEdit && branchReps.length > 0 ? branchReps : undefined,
+      peopleAria: "连接分支",
       action: canEdit
         ? { label: "添加家庭关系", onClick: onAddRel }
         : undefined,
@@ -438,7 +487,7 @@ export function OverviewTab({
                           key={p.id}
                           type="button"
                           onClick={() => {
-                            if (s.key === "connect") {
+                            if (s.key === "connect" || s.key === "branches") {
                               onAddKin?.(p.id, "parent");
                               return;
                             }

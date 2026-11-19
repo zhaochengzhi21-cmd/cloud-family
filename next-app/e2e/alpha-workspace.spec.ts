@@ -670,6 +670,56 @@ async function runCoreJourney(
   ).toBeVisible({ timeout: 60_000 });
   await page.getByRole("dialog", { name: /添加配偶/ }).getByRole("button", { name: "关闭" }).click();
 
+  // Overview branches: second disconnected subtree → chip opens AddKin
+  const branchA = await apiJson(page, `/api/v1/families/${familyId}/persons`, {
+    method: "POST",
+    body: {
+      preferredName: "分支甲",
+      gender: "UNKNOWN",
+      livingStatus: "UNKNOWN",
+      privacyLevel: "INHERIT",
+    },
+  });
+  expect([200, 201]).toContain(branchA.status);
+  const branchB = await apiJson(page, `/api/v1/families/${familyId}/persons`, {
+    method: "POST",
+    body: {
+      preferredName: "分支乙",
+      gender: "UNKNOWN",
+      livingStatus: "UNKNOWN",
+      privacyLevel: "INHERIT",
+    },
+  });
+  expect([200, 201]).toContain(branchB.status);
+  const branchAId = (branchA.body as { person: { id: string } }).person.id;
+  const branchBId = (branchB.body as { person: { id: string } }).person.id;
+  const branchRel = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/relationships`,
+    {
+      method: "POST",
+      body: {
+        fromPersonId: branchAId,
+        toPersonId: branchBId,
+        relationshipType: "BIOLOGICAL_PARENT",
+      },
+    }
+  );
+  expect(branchRel.status).toBe(201);
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const branchStep = page
+    .getByRole("listitem")
+    .filter({ hasText: "家族分支" });
+  await expect(branchStep).toContainText("连接 2 个家族分支", {
+    timeout: 60_000,
+  });
+  await branchStep.getByRole("button", { name: "为分支甲连接分支" }).click();
+  const branchKin = page.getByRole("dialog", { name: /添加父母/ });
+  await expect(branchKin).toBeVisible();
+  await expect(branchKin).toContainText("分支甲");
+  await branchKin.getByRole("button", { name: "关闭" }).click();
+
   // list still shows family + recent marker
   await page.goto("/alpha/families");
   await expect(page.getByText("测试赵氏家庭")).toBeVisible();
