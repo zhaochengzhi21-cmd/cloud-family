@@ -1565,6 +1565,8 @@ function ClaimStartCtas({
     BIRTH_DATE: "记下出生信息",
     BIRTH_PLACE: "记下出生地",
     ANCESTRAL_PLACE: "记下祖籍",
+    ALIAS: "记下别名",
+    OCCUPATION: "记下职业",
     STORY: "记下故事",
     DEATH_DATE: "记下去世信息",
     BURIAL_PLACE: "记下安葬地",
@@ -1573,6 +1575,8 @@ function ClaimStartCtas({
     "BIRTH_DATE",
     "BIRTH_PLACE",
     "ANCESTRAL_PLACE",
+    "ALIAS",
+    "OCCUPATION",
     "STORY",
     ...(livingStatus === "DECEASED" ? ["DEATH_DATE", "BURIAL_PLACE"] : []),
   ].filter((t) => !present.has(t));

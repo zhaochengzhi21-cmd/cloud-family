@@ -267,6 +267,13 @@ async function runCoreJourney(
   await page.locator("#claim-text").fill("一九九八年");
   await page.getByRole("button", { name: "保存资料" }).click();
   await expect(page.getByText("一九九八年")).toBeVisible();
+  await expect(
+    page.getByText("已添加去世信息。接着可以记下安葬地。")
+  ).toBeVisible();
+  await expect(page.locator("#claim-type")).toHaveValue("BURIAL_PLACE", {
+    timeout: 15_000,
+  });
+  await page.getByRole("button", { name: "收起" }).click();
   await page.getByRole("tab", { name: "概览" }).click();
   await expect(
     page.getByRole("listitem").filter({ hasText: "已故成员的去世信息" })
@@ -321,6 +328,8 @@ async function runCoreJourney(
     0
   );
   await expect(moreClaims.getByRole("button", { name: "出生地" })).toBeVisible();
+  await expect(moreClaims.getByRole("button", { name: "别名" })).toBeVisible();
+  await expect(moreClaims.getByRole("button", { name: "职业" })).toBeVisible();
 
   // Type filter (赵乙 already has 祖籍 + 出生信息)
   const typeFilter = page.getByRole("group", { name: "按资料类型筛选" });
