@@ -528,7 +528,7 @@ async function runCoreJourney(
   await expect(page.getByText("测试合成照片")).toBeVisible({
     timeout: 90_000,
   });
-  await expect(page.getByRole("button", { name: "查看原始资料" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "查看", exact: true })).toBeVisible();
 
   const claimBundle = await apiJson(
     page,

@@ -2930,9 +2930,11 @@ function ClaimCard({
                   ? ` · ${l.evidence.sourceLocator}`
                   : ""}
                 {l.evidence.mediaObjectId ? (
-                  <MediaViewButton
+                  <MediaInlineControl
                     familyId={familyId}
                     mediaId={l.evidence.mediaObjectId}
+                    evidenceType={l.evidence.evidenceType}
+                    title={l.evidence.title}
                     onAuthError={onAuthError}
                     onError={onError}
                   />
@@ -3036,33 +3038,108 @@ function ClaimCard({
   );
 }
 
-function MediaViewButton({
+function MediaInlineControl({
   familyId,
   mediaId,
+  evidenceType,
+  title,
   onAuthError,
   onError,
 }: {
   familyId: string;
   mediaId: string;
+  evidenceType: string;
+  title: string | null;
   onAuthError: (e: unknown) => boolean;
   onError: (s: string) => void;
 }) {
+  const [viewer, setViewer] = useState<{ url: string; label: string } | null>(
+    null
+  );
+  const [playing, setPlaying] = useState<{ url: string; label: string } | null>(
+    null
+  );
+
+  const preferAudio = evidenceType === "ORAL_HISTORY";
+  const label =
+    title ||
+    EVIDENCE_TYPE_UI[evidenceType] ||
+    (preferAudio ? "口述录音" : "原始资料");
+
+  async function open() {
+    try {
+      const res = await v1api.mediaRead(familyId, mediaId);
+      const mime = res.media.mimeType ?? "";
+      if (mime.startsWith("image/") || evidenceType === "PHOTO") {
+        setPlaying(null);
+        setViewer({ url: res.read.url, label });
+        return;
+      }
+      if (mime.startsWith("audio/") || preferAudio) {
+        setViewer(null);
+        setPlaying({ url: res.read.url, label });
+        return;
+      }
+      window.open(res.read.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      if (onAuthError(e)) return;
+      onError(userMessageForApiError(e));
+    }
+  }
+
   return (
-    <button
-      type="button"
-      className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-      onClick={async () => {
-        try {
-          const res = await v1api.mediaRead(familyId, mediaId);
-          window.open(res.read.url, "_blank", "noopener,noreferrer");
-        } catch (e) {
-          if (onAuthError(e)) return;
-          onError(userMessageForApiError(e));
-        }
-      }}
-    >
-      查看原始资料
-    </button>
+    <span className="ml-2 inline-flex flex-col items-start gap-1">
+      <button
+        type="button"
+        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+        onClick={() => void open()}
+      >
+        {preferAudio ? "收听" : "查看"}
+      </button>
+      {playing ? (
+        <div className="mt-1 w-full min-w-[12rem] rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-2">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold text-[color:var(--a-brand)]">
+              {playing.label}
+            </p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--a-muted)]"
+              onClick={() => setPlaying(null)}
+            >
+              关闭
+            </button>
+          </div>
+          <audio controls autoPlay src={playing.url} className="w-full">
+            你的浏览器不支持音频播放。
+          </audio>
+        </div>
+      ) : null}
+      {viewer ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={viewer.label}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          onClick={() => setViewer(null)}
+        >
+          <button
+            type="button"
+            className="absolute right-4 top-4 rounded-lg bg-white/90 px-3 py-1.5 text-sm font-semibold text-[color:var(--a-ink)]"
+            onClick={() => setViewer(null)}
+          >
+            关闭
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={viewer.url}
+            alt={viewer.label}
+            className="max-h-[90vh] max-w-full rounded-lg object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      ) : null}
+    </span>
   );
 }
 
