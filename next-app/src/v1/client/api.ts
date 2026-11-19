@@ -282,6 +282,7 @@ export const v1api = {
         personName?: string;
         otherPersonId?: string;
         otherPersonName?: string;
+        claimId?: string;
         claimType?: string;
         relationshipType?: string;
         evidenceType?: string;

@@ -867,6 +867,17 @@ export function OverviewTab({
             {activity.map((item) => {
               const pieces = activityPieces(item);
               if (!pieces) return null;
+              const claimFocus =
+                item.claimId && item.personId
+                  ? {
+                      personId: item.personId,
+                      claimId: item.claimId,
+                      statusFilter:
+                        item.eventType === "CLAIM_CREATED"
+                          ? ("PROPOSED" as const)
+                          : ("ALL" as const),
+                    }
+                  : null;
               return (
                 <li
                   key={item.id}
@@ -887,6 +898,23 @@ export function OverviewTab({
                         </Link>
                       )
                     )}
+                    {claimFocus ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() =>
+                            onOpenRecords(claimFocus.personId, {
+                              focusClaimId: claimFocus.claimId,
+                              statusFilter: claimFocus.statusFilter,
+                            })
+                          }
+                        >
+                          查看
+                        </button>
+                      </>
+                    ) : null}
                   </p>
                   <time
                     dateTime={item.at}

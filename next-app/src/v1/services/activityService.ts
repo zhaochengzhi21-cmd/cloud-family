@@ -51,6 +51,7 @@ export type ActivityItem = {
   personName?: string;
   otherPersonId?: string;
   otherPersonName?: string;
+  claimId?: string;
   claimType?: string;
   relationshipType?: string;
   evidenceType?: string;
@@ -166,6 +167,7 @@ export async function getFamilyActivity(
           ...base,
           personId: c.subjectId,
           personName: name,
+          claimId: c.id,
           claimType: c.claimType,
         });
         break;
