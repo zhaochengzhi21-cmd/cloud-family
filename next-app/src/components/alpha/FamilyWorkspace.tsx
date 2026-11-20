@@ -857,11 +857,12 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     let target = "";
-    let missKind: "pending" | "sources" | null = null;
+    let missKind: "pending" | "sources" | "participants" | null = null;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("scroll");
       if (fromUrl === "participants") {
         target = "overview-participants";
+        missKind = "participants";
       } else if (fromUrl === "pending") {
         target = "overview-pending";
         missKind = "pending";
@@ -875,6 +876,7 @@ export function FamilyWorkspace({
         sessionStorage.removeItem(`alpha-overview-scroll:${familyId}`);
         if (target === "overview-pending") missKind = "pending";
         if (target === "overview-sources-section") missKind = "sources";
+        if (target === "overview-participants") missKind = "participants";
       }
     } catch {
       return;
@@ -905,6 +907,13 @@ export function FamilyWorkspace({
         );
         setFlash(
           "资料来源段暂时打不开，可能还在加载。可复制本段链接稍后重试，或到概览查看。"
+        );
+      } else if (missKind === "participants") {
+        setFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+        );
+        setFlash(
+          "参与家人段暂时打不开，可能还在加载。可复制本段链接稍后重试，或刷新页面。"
         );
       }
     };

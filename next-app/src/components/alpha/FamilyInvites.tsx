@@ -375,25 +375,37 @@ export function FamilyInvites({
   }
 
   if (!access) {
-    return message ? (
-      <div className="flex flex-wrap items-center gap-3">
-        <p role="alert" className="text-sm text-[color:var(--a-danger)]">
-          {message}
-        </p>
-        <button
-          type="button"
-          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-          disabled={busy}
-          onClick={() => {
-            setMessage("");
-            setFailed(false);
-            void load();
-          }}
-        >
-          重试
-        </button>
-      </div>
-    ) : null;
+    return (
+      <section
+        id="overview-participants"
+        aria-labelledby="overview-invite"
+        className="scroll-mt-24"
+      >
+        {message ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p role="alert" className="text-sm text-[color:var(--a-danger)]">
+              {message}
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              disabled={busy}
+              onClick={() => {
+                setMessage("");
+                setFailed(false);
+                void load();
+              }}
+            >
+              重试
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-[color:var(--a-muted)]" role="status">
+            正在打开参与家人…
+          </p>
+        )}
+      </section>
+    );
   }
 
   const counts = new Map<string, number>();
