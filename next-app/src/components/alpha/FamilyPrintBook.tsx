@@ -294,6 +294,30 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
           >
             返回家族档案
           </Link>
+          {error === ERROR_COPY.forbidden ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopyFlash("已复制参与家人链接");
+                    window.setTimeout(() => setCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {copyFlash.includes("参与家人") ||
+              copyFlash.startsWith("请手动")
+                ? copyFlash
+                : "复制参与家人链接"}
+            </button>
+          ) : null}
           {error === ERROR_COPY.notFound || error === ERROR_COPY.forbidden ? (
             <Link
               href="/alpha/families"
