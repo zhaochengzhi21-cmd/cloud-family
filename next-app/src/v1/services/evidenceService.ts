@@ -19,6 +19,7 @@ import type {
   LinkEvidenceResult,
   RestoreEvidenceResult,
 } from "@/v1/domain/evidence/types";
+import type { ClaimEvidenceRelation } from "@/db/constants";
 import type { AccessContext } from "@/v1/domain/permission/types";
 import { PermissionDomainError } from "@/v1/domain/permission/errors";
 import {
@@ -605,6 +606,112 @@ export async function linkEvidenceToClaim(
     claimId: validated.claimId,
     evidenceId: validated.evidenceId,
     relation: validated.relation,
+    familyVersion,
+  };
+}
+
+export type UnlinkEvidenceResult = {
+  claimId: string;
+  evidenceId: string;
+  relation: ClaimEvidenceRelation;
+  familyVersion: number;
+};
+
+/** Detach one 资料来源 from one claim without deleting the source. */
+export async function unlinkEvidenceFromClaim(
+  input: {
+    familyId: string;
+    actorContext: AccessContext;
+    claimId: string;
+    evidenceId: string;
+  },
+  options?: { db?: V1Db }
+): Promise<UnlinkEvidenceResult> {
+  const database = dbOrDefault(options?.db);
+  const userId = actorUserId(input.actorContext);
+
+  const claimEdit = await authorizeFamilyAction(
+    input.familyId,
+    input.actorContext,
+    "EDIT_CLAIM",
+    { db: database }
+  ).catch(mapPerm);
+  if (claimEdit.decision !== "ALLOW") {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+  const evidenceEdit = await authorizeFamilyAction(
+    input.familyId,
+    input.actorContext,
+    "EDIT_EVIDENCE",
+    { db: database }
+  ).catch(mapPerm);
+  if (evidenceEdit.decision !== "ALLOW") {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+
+  const claim = await claimRepo.findActiveClaimById(database, input.claimId);
+  if (!claim || claim.familyId !== input.familyId) {
+    throw new EvidenceDomainError(
+      claim ? "CROSS_FAMILY" : "CLAIM_NOT_FOUND"
+    );
+  }
+  const ev = await evidenceRepo.findActiveEvidenceById(
+    database,
+    input.evidenceId
+  );
+  if (!ev || ev.familyId !== input.familyId) {
+    throw new EvidenceDomainError(ev ? "CROSS_FAMILY" : "EVIDENCE_NOT_FOUND");
+  }
+
+  const { canReadClaim } = await import("@/v1/services/claimService");
+  const claimReadable = await canReadClaim(claim, input.actorContext, {
+    db: database,
+  });
+  if (!claimReadable) {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+
+  const existing = await evidenceRepo.findClaimEvidenceLink(
+    database,
+    input.claimId,
+    input.evidenceId
+  );
+  if (!existing) {
+    throw new EvidenceDomainError("EVIDENCE_LINK_NOT_FOUND");
+  }
+
+  const familyVersion = await database.transaction(async (tx) => {
+    const family = await lockFamilyForMutation(tx, input.familyId);
+    if (!family) {
+      throw new EvidenceDomainError("FAMILY_NOT_FOUND");
+    }
+    const removed = await evidenceRepo.deleteClaimEvidenceLink(
+      tx,
+      input.claimId,
+      input.evidenceId
+    );
+    if (!removed) {
+      throw new EvidenceDomainError("EVIDENCE_LINK_NOT_FOUND");
+    }
+    return advanceFamilyVersion(tx, {
+      familyId: input.familyId,
+      actorUserId: userId,
+      summary: "CLAIM_EVIDENCE_UNLINKED",
+      eventType: "CLAIM_EVIDENCE_UNLINKED",
+      entityType: "CLAIM_EVIDENCE",
+      entityId: input.claimId,
+      metadataJson: {
+        evidenceId: input.evidenceId,
+        relation: existing.relation,
+      },
+      now: new Date(),
+    });
+  });
+
+  return {
+    claimId: input.claimId,
+    evidenceId: input.evidenceId,
+    relation: existing.relation as ClaimEvidenceRelation,
     familyVersion,
   };
 }

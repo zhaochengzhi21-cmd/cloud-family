@@ -161,6 +161,7 @@ export async function mapDomainErrorToResponse(
       case "EVIDENCE_ALREADY_LINKED":
         return json(409, "EVIDENCE_ALREADY_LINKED");
       case "EVIDENCE_NOT_FOUND":
+      case "EVIDENCE_LINK_NOT_FOUND":
       case "CLAIM_NOT_FOUND":
       case "FAMILY_NOT_FOUND":
       case "MEDIA_NOT_FOUND":

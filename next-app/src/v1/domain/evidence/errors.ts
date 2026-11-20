@@ -8,6 +8,7 @@ export const EVIDENCE_ERROR_CODES = [
   "MEDIA_NOT_READABLE",
   "CROSS_FAMILY",
   "EVIDENCE_ALREADY_LINKED",
+  "EVIDENCE_LINK_NOT_FOUND",
 ] as const;
 
 export type EvidenceErrorCode = (typeof EVIDENCE_ERROR_CODES)[number];

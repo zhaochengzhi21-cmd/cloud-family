@@ -1113,6 +1113,29 @@ export const v1api = {
     );
   },
 
+  unlinkEvidence: (
+    familyId: string,
+    claimId: string,
+    evidenceId: string,
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{
+      claimId: string;
+      evidenceId: string;
+      relation: string;
+      familyVersion: number;
+    }>(
+      `/api/v1/families/${familyId}/claims/${claimId}/evidence/${evidenceId}`,
+      {
+        method: "DELETE",
+        body: {},
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
+
   linkEvidenceBatch: (
     familyId: string,
     evidenceId: string,

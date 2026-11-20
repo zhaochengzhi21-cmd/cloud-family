@@ -3452,13 +3452,11 @@ function ClaimCard({
                   </div>
                 ) : null}
               </div>
-              {canReview ? (
+              {canEdit ? (
                 removingEvidenceId === l.evidence.id ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[color:var(--a-danger)]">
-                      {removingEvidenceShared > 1
-                        ? `此来源还用于 ${removingEvidenceShared - 1} 条其他资料，移除会从家族来源库一并拿掉。确认移除？`
-                        : "确认从家族来源库移除？"}
+                      确认取消这条挂接？来源仍留在家族来源库。
                     </span>
                     <button
                       type="button"
@@ -3469,7 +3467,7 @@ function ClaimCard({
                         setRemovingEvidenceShared(0);
                       }}
                     >
-                      取消
+                      返回
                     </button>
                     <button
                       type="button"
@@ -3478,8 +3476,9 @@ function ClaimCard({
                       onClick={async () => {
                         setRemovingBusy(true);
                         try {
-                          await v1api.deleteEvidence(
+                          await v1api.unlinkEvidence(
                             familyId,
+                            claim.id,
                             l.evidence.id,
                             { idempotencyKey: crypto.randomUUID() }
                           );
@@ -3487,13 +3486,9 @@ function ClaimCard({
                             l.evidence.title?.trim() ||
                             EVIDENCE_TYPE_UI[l.evidence.evidenceType] ||
                             "资料来源";
-                          if (onEvidenceRemoved) {
-                            onEvidenceRemoved(l.evidence.id, label);
-                          } else {
-                            onFlash(
-                              `已移除「${label}」。误删可在概览「可恢复」找回。`
-                            );
-                          }
+                          onFlash(
+                            `已取消「${label}」的挂接；来源仍在家族来源库。`
+                          );
                           setRemovingEvidenceId(null);
                           setRemovingEvidenceShared(0);
                           const b = await v1api.getClaim(familyId, claim.id);
@@ -3509,30 +3504,16 @@ function ClaimCard({
                         }
                       }}
                     >
-                      {removingBusy ? "移除中…" : "确认移除"}
+                      {removingBusy ? "处理中…" : "确认取消挂接"}
                     </button>
                   </div>
                 ) : (
                   <button
                     type="button"
                     className="shrink-0 font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-danger)]"
-                    onClick={() => {
-                      setRemovingEvidenceId(l.evidence.id);
-                      setRemovingEvidenceShared(0);
-                      void (async () => {
-                        try {
-                          const r = await v1api.listEvidenceLinks(
-                            familyId,
-                            l.evidence.id
-                          );
-                          setRemovingEvidenceShared(r.links.length);
-                        } catch {
-                          setRemovingEvidenceShared(1);
-                        }
-                      })();
-                    }}
+                    onClick={() => setRemovingEvidenceId(l.evidence.id)}
                   >
-                    移除来源
+                    取消挂接
                   </button>
                 )
               ) : null}

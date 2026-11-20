@@ -131,6 +131,23 @@ export async function insertClaimEvidenceLink(
   await db.insert(claimEvidence).values(values);
 }
 
+export async function deleteClaimEvidenceLink(
+  db: DbOrTx,
+  claimId: string,
+  evidenceId: string
+): Promise<boolean> {
+  const deleted = await db
+    .delete(claimEvidence)
+    .where(
+      and(
+        eq(claimEvidence.claimId, claimId),
+        eq(claimEvidence.evidenceId, evidenceId)
+      )
+    )
+    .returning({ claimId: claimEvidence.claimId });
+  return deleted.length > 0;
+}
+
 export async function listActiveEvidenceForFamily(db: DbOrTx, familyId: string) {
   return db
     .select({
