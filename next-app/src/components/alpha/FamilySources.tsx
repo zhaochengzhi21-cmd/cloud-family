@@ -331,13 +331,35 @@ export function FamilySources({
   if (!items) return null;
 
   return (
-    <section aria-labelledby="overview-sources">
-      <h2
-        id="overview-sources"
-        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-      >
-        资料来源库
-      </h2>
+    <section id="overview-sources-section" aria-labelledby="overview-sources">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <h2
+          id="overview-sources"
+          className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          资料来源库
+        </h2>
+        <button
+          type="button"
+          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          onClick={() => {
+            const url = `${window.location.origin}/alpha/families/${familyId}#overview-sources`;
+            void navigator.clipboard.writeText(url).then(
+              () => setCopyFlash({ id: "section", ok: true }),
+              () => setCopyFlash({ id: "section", ok: false })
+            );
+            window.setTimeout(() => {
+              setCopyFlash((cur) => (cur?.id === "section" ? null : cur));
+            }, 2500);
+          }}
+        >
+          {copyFlash?.id === "section"
+            ? copyFlash.ok
+              ? "已复制链接"
+              : "请手动复制"
+            : "复制本段链接"}
+        </button>
+      </div>
       <div className="alpha-panel px-4 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="min-w-0 flex-1 text-sm text-[color:var(--a-muted)]">
@@ -489,7 +511,7 @@ export function FamilySources({
             <p className="text-sm text-[color:var(--a-muted)]">
               {canEdit
                 ? "还没有资料来源。点「收录来源」先放入谱页、照片或口述出处；之后挂到人物资料时不必重复上传。"
-                : "还没有资料来源。有编辑权限的家人收录后，会汇总到这里。"}
+                : "还没有资料来源。有编辑权限的家人收录后，会汇总到这里。可复制上方本段链接发给对方。"}
             </p>
             {!canEdit && onOpenParticipants ? (
               <button
