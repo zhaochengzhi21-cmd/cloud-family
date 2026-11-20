@@ -1370,6 +1370,15 @@ export function FamilyWorkspace({
             >
               重试
             </button>
+            {error === ERROR_COPY.notFound ||
+            error === ERROR_COPY.forbidden ? (
+              <Link
+                href="/alpha/families"
+                className="text-sm font-semibold underline-offset-2 hover:underline"
+              >
+                返回我的家族
+              </Link>
+            ) : null}
             <button
               type="button"
               className="text-sm font-semibold underline-offset-2 hover:underline"
