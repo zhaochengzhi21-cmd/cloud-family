@@ -2252,8 +2252,41 @@ test("明经胡氏：有成员无关系时打印版提示建立关系", async ({
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: /第一代/ })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "成员" })).toBeVisible();
-  await expect(page.getByText(sample.wenGuang.preferredName)).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: sample.wenGuang.preferredName })
+  ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "打印或保存为 PDF" })
   ).toBeVisible();
+  await page.getByRole("link", { name: "去建立关系" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("世系", {
+    timeout: 60_000,
+  });
+});
+
+test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印人名（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  await page.goto(`/alpha/families/${familyId}/print`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "西递明经胡氏·打印人名（测试）" })
+  ).toBeVisible({ timeout: 60_000 });
+  await page
+    .getByRole("link", { name: sample.wenGuang.preferredName })
+    .click();
+  await expect(page).toHaveURL(
+    new RegExp(`/alpha/families/${familyId}/people/${personId}$`)
+  );
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
 });

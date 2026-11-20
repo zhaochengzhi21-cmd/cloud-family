@@ -312,9 +312,24 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       </header>
 
       {book.relationships.length === 0 ? (
-        <p className="alpha-print-hide mb-8 text-center text-sm text-[color:var(--a-muted)]">
-          尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。
-        </p>
+        <div className="alpha-print-hide mb-8 text-center">
+          <p className="text-sm text-[color:var(--a-muted)]">
+            尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。
+          </p>
+          <Link
+            href={`/alpha/families/${familyId}`}
+            onClick={() => {
+              try {
+                sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+              } catch {
+                /* private mode */
+              }
+            }}
+            className="alpha-btn alpha-btn-secondary mt-4 inline-flex !min-h-[40px] !text-sm"
+          >
+            去建立关系
+          </Link>
+        </div>
       ) : null}
 
       {layout.generations.map(({ generation, people }) => (
@@ -347,6 +362,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             {people.map((p) => (
               <BookEntry
                 key={p.id}
+                familyId={familyId}
                 person={p}
                 kin={layout.kin.get(p.id)}
                 sourceNo={layout.sourceNo}
@@ -386,10 +402,12 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
 }
 
 function BookEntry({
+  familyId,
   person,
   kin,
   sourceNo,
 }: {
+  familyId: string;
   person: BookPerson;
   kin?: { parents: string[]; spouses: string[]; children: BookPerson[] };
   sourceNo: Map<string, number>;
@@ -420,7 +438,13 @@ function BookEntry({
   return (
     <div className="alpha-panel alpha-print-avoid-break px-5 py-4">
       <h3 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
-        {person.preferredName}
+        <Link
+          href={`/alpha/families/${familyId}/people/${person.id}`}
+          className="alpha-print-hide text-[color:var(--a-ink)] underline-offset-2 hover:underline"
+        >
+          {person.preferredName}
+        </Link>
+        <span className="alpha-print-only">{person.preferredName}</span>
         {meta.length ? (
           <span className="ml-3 text-sm font-normal text-[color:var(--a-muted)]">
             {meta.join(" · ")}

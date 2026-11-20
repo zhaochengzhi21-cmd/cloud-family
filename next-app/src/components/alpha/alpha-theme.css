@@ -4,6 +4,10 @@
  * Avoids cream/terracotta brochure look.
  */
 
+.alpha-print-only {
+  display: none;
+}
+
 .alpha-shell {
   --a-ink: #15202b;
   --a-muted: #5c6d7a;
@@ -347,6 +351,10 @@
   .alpha-skip-link,
   .alpha-print-hide {
     display: none !important;
+  }
+
+  .alpha-print-only {
+    display: inline !important;
   }
 
   .alpha-shell #alpha-main {
