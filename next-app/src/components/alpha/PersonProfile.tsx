@@ -1771,6 +1771,7 @@ function AudioWall({
   const [clips, setClips] = useState<
     Array<{ mediaId: string; title: string; url: string }> | null
   >(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -1806,7 +1807,7 @@ function AudioWall({
     return () => {
       cancelled = true;
     };
-  }, [familyId, audios]);
+  }, [familyId, audios, attempt]);
 
   if (clips === null) {
     return (
@@ -1823,7 +1824,31 @@ function AudioWall({
       </section>
     );
   }
-  if (clips.length === 0) return null;
+  if (clips.length === 0) {
+    if (audios.length === 0) return null;
+    return (
+      <section aria-labelledby="profile-audio" className="mb-8">
+        <h2
+          id="profile-audio"
+          className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          口述录音
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-[color:var(--a-muted)]" role="status">
+            录音暂时无法播放。
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            重试
+          </button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section aria-labelledby="profile-audio" className="mb-8">
