@@ -76,6 +76,7 @@ export function FamilySources({
   persons = [],
   onAuthError,
   onOpenRecords,
+  onAddPerson,
   canEdit = false,
   canManage = false,
   onRemoved,
@@ -96,6 +97,8 @@ export function FamilySources({
       statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     }
   ) => void;
+  /** When the family has no members, offer a path to add one before attach. */
+  onAddPerson?: () => void;
   /** EDITOR+ — park a source in the library without attaching a claim. */
   canEdit?: boolean;
   /** OWNER/ADMIN — soft-delete from the library. */
@@ -324,6 +327,24 @@ export function FamilySources({
             </button>
           ) : null}
         </div>
+        {persons.length === 0 ? (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              {canEdit
+                ? "还没有成员，来源仍可收录与查看；挂到人物资料需先添加家人。"
+                : "还没有成员。有编辑权限的家人添加成员后，才可把来源挂到人物资料。"}
+            </p>
+            {canEdit && onAddPerson ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={onAddPerson}
+              >
+                去添加成员
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         {adding && canEdit ? (
           <LibraryAddSourceForm
             key={addSeedType}

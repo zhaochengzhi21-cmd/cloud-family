@@ -4002,6 +4002,38 @@ test("明经胡氏：唯一成员添加亲属提示新建", async ({ page, baseU
   await expect(dialog.locator("#kin-name")).toBeVisible();
 });
 
+test("明经胡氏：无成员时资料来源库仍可见", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·无成员来源库（测试）",
+    sample.surname
+  );
+  const parked = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
+    method: "POST",
+    body: {
+      evidenceType: "GENEALOGY_PAGE",
+      title: "无成员谱页（测试）",
+    },
+  });
+  expect(parked.status, JSON.stringify(parked.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(sourcesLib).toBeVisible({ timeout: 60_000 });
+  await expect(sourcesLib).toContainText("无成员谱页（测试）");
+  await expect(
+    sourcesLib.getByText(/还没有成员，来源仍可收录与查看/)
+  ).toBeVisible();
+  await sourcesLib.getByRole("button", { name: "去添加成员" }).click();
+  await expect(
+    page.getByRole("dialog").or(page.getByLabel("姓名 / 常用称呼"))
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：编辑者抽屉不可移除成员", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

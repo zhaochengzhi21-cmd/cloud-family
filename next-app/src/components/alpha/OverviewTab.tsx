@@ -1587,36 +1587,33 @@ export function OverviewTab({
         />
       ) : null}
 
-      {persons.length > 0 ? (
-        <FamilySources
-          familyId={familyId}
-          persons={persons}
-          onAuthError={onAuthError}
-          onOpenRecords={onOpenRecords}
-          canEdit={canEdit}
-          canManage={canReview}
-          onRemoved={(evidenceId, label) => {
-            onEvidenceRemoved?.(evidenceId, label);
-            void load();
-            void onReload?.();
-          }}
-          onCreated={() => {
-            void load();
-            void onReload?.();
-          }}
-          onLinked={() => {
-            void load();
-            void onReload?.();
-          }}
-          focusEvidenceId={focusEvidenceId}
-          onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
-          dataVersion={dataVersion}
-        />
-      ) : null}
+      <FamilySources
+        familyId={familyId}
+        persons={persons}
+        onAuthError={onAuthError}
+        onOpenRecords={onOpenRecords}
+        onAddPerson={onAddPerson}
+        canEdit={canEdit}
+        canManage={canReview}
+        onRemoved={(evidenceId, label) => {
+          onEvidenceRemoved?.(evidenceId, label);
+          void load();
+          void onReload?.();
+        }}
+        onCreated={() => {
+          void load();
+          void onReload?.();
+        }}
+        onLinked={() => {
+          void load();
+          void onReload?.();
+        }}
+        focusEvidenceId={focusEvidenceId}
+        onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
+        dataVersion={dataVersion}
+      />
 
-      {persons.length > 0 ? (
-        <BackupSection familyId={familyId} onAuthError={onAuthError} />
-      ) : null}
+      <BackupSection familyId={familyId} onAuthError={onAuthError} />
     </div>
   );
 }
