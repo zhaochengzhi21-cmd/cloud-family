@@ -786,12 +786,41 @@ function BookEntry({
               补充资料
             </Link>
           ) : (
-            <Link
-              href={`/alpha/families/${familyId}?scroll=participants`}
-              className="alpha-print-hide mt-2 inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
-            >
-              查看参与家人
-            </Link>
+            <div className="alpha-print-hide mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "records",
+                    person: person.id,
+                    claimType: "BIRTH_DATE",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setPendingCopyFlash("已复制补充资料链接");
+                      window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setPendingCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {pendingCopyFlash.includes("补充资料") ||
+                pendingCopyFlash.startsWith("请手动")
+                  ? pendingCopyFlash
+                  : "复制补充资料链接"}
+              </button>
+              <Link
+                href={`/alpha/families/${familyId}?scroll=participants`}
+                className="inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+              >
+                查看参与家人
+              </Link>
+            </div>
           )}
         </div>
       )}
