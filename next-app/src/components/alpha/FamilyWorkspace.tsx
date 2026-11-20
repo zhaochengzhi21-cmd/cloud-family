@@ -546,6 +546,31 @@ export function FamilyWorkspace({
           }
           return;
         }
+        if (!persons.some((p) => p.id === person)) {
+          // Soft-deleted / missing focus — do not open AddKin on a ghost「成员」.
+          setShowAddKin(false);
+          setRelFocusPersonId(null);
+          setLineageFocusId(person);
+          setLineageUrlPerson(person);
+          setTab("lineage");
+          if (canReview) {
+            setFlashRestorePersonId(person);
+            setFlash(
+              "链接指向的成员已不在名单中，可能刚被移除。可点恢复这位家人后再补关系。"
+            );
+            setFlashParticipantsCta(false);
+          } else {
+            setFlashRestorePersonId(null);
+            setFlash(
+              `链接指向的成员已不在名单中，可能刚被移除。可复制链接发给${REVIEWER_CONTACT}恢复后再补关系。`
+            );
+            setFlashParticipantsCta(true);
+          }
+          setFlashCopyUrl(
+            `${window.location.origin}/alpha/families/${familyId}?tab=lineage&person=${encodeURIComponent(person)}&kin=${kin}`
+          );
+          return;
+        }
         setShareKinHandoff(null);
         setRelFocusPersonId(person);
         setKinRole(kin);
@@ -568,6 +593,11 @@ export function FamilyWorkspace({
           parsed.role === "spouse")
       ) {
         if (!canEdit) return;
+        if (!persons.some((p) => p.id === parsed.personId)) {
+          setLineageFocusId(parsed.personId);
+          setTab("lineage");
+          return;
+        }
         setRelFocusPersonId(parsed.personId);
         setKinRole(parsed.role);
         setShowAddKin(true);
@@ -576,7 +606,7 @@ export function FamilyWorkspace({
     } catch {
       /* private mode / bad JSON */
     }
-  }, [familyId, canEdit, loading]);
+  }, [familyId, canEdit, canReview, loading, persons]);
 
   useEffect(() => {
     if (loading) return;
