@@ -3530,6 +3530,7 @@ function RecordsTab({
             setLocalSeed(null);
             onClaimSeedConsumed();
           }}
+          onOpenParticipants={onOpenParticipants}
           onAuthError={onAuthError}
           onDone={async ({ claimType: savedType, claimId }) => {
             const followUp = nextClaimAfterSave(
@@ -3875,6 +3876,7 @@ function AddClaimForm({
   onDone,
   onError,
   onAuthError,
+  onOpenParticipants,
   compact = false,
   generationByPerson,
   relationships = [],
@@ -3892,6 +3894,7 @@ function AddClaimForm({
   }) => Promise<void>;
   onError: (s: string) => void;
   onAuthError: (e: unknown) => boolean;
+  onOpenParticipants?: () => void;
   /** On mobile-first surfaces, start collapsed to reduce density. */
   compact?: boolean;
   /** Enables 字辈 suggestions from the same generation. */
@@ -4276,6 +4279,18 @@ function AddClaimForm({
           {canReview
             ? "保存后为「待确认」，可继续添加资料来源后再确认。"
             : `保存后为「待确认」。你可以先补上资料来源；确认或不采用需由${REVIEWER_CONTACT}操作。`}
+          {!canReview && onOpenParticipants ? (
+            <>
+              {" "}
+              <button
+                type="button"
+                className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={onOpenParticipants}
+              >
+                查看参与家人
+              </button>
+            </>
+          ) : null}
         </p>
         <button
           type="submit"
@@ -7241,6 +7256,7 @@ function PersonDrawer({
               seedClaimType={drawerClaimSeed?.claimType ?? null}
               seedNonce={drawerClaimSeed?.nonce ?? null}
               onSeedConsumed={() => setDrawerClaimSeed(null)}
+              onOpenParticipants={onOpenParticipants}
               onAuthError={onAuth}
               onDone={async ({ claimType: savedType, claimId }) => {
                 const followUp = nextClaimAfterSave(
