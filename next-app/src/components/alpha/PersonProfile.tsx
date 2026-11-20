@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  CLAIM_ORIGIN_LABEL,
   CLAIM_STATUS_LABEL,
   CLAIM_TYPE_UI,
   ERROR_COPY,
@@ -136,6 +137,7 @@ export function PersonProfile({
   const [restoring, setRestoring] = useState(false);
   const [flash, setFlash] = useState("");
   const [copyPageFlash, setCopyPageFlash] = useState("");
+  const [pendingCopyFlash, setPendingCopyFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
     kind: "relationship";
     id: string;
@@ -602,6 +604,11 @@ export function PersonProfile({
   const pendingClaims = claims.filter(
     (c) => c.status === "PROPOSED" || c.status === "CONFLICTED"
   );
+  const smartPendingCount = pendingClaims.filter(
+    (c) =>
+      c.status === "PROPOSED" &&
+      (c.originType === "AI_EXTRACTION" || c.originType === "IMPORT")
+  ).length;
   const showDeath =
     person.livingStatus === "DECEASED" ||
     deathDate.length > 0 ||
@@ -1134,27 +1141,51 @@ export function PersonProfile({
           aria-labelledby="profile-pending"
           className="mb-8 alpha-print-hide"
         >
-          <h2
-            id="profile-pending"
-            className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-          >
-            待确认资料
-            {`（${pendingClaims.length}）`}
-          </h2>
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <h2
+              id="profile-pending"
+              className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+            >
+              待确认资料
+              {`（${pendingClaims.length}）`}
+            </h2>
+            {canReview && smartPendingCount > 0 ? (
+              <Link
+                href={`${workspaceHref}?tab=overview`}
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              >
+                去概览批量确认智能整理/导入
+              </Link>
+            ) : null}
+          </div>
           <p className="mb-3 text-sm text-[color:var(--a-muted)]">
             {canReview
-              ? "以下内容尚未成为正式记载，请到资料页确认或选用一种说法。"
-              : `以下内容尚未成为正式记载，需${REVIEWER_CONTACT}确认后才会写入档案。`}
+              ? "以下内容尚未成为正式记载，请确认或选用一种说法。"
+              : `以下内容尚未成为正式记载，需${REVIEWER_CONTACT}确认后才会写入档案。可复制链接发给对方。`}
+            {pendingCopyFlash ? (
+              <span className="ml-2" role="status">
+                {pendingCopyFlash}
+              </span>
+            ) : null}
           </p>
           <ul className="space-y-2">
             {pendingClaims.map((c) => {
               const typeLabel =
                 CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType;
+              const originLabel =
+                c.originType === "AI_EXTRACTION" || c.originType === "IMPORT"
+                  ? CLAIM_ORIGIN_LABEL[
+                      c.originType as keyof typeof CLAIM_ORIGIN_LABEL
+                    ]
+                  : null;
               return (
-                <li key={c.id}>
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-stretch gap-2"
+                >
                   <button
                     type="button"
-                    className="alpha-panel alpha-panel-interactive flex w-full min-h-[52px] items-center justify-between gap-3 px-4 py-2 text-left"
+                    className="alpha-panel alpha-panel-interactive flex min-h-[52px] min-w-0 flex-1 items-center justify-between gap-3 px-4 py-2 text-left"
                     onClick={() => openRecordsFocus(c.id, c.status)}
                   >
                     <div className="min-w-0">
@@ -1166,15 +1197,49 @@ export function PersonProfile({
                         </span>
                       </p>
                     </div>
-                    <span
-                      className={`alpha-chip shrink-0 ${
-                        c.status === "CONFLICTED"
-                          ? "alpha-chip-conflicted"
-                          : "alpha-chip-proposed"
-                      }`}
-                    >
-                      {pendingStatusLabel(c.status, canReview)}
+                    <span className="flex shrink-0 items-center gap-2">
+                      {originLabel ? (
+                        <span className="alpha-chip alpha-chip-proposed">
+                          {originLabel}
+                        </span>
+                      ) : null}
+                      <span
+                        className={`alpha-chip ${
+                          c.status === "CONFLICTED"
+                            ? "alpha-chip-conflicted"
+                            : "alpha-chip-proposed"
+                        }`}
+                      >
+                        {pendingStatusLabel(c.status, canReview)}
+                      </span>
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[52px] !px-3 !text-xs"
+                    onClick={() => {
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: personId,
+                        claim: c.id,
+                        claimStatus:
+                          c.status === "CONFLICTED" ? "CONFLICTED" : "PROPOSED",
+                      });
+                      const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () => {
+                          setPendingCopyFlash("已复制链接");
+                          window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                        },
+                        () => {
+                          setPendingCopyFlash("请手动复制地址栏链接");
+                          window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                        }
+                      );
+                    }}
+                    aria-label={`复制「${typeLabel}」待确认资料链接`}
+                  >
+                    复制链接
                   </button>
                 </li>
               );

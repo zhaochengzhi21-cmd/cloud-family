@@ -49,13 +49,15 @@ function factText(f: BookFact): string {
   return typeof v?.text === "string" ? v.text : "—";
 }
 
-/** Same rule as the person page: accepted wins, otherwise keep every open version. */
+/** Same rule as the person page: print only confirmed (ACCEPTED) facts. */
 function shownFacts(facts: BookFact[], type: string): BookFact[] {
-  const rows = facts.filter(
-    (f) => f.claimType === type && f.status !== "REJECTED"
-  );
-  const accepted = rows.filter((f) => f.status === "ACCEPTED");
-  return accepted.length ? accepted : rows;
+  return facts.filter((f) => f.claimType === type && f.status === "ACCEPTED");
+}
+
+function pendingFactCount(facts: BookFact[]): number {
+  return facts.filter(
+    (f) => f.status === "PROPOSED" || f.status === "CONFLICTED"
+  ).length;
 }
 
 function firstFactText(facts: BookFact[], type: string): string | null {
@@ -665,6 +667,7 @@ function BookEntry({
     rows: shownFacts(person.facts, t),
   })).filter((x) => x.rows.length > 0);
   const stories = shownFacts(person.facts, "STORY");
+  const pendingCount = pendingFactCount(person.facts);
   const childRefs = (kin?.children ?? []).map((c) => {
     const raw = firstFactText(c.facts, "BIRTH_ORDER");
     return {
@@ -717,18 +720,8 @@ function BookEntry({
                         n={sourceNo.get(s.sourceId)}
                       />
                     ))}
-                    {f.status !== "ACCEPTED" ? (
-                      <span className="ml-1 text-xs text-[color:var(--a-muted)]">
-                        （待确认）
-                      </span>
-                    ) : null}
                   </span>
                 ))}
-                {rows.length > 1 ? (
-                  <span className="ml-1 text-xs text-[color:var(--a-brand)]">
-                    存在不同说法
-                  </span>
-                ) : null}
               </dd>
             </div>
           ))}
@@ -754,8 +747,8 @@ function BookEntry({
         <div className="mt-1">
           <p className="text-sm text-[color:var(--a-muted)]">
             {canEdit
-              ? "暂无更多记录"
-              : "暂无更多记录。有编辑权限的家人补充后，会出现在这里。"}
+              ? "暂无已确认的正式记载"
+              : "暂无已确认的正式记载。有编辑权限的家人补充并确认后，会出现在这里。"}
           </p>
           {canEdit ? (
             <Link
@@ -774,6 +767,23 @@ function BookEntry({
           )}
         </div>
       )}
+      {pendingCount > 0 ? (
+        <p className="alpha-print-hide mt-2 text-sm text-[color:var(--a-muted)]">
+          另有 {pendingCount} 条待确认资料未写入印刷本。
+          <Link
+            href={`/alpha/families/${familyId}/people/${person.id}`}
+            className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          >
+            在人物页查看
+          </Link>
+          <Link
+            href={`/alpha/families/${familyId}?tab=records&person=${encodeURIComponent(person.id)}&claimStatus=PROPOSED`}
+            className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          >
+            去资料页确认
+          </Link>
+        </p>
+      ) : null}
       {stories.length > 0 ? (
         <div className="mt-3 space-y-3 border-t border-[color:var(--a-brand-line)] pt-3">
           <p className="text-sm font-semibold text-[color:var(--a-brand)]">
