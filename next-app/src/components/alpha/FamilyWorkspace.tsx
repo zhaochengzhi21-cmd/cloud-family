@@ -215,6 +215,7 @@ export function FamilyWorkspace({
   const [tab, setTab] = useState<Tab>("overview");
   const [dataVersion, setDataVersion] = useState(0);
   const tabReady = useRef(false);
+  const personMissAnnounced = useRef<string | null>(null);
   const [familyName, setFamilyName] = useState("");
   const [surname, setSurname] = useState<string | null>(null);
   const [familyVersion, setFamilyVersion] = useState(1);
@@ -776,17 +777,38 @@ export function FamilyWorkspace({
     const urlTab = searchParams.get("tab");
     if (!person) return;
     if (claim || urlTab === "records") {
-      try {
-        sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
-      } catch {
-        /* private mode */
+      if (persons.some((p) => p.id === person)) {
+        try {
+          sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
+        } catch {
+          /* private mode */
+        }
+        setRecordsUrlPerson(person);
+        personMissAnnounced.current = null;
+      } else if (
+        persons.length > 0 &&
+        personMissAnnounced.current !== person
+      ) {
+        personMissAnnounced.current = person;
+        setFlash(
+          "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人。"
+        );
+        setRecordsUrlPerson(null);
       }
       return;
     }
     if (persons.some((p) => p.id === person)) {
       setSelectedPersonId(person);
-    } else {
+      personMissAnnounced.current = null;
+    } else if (
+      persons.length > 0 &&
+      personMissAnnounced.current !== person
+    ) {
+      personMissAnnounced.current = person;
       setSelectedPersonId(null);
+      setFlash(
+        "链接指向的成员已不在名单中，可能刚被移除。可在概览「参与家人」中联系有权限的家人。"
+      );
     }
     // Hydrate drawer from URL after graph load.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: hydrate on load
