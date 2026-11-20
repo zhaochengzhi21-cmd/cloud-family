@@ -216,6 +216,7 @@ export function FamilyWorkspace({
   const [dataVersion, setDataVersion] = useState(0);
   const tabReady = useRef(false);
   const personMissAnnounced = useRef<string | null>(null);
+  const addDeepLinkAnnounced = useRef<string | null>(null);
   const [familyName, setFamilyName] = useState("");
   const [surname, setSurname] = useState<string | null>(null);
   const [familyVersion, setFamilyVersion] = useState(1);
@@ -485,40 +486,58 @@ export function FamilyWorkspace({
   }, [familyId]);
 
   useEffect(() => {
+    if (loading) return;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("add");
       if (fromUrl === "rel") {
-        setShowAddRel(true);
-        setTab("lineage");
+        if (canEdit) {
+          setShowAddRel(true);
+          setTab("lineage");
+        } else if (addDeepLinkAnnounced.current !== "rel") {
+          addDeepLinkAnnounced.current = "rel";
+          setFlash(
+            "当前为只读，无法添加家庭关系。可在概览「参与家人」中联系有编辑权限的家人。"
+          );
+        }
         return;
       }
       const flag = sessionStorage.getItem(`alpha-add-rel:${familyId}`);
       if (!flag) return;
       sessionStorage.removeItem(`alpha-add-rel:${familyId}`);
+      if (!canEdit) return;
       setShowAddRel(true);
       setTab("lineage");
     } catch {
       /* private mode */
     }
-  }, [familyId]);
+  }, [familyId, canEdit, loading]);
 
   useEffect(() => {
+    if (loading) return;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("add");
       if (fromUrl === "person") {
-        setShowAddPerson(true);
-        setTab("members");
+        if (canEdit) {
+          setShowAddPerson(true);
+          setTab("members");
+        } else if (addDeepLinkAnnounced.current !== "person") {
+          addDeepLinkAnnounced.current = "person";
+          setFlash(
+            "当前为只读，无法添加成员。可在概览「参与家人」中联系有编辑权限的家人。"
+          );
+        }
         return;
       }
       const flag = sessionStorage.getItem(`alpha-add-person:${familyId}`);
       if (!flag) return;
       sessionStorage.removeItem(`alpha-add-person:${familyId}`);
+      if (!canEdit) return;
       setShowAddPerson(true);
       setTab("members");
     } catch {
       /* private mode */
     }
-  }, [familyId]);
+  }, [familyId, canEdit, loading]);
 
   useEffect(() => {
     try {
