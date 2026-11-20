@@ -355,6 +355,19 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const claimType = params.get("claimType");
+      const person = params.get("person");
+      if (claimType && person && !params.get("claim")) {
+        setClaimSeed({
+          personId: person,
+          claimType,
+          nonce: Date.now(),
+        });
+        setRecordsUrlPerson(person);
+        setTab("records");
+        return;
+      }
       const raw = sessionStorage.getItem(
         `alpha-records-claim-seed:${familyId}`
       );
