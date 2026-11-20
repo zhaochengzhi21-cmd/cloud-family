@@ -7163,6 +7163,23 @@ function PersonDrawer({
             >
               查看人物资料
             </button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)]"
+              onClick={() => {
+                const url = `${window.location.origin}${profileHref}`;
+                void (async () => {
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    flashLocal("已复制人物资料链接");
+                  } catch {
+                    flashLocal("请手动复制地址栏链接");
+                  }
+                })();
+              }}
+            >
+              复制人物资料链接
+            </button>
           </div>
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
           <p className="mt-1 mb-3 text-sm text-[color:var(--a-muted)]">
