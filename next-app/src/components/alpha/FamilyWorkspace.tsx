@@ -2514,51 +2514,65 @@ function RecordsTab({
 
       {[...grouped.entries()].map(([type, rows]) => {
         const conflicted = rows.filter((r) => r.status === "CONFLICTED");
+        const others = rows.filter((r) => r.status !== "CONFLICTED");
         const label = CLAIM_TYPE_UI[type]?.label ?? type;
+        const showChooser = conflicted.length >= 2;
+        const listRows = showChooser ? others : rows;
         return (
           <section
             key={type}
             className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface)] p-4"
           >
             <h3 className="font-bold text-[color:var(--a-ink)]">{label}</h3>
-            {conflicted.length >= 2 ? (
-              <div className="mt-2 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-2 ring-1 ring-[color:var(--a-brand-line)]">
-                <p className="font-semibold text-[color:var(--a-brand)]">存在不同说法</p>
-                <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                  目前资料中记录不一致，先保留两种说法，之后可以继续补充来源。
-                </p>
-              </div>
+            {showChooser ? (
+              <ConflictChooser
+                familyId={familyId}
+                claims={conflicted}
+                canReview={canReview}
+                canEdit={canEdit}
+                onChanged={loadClaims}
+                onError={setError}
+                onFlash={setFlash}
+                onAuthError={onAuthError}
+                onOpenEvidenceAfterAccept={(id) => {
+                  setStatusFilter("ALL");
+                  setOpenEvidenceClaimId(id);
+                  setOpenEvidenceType(null);
+                }}
+              />
             ) : null}
-            <ul className="mt-3 space-y-3">
-              {rows.map((c) => (
-                <ClaimCard
-                  key={c.id}
-                  familyId={familyId}
-                  claim={c}
-                  canEdit={canEdit}
-                  canReview={canReview}
-                  autoOpenEvidence={openEvidenceClaimId === c.id}
-                  seedEvidenceType={
-                    openEvidenceClaimId === c.id ? openEvidenceType : null
-                  }
-                  onAutoOpenEvidenceConsumed={() => {
-                    setOpenEvidenceClaimId(null);
-                    setOpenEvidenceType(null);
-                  }}
-                  onOpenEvidenceAfterAccept={(id) => {
-                    setStatusFilter("ALL");
-                    setOpenEvidenceClaimId(id);
-                    setOpenEvidenceType(null);
-                  }}
-                  onOpenSourcesLibrary={onOpenSourcesLibrary}
-                  onAuthError={onAuthError}
-                  onChanged={loadClaims}
-                  onError={setError}
-                  onFlash={setFlash}
-                  onEvidenceRemoved={onEvidenceRemoved}
-                />
-              ))}
-            </ul>
+            {listRows.length > 0 ? (
+              <ul className="mt-3 space-y-3">
+                {listRows.map((c) => (
+                  <ClaimCard
+                    key={c.id}
+                    familyId={familyId}
+                    claim={c}
+                    canEdit={canEdit}
+                    canReview={canReview}
+                    autoOpenEvidence={openEvidenceClaimId === c.id}
+                    seedEvidenceType={
+                      openEvidenceClaimId === c.id ? openEvidenceType : null
+                    }
+                    onAutoOpenEvidenceConsumed={() => {
+                      setOpenEvidenceClaimId(null);
+                      setOpenEvidenceType(null);
+                    }}
+                    onOpenEvidenceAfterAccept={(id) => {
+                      setStatusFilter("ALL");
+                      setOpenEvidenceClaimId(id);
+                      setOpenEvidenceType(null);
+                    }}
+                    onOpenSourcesLibrary={onOpenSourcesLibrary}
+                    onAuthError={onAuthError}
+                    onChanged={loadClaims}
+                    onError={setError}
+                    onFlash={setFlash}
+                    onEvidenceRemoved={onEvidenceRemoved}
+                  />
+                ))}
+              </ul>
+            ) : null}
           </section>
         );
       })}
@@ -3007,6 +3021,140 @@ function AddClaimForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function ConflictChooser({
+  familyId,
+  claims,
+  canReview,
+  canEdit,
+  onChanged,
+  onError,
+  onFlash,
+  onAuthError,
+  onOpenEvidenceAfterAccept,
+}: {
+  familyId: string;
+  claims: ClaimRow[];
+  canReview: boolean;
+  canEdit: boolean;
+  onChanged: () => Promise<void>;
+  onError: (s: string) => void;
+  onFlash: (s: string) => void;
+  onAuthError: (e: unknown) => boolean;
+  onOpenEvidenceAfterAccept?: (claimId: string) => void;
+}) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function prefer(claim: ClaimRow) {
+    if (!canReview || busyId) return;
+    setBusyId(claim.id);
+    try {
+      await v1api.preferClaim(familyId, claim.id, {
+        idempotencyKey: crypto.randomUUID(),
+      });
+      let unsourced = true;
+      try {
+        const b = await v1api.getClaim(familyId, claim.id);
+        unsourced = !(b.evidenceLinks?.length > 0);
+      } catch {
+        /* treat as unsourced if refresh fails */
+      }
+      onFlash(
+        unsourced && canEdit
+          ? "已采用这条说法。接着可以补上谱页或其他来源。"
+          : "已采用这条说法"
+      );
+      await onChanged();
+      if (unsourced && canEdit) onOpenEvidenceAfterAccept?.(claim.id);
+    } catch (e) {
+      if (onAuthError(e)) return;
+      onError(userMessageForApiError(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function reject(claim: ClaimRow) {
+    if (!canReview || busyId) return;
+    setBusyId(claim.id);
+    try {
+      await v1api.rejectClaim(familyId, claim.id, {
+        idempotencyKey: crypto.randomUUID(),
+      });
+      onFlash("已处理不同说法");
+      await onChanged();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      onError(userMessageForApiError(e));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div
+      className="mt-2 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-3 ring-1 ring-[color:var(--a-brand-line)]"
+      data-conflict-chooser
+    >
+      <p className="font-semibold text-[color:var(--a-brand)]">存在不同说法</p>
+      <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+        {canReview
+          ? "请选用一种说法作为正式记载，或标记不采用。"
+          : "目前资料中记录不一致，需管理员选用一种说法。"}
+      </p>
+      <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+        {claims.map((c, i) => {
+          const originLabel =
+            c.originType === "AI_EXTRACTION" || c.originType === "IMPORT"
+              ? CLAIM_ORIGIN_LABEL[
+                  c.originType as keyof typeof CLAIM_ORIGIN_LABEL
+                ]
+              : null;
+          return (
+            <li
+              key={c.id}
+              data-claim-id={c.id}
+              className="rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface)] p-3"
+            >
+              <p className="text-xs font-semibold text-[color:var(--a-muted)]">
+                说法 {i + 1}
+                {originLabel ? ` · ${originLabel}` : ""}
+              </p>
+              <p className="mt-1 whitespace-pre-wrap text-base font-semibold text-[color:var(--a-ink)]">
+                {c.value?.text ?? "—"}
+              </p>
+              {c.value?.narrator ? (
+                <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+                  讲述：{c.value.narrator}
+                </p>
+              ) : null}
+              {canReview ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={Boolean(busyId)}
+                    className="alpha-btn alpha-btn-primary !min-h-[36px] !px-3 !text-xs disabled:opacity-60"
+                    onClick={() => void prefer(c)}
+                  >
+                    {busyId === c.id ? "处理中…" : "采用这条"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={Boolean(busyId)}
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs disabled:opacity-60"
+                    onClick={() => void reject(c)}
+                  >
+                    不采用
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -5551,50 +5699,63 @@ function PersonDrawer({
           ) : null}
           {[...grouped.entries()].map(([type, rows]) => {
             const conflicted = rows.filter((r) => r.status === "CONFLICTED");
+            const others = rows.filter((r) => r.status !== "CONFLICTED");
             const label = CLAIM_TYPE_UI[type]?.label ?? type;
+            const showChooser = conflicted.length >= 2;
+            const listRows = showChooser ? others : rows;
             return (
               <section
                 key={type}
                 className="mb-4 rounded-2xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface)] p-3"
               >
                 <h4 className="font-bold text-[color:var(--a-ink)]">{label}</h4>
-                {conflicted.length >= 2 ? (
-                  <div className="mt-2 rounded-xl bg-[color:var(--a-warn-soft)] px-3 py-2 ring-1 ring-[color:var(--a-brand-line)]">
-                    <p className="font-semibold text-[color:var(--a-brand)]">
-                      存在不同说法
-                    </p>
-                    <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                      目前资料中记录不一致，先保留两种说法，之后可以继续补充来源。
-                    </p>
-                  </div>
+                {showChooser ? (
+                  <ConflictChooser
+                    familyId={familyId}
+                    claims={conflicted}
+                    canReview={canReview}
+                    canEdit={canEdit}
+                    onChanged={loadClaims}
+                    onError={(msg) => {
+                      setLocalError(msg);
+                      onError(msg);
+                    }}
+                    onFlash={setLocalFlash}
+                    onAuthError={onAuth}
+                    onOpenEvidenceAfterAccept={(id) =>
+                      setDrawerOpenEvidenceClaimId(id)
+                    }
+                  />
                 ) : null}
-                <ul className="mt-3 space-y-3">
-                  {rows.map((c) => (
-                    <ClaimCard
-                      key={c.id}
-                      familyId={familyId}
-                      claim={c}
-                      canEdit={canEdit}
-                      canReview={canReview}
-                      autoOpenEvidence={drawerOpenEvidenceClaimId === c.id}
-                      onAutoOpenEvidenceConsumed={() =>
-                        setDrawerOpenEvidenceClaimId(null)
-                      }
-                      onOpenEvidenceAfterAccept={(id) =>
-                        setDrawerOpenEvidenceClaimId(id)
-                      }
-                      onOpenSourcesLibrary={onOpenSourcesLibrary}
-                      onAuthError={onAuth}
-                      onChanged={loadClaims}
-                      onError={(msg) => {
-                        setLocalError(msg);
-                        onError(msg);
-                      }}
-                      onFlash={setLocalFlash}
-                      onEvidenceRemoved={onEvidenceRemoved}
-                    />
-                  ))}
-                </ul>
+                {listRows.length > 0 ? (
+                  <ul className="mt-3 space-y-3">
+                    {listRows.map((c) => (
+                      <ClaimCard
+                        key={c.id}
+                        familyId={familyId}
+                        claim={c}
+                        canEdit={canEdit}
+                        canReview={canReview}
+                        autoOpenEvidence={drawerOpenEvidenceClaimId === c.id}
+                        onAutoOpenEvidenceConsumed={() =>
+                          setDrawerOpenEvidenceClaimId(null)
+                        }
+                        onOpenEvidenceAfterAccept={(id) =>
+                          setDrawerOpenEvidenceClaimId(id)
+                        }
+                        onOpenSourcesLibrary={onOpenSourcesLibrary}
+                        onAuthError={onAuth}
+                        onChanged={loadClaims}
+                        onError={(msg) => {
+                          setLocalError(msg);
+                          onError(msg);
+                        }}
+                        onFlash={setLocalFlash}
+                        onEvidenceRemoved={onEvidenceRemoved}
+                      />
+                    ))}
+                  </ul>
+                ) : null}
               </section>
             );
           })}

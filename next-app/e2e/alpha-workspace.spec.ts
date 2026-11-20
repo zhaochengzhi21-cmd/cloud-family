@@ -492,10 +492,11 @@ async function runCoreJourney(
   });
   await expect(page.getByText("民国十三年").first()).toBeVisible();
   await expect(page.getByText("民国十四年").first()).toBeVisible();
-  // Conflict banner must appear (not auto-pick one truth)
+  // Conflict chooser must appear (not auto-pick one truth)
   await expect(
-    page.getByText("目前资料中记录不一致，先保留两种说法")
+    page.getByText("请选用一种说法作为正式记载")
   ).toBeVisible();
+  await expect(page.locator("[data-conflict-chooser]")).toBeVisible();
 
   // Prefer first saying (十三年) over the conflicting 十四年
   const year13Conflict = page.locator("li").filter({ hasText: "民国十三年" });
@@ -503,7 +504,7 @@ async function runCoreJourney(
   await expect(page.getByText("已采用这条说法")).toBeVisible();
   await expect(page.getByText("存在不同说法")).toHaveCount(0);
   await expect(
-    page.getByText("目前资料中记录不一致，先保留两种说法")
+    page.getByText("请选用一种说法作为正式记载")
   ).toHaveCount(0);
   await expect(year13Conflict.getByText("已确认")).toBeVisible();
   await expect(page.getByText("查看不采用的记录")).toBeVisible();
