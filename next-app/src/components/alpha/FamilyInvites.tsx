@@ -259,7 +259,11 @@ export function FamilyInvites({
   for (const m of access.members) counts.set(m.role, (counts.get(m.role) ?? 0) + 1);
 
   return (
-    <section aria-labelledby="overview-invite">
+    <section
+      id="overview-participants"
+      aria-labelledby="overview-invite"
+      className="scroll-mt-24"
+    >
       <h2
         id="overview-invite"
         className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
