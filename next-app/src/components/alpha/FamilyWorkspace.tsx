@@ -7074,11 +7074,22 @@ function PersonDrawer({
               ))}
             </ul>
           ) : (
-            <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-              {canEdit
-                ? "暂无关系。建立父母/配偶关系后，世系页会按代展示。"
-                : "暂无关系。有编辑权限的家人补充后，会显示在这里。"}
-            </p>
+            <div className="mt-2">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                {canEdit
+                  ? "暂无关系。建立父母/配偶关系后，世系页会按代展示。"
+                  : "暂无关系。有编辑权限的家人补充后，会显示在这里。"}
+              </p>
+              {!canEdit && onOpenParticipants ? (
+                <button
+                  type="button"
+                  className="mt-2 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={onOpenParticipants}
+                >
+                  查看参与家人
+                </button>
+              ) : null}
+            </div>
           )}
           {canEdit ? (
             <div
@@ -7333,6 +7344,14 @@ function PersonDrawer({
                     setDrawerClaimSeed({ claimType, nonce: Date.now() })
                   }
                 />
+              ) : onOpenParticipants ? (
+                <button
+                  type="button"
+                  className="mt-3 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={onOpenParticipants}
+                >
+                  查看参与家人
+                </button>
               ) : null}
             </div>
           ) : null}
