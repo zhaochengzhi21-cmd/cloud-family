@@ -1959,6 +1959,46 @@ export function OverviewTab({
                         </button>
                       </span>
                     ) : null}
+                    {(item.eventType === "PERSON_CREATED" ||
+                      item.eventType === "PERSON_UPDATED" ||
+                      item.eventType === "PERSON_RESTORED") &&
+                    item.personId ? (
+                      <>
+                        {" "}
+                        <Link
+                          href={`/alpha/families/${familyId}/people/${item.personId}`}
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        >
+                          查看
+                        </Link>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const url = `${window.location.origin}/alpha/families/${familyId}/people/${item.personId}`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash("已复制人物资料链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash("请手动复制地址栏链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          复制链接
+                        </button>
+                      </>
+                    ) : null}
                     {item.eventType === "PERSON_DELETED" &&
                     item.restorable &&
                     item.personId &&
