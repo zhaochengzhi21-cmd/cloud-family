@@ -3726,6 +3726,19 @@ test("明经胡氏：人物页可移除错误的父母关系", async ({ page, ba
   await expect(
     kin.getByRole("link", { name: sample.guanSan.preferredName })
   ).toHaveCount(0, { timeout: 60_000 });
+  const undoFlash = page.getByRole("status").filter({
+    hasText: `已移除与「${sample.guanSan.preferredName}」的家庭关系`,
+  });
+  await expect(undoFlash).toBeVisible({ timeout: 60_000 });
+  await undoFlash.getByRole("button", { name: "恢复" }).click();
+  await expect(
+    kin.getByRole("link", { name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("status").filter({
+      hasText: `已恢复与「${sample.guanSan.preferredName}」的家庭关系`,
+    })
+  ).toBeVisible({ timeout: 60_000 });
 });
 
 test("明经胡氏：打印版空条目可去补充资料", async ({ page, baseURL }) => {

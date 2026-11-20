@@ -135,6 +135,12 @@ export function PersonProfile({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [restoring, setRestoring] = useState(false);
+  const [flash, setFlash] = useState("");
+  const [pendingUndo, setPendingUndo] = useState<null | {
+    kind: "relationship";
+    id: string;
+    label: string;
+  }>(null);
 
   const loadSeq = useRef(0);
 
@@ -426,7 +432,7 @@ export function PersonProfile({
   async function removeKin(relationshipId: string, name: string) {
     if (
       !window.confirm(
-        `确认移除与「${name}」的家庭关系？可在世系或最近动态中恢复。`
+        `确认移除与「${name}」的家庭关系？误删可立即恢复，或稍后在世系/最近动态中找回。`
       )
     ) {
       return;
@@ -435,6 +441,13 @@ export function PersonProfile({
       await v1api.deleteRelationship(familyId, relationshipId, {
         idempotencyKey: crypto.randomUUID(),
       });
+      setError("");
+      setPendingUndo({
+        kind: "relationship",
+        id: relationshipId,
+        label: `与「${name}」的家庭关系`,
+      });
+      setFlash(`已移除与「${name}」的家庭关系。误删可点恢复。`);
       await load();
     } catch (e) {
       if (handleAuthRedirect(e, router)) return;
@@ -549,6 +562,61 @@ export function PersonProfile({
       >
         ← {familyName || PRODUCT.family}
       </Link>
+
+      {flash ? (
+        <div
+          className="alpha-print-hide mt-4 flex flex-wrap items-start justify-between gap-3 alpha-alert alpha-alert-ok"
+          role="status"
+        >
+          <p className="min-w-0 flex-1">{flash}</p>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {pendingUndo ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const undo = pendingUndo;
+                  setPendingUndo(null);
+                  setFlash("");
+                  void (async () => {
+                    try {
+                      await v1api.restoreRelationship(familyId, undo.id, {
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                      setFlash(`已恢复${undo.label}`);
+                      await load();
+                    } catch (e) {
+                      if (handleAuthRedirect(e, router)) return;
+                      setError(userMessageForApiError(e));
+                    }
+                  })();
+                }}
+              >
+                恢复
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-sm text-[color:var(--a-muted)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setFlash("");
+                setPendingUndo(null);
+              }}
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {error ? (
+        <p
+          className="alpha-print-hide mt-4 text-sm text-[color:var(--a-danger)]"
+          role="alert"
+        >
+          {error}
+        </p>
+      ) : null}
 
       <header className="mt-4 mb-8">
         <h1 className="alpha-font-display text-4xl font-bold leading-tight text-[color:var(--a-ink)]">
