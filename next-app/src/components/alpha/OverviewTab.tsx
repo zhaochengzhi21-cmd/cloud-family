@@ -383,15 +383,17 @@ export function OverviewTab({
     );
   }, [overview, sortedPersons]);
 
-  /** Has a generation from the graph, but no 字辈 claim yet. */
+  /** Has a generation from real kin edges, but no 字辈 claim yet. */
   const missingGenerationWord = useMemo(() => {
-    if (!overview || !generationByPerson) return [];
+    if (!overview || !generationByPerson || relationships.length === 0) {
+      return [];
+    }
     return sortedPersons.filter(
       (p) =>
         generationByPerson[p.id] != null &&
         !overview.personStats[p.id]?.claimTypes.includes("GENERATION_WORD")
     );
-  }, [overview, generationByPerson, sortedPersons]);
+  }, [overview, generationByPerson, sortedPersons, relationships.length]);
 
   const missingGender = useMemo(
     () =>

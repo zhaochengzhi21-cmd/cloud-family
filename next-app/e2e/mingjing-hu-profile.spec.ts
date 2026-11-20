@@ -2055,6 +2055,8 @@ test("明经胡氏：无关系时世系为空态，不伪造第一代", async ({
   await seedPerson(page, familyId, sample.guanSan, []);
 
   await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(page.getByText(/补充 \d+ 位成员的字辈/)).toHaveCount(0);
   await page.getByRole("tab", { name: "成员" }).click();
   await expect(page.getByText("第一代")).toHaveCount(0);
   await page.getByRole("tab", { name: "世系" }).click();
