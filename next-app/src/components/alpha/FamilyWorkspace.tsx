@@ -4485,21 +4485,11 @@ function RecordsTab({
       setPersonId(recordsFocus.personId);
       return;
     }
-    {
-      const qs = new URLSearchParams({
-        tab: "records",
-        person: recordsFocus.personId,
-      });
-      if (recordsFocus.claimId) qs.set("claim", recordsFocus.claimId);
-      if (recordsFocus.statusFilter) {
-        qs.set("claimStatus", recordsFocus.statusFilter);
-      }
-      setClaimFocusMissUrl(
-        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
-      );
-      setClaimFocusMissClaimId(recordsFocus.claimId ?? null);
-    }
-    setClaimFocusMiss(true);
+    // Soft-deleted / missing person: parent workspace flash offers restore.
+    // Do not surface a claim-reopen miss against the wrong personId.
+    setClaimFocusMiss(false);
+    setClaimFocusMissUrl(null);
+    setClaimFocusMissClaimId(null);
     onRecordsFocusConsumed();
   }, [recordsFocus, persons, onRecordsFocusConsumed, familyId]);
 

@@ -10,6 +10,7 @@ import {
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
+  REVIEWER_CONTACT,
   birthOrderRank,
   generationLabel,
   generationWordsByGeneration,
@@ -84,6 +85,10 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [personFocusMiss, setPersonFocusMiss] = useState(false);
+  const [personFocusMissId, setPersonFocusMissId] = useState<string | null>(
+    null
+  );
+  const [personFocusRestoreBusy, setPersonFocusRestoreBusy] = useState(false);
   const [copyFlash, setCopyFlash] = useState("");
   const [kinHandoffFlash, setKinHandoffFlash] = useState("");
 
@@ -140,14 +145,17 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     }
     if (!focusId) {
       setPersonFocusMiss(false);
+      setPersonFocusMissId(null);
       return;
     }
     const id = focusId;
     if (!book.persons.some((p) => p.id === id)) {
+      setPersonFocusMissId(id);
       setPersonFocusMiss(true);
       return;
     }
     setPersonFocusMiss(false);
+    setPersonFocusMissId(null);
     const t = window.setTimeout(() => {
       const el = document.getElementById(`print-person-${id}`);
       if (!(el instanceof HTMLElement)) return;
@@ -458,10 +466,40 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         >
           <p className="text-sm text-[color:var(--a-muted)]">
             链接指向的成员已不在这份家谱中，可能刚被移除。
-            {!canEdit
-              ? "可复制链接发给有编辑权限的家人核对。"
-              : "可去成员名单核对，或复制链接发给家人。"}
+            {canReview
+              ? "可点恢复这位家人后刷新打印版。"
+              : !canEdit
+                ? `可复制链接发给${REVIEWER_CONTACT}核对。`
+                : "可去成员名单核对，或复制链接发给家人。"}
           </p>
+          {canReview && personFocusMissId ? (
+            <button
+              type="button"
+              disabled={personFocusRestoreBusy}
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-60"
+              onClick={() => {
+                const id = personFocusMissId;
+                setPersonFocusRestoreBusy(true);
+                void (async () => {
+                  try {
+                    await v1api.restorePerson(familyId, id, {
+                      idempotencyKey: crypto.randomUUID(),
+                    });
+                    setPersonFocusMiss(false);
+                    setPersonFocusMissId(null);
+                    setAttempt((n) => n + 1);
+                  } catch (e) {
+                    if (handleAuthRedirect(e, router)) return;
+                    setError(userMessageForApiError(e));
+                  } finally {
+                    setPersonFocusRestoreBusy(false);
+                  }
+                })();
+              }}
+            >
+              {personFocusRestoreBusy ? "恢复中…" : "恢复这位家人"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -488,7 +526,10 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            onClick={() => setPersonFocusMiss(false)}
+            onClick={() => {
+              setPersonFocusMiss(false);
+              setPersonFocusMissId(null);
+            }}
           >
             知道了
           </button>
