@@ -833,7 +833,18 @@ export function PersonProfile({
       </section>
 
       {photos.length > 0 ? (
-        <PhotoWall familyId={familyId} photos={photos} />
+        <>
+          <PhotoWall familyId={familyId} photos={photos} />
+          {canEdit ? (
+            <button
+              type="button"
+              className="alpha-print-hide -mt-5 mb-8 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={openPhotoEvidence}
+            >
+              再补一张照片
+            </button>
+          ) : null}
+        </>
       ) : canEdit ? (
         <section
           aria-labelledby="profile-photos"
@@ -859,7 +870,18 @@ export function PersonProfile({
       ) : null}
 
       {audios.length > 0 ? (
-        <AudioWall familyId={familyId} audios={audios} />
+        <>
+          <AudioWall familyId={familyId} audios={audios} />
+          {canEdit ? (
+            <button
+              type="button"
+              className="alpha-print-hide -mt-5 mb-8 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={openAudioEvidence}
+            >
+              再补一段录音
+            </button>
+          ) : null}
+        </>
       ) : canEdit ? (
         <section
           aria-labelledby="profile-audios"
