@@ -1470,7 +1470,9 @@ function ClaimSources({
         {links.map((l) => {
           const mid = l.evidence.mediaObjectId;
           const type = l.evidence.evidenceType;
-          const hasDetail = Boolean(l.evidence.description);
+          const hasDetail = Boolean(
+            l.evidence.description || l.evidence.sourceDateText
+          );
           return (
             <li key={l.evidence.id} className="space-y-1">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -1524,10 +1526,19 @@ function ClaimSources({
                   </button>
                 ) : null}
               </div>
-              {detailId === l.evidence.id && l.evidence.description ? (
-                <p className="whitespace-pre-wrap text-[color:var(--a-ink)]">
-                  {l.evidence.description}
-                </p>
+              {detailId === l.evidence.id && hasDetail ? (
+                <div className="rounded-lg bg-[color:var(--a-brand-soft)]/40 px-2 py-1.5 text-[color:var(--a-muted)]">
+                  {l.evidence.description ? (
+                    <p className="whitespace-pre-wrap text-[color:var(--a-ink)]">
+                      {l.evidence.description}
+                    </p>
+                  ) : null}
+                  {l.evidence.sourceDateText ? (
+                    <p className={l.evidence.description ? "mt-1" : undefined}>
+                      年代 / 日期：{l.evidence.sourceDateText}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </li>
           );

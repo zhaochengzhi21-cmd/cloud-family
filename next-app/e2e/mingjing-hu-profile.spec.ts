@@ -4068,6 +4068,61 @@ test("明经胡氏：无成员时资料来源库仍可见", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：人物页来源详情可看年代日期", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物页来源年代（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "BIRTH_DATE", text: "约明嘉靖年间" },
+  ]);
+  const claims = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}/claims`
+  );
+  expect(claims.status, JSON.stringify(claims.body)).toBe(200);
+  const claimId = (
+    claims.body as { claims: { id: string; claimType: string }[] }
+  ).claims.find((c) => c.claimType === "BIRTH_DATE")!.id;
+  const ev = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
+    method: "POST",
+    body: {
+      evidenceType: "GENEALOGY_PAGE",
+      title: "年代来源（测试）",
+      sourceDateText: "明嘉靖三十四年",
+    },
+  });
+  expect(ev.status, JSON.stringify(ev.body)).toBe(201);
+  const evidenceId = (ev.body as { evidence: { id: string } }).evidence.id;
+  const linked = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}/evidence-links`,
+    {
+      method: "POST",
+      body: { evidenceId, relation: "SUPPORTS" },
+    }
+  );
+  expect(linked.status, JSON.stringify(linked.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  const life = page.getByRole("region", { name: "生平" });
+  await expect(life.getByText(/来源：.*年代来源（测试）/)).toBeVisible({
+    timeout: 60_000,
+  });
+  await life.getByRole("button", { name: "详情" }).click();
+  await expect(life.getByText("年代 / 日期：明嘉靖三十四年")).toBeVisible();
+});
+
 test("明经胡氏：世系唯一成员去添加成员打开表单", async ({
   page,
   baseURL,
