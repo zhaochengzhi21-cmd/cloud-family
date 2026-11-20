@@ -80,6 +80,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
   const [canEdit, setCanEdit] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [personFocusMiss, setPersonFocusMiss] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,8 +132,16 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     } catch {
       return;
     }
-    if (!focusId) return;
+    if (!focusId) {
+      setPersonFocusMiss(false);
+      return;
+    }
     const id = focusId;
+    if (!book.persons.some((p) => p.id === id)) {
+      setPersonFocusMiss(true);
+      return;
+    }
+    setPersonFocusMiss(false);
     const t = window.setTimeout(() => {
       const el = document.getElementById(`print-person-${id}`);
       if (!(el instanceof HTMLElement)) return;
@@ -358,6 +367,39 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
           打印或保存为 PDF
         </button>
       </div>
+
+      {personFocusMiss ? (
+        <div
+          className="alpha-print-hide mb-6 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+          role="status"
+        >
+          <p className="text-sm text-[color:var(--a-muted)]">
+            链接指向的成员已不在这份家谱中，可能刚被移除。
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setPersonFocusMiss(false)}
+          >
+            知道了
+          </button>
+          {!canEdit ? (
+            <Link
+              href={`/alpha/families/${familyId}?scroll=participants`}
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            >
+              查看参与家人
+            </Link>
+          ) : (
+            <Link
+              href={`/alpha/families/${familyId}?tab=members`}
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            >
+              去成员名单
+            </Link>
+          )}
+        </div>
+      ) : null}
 
       <header className="mb-10 border-b border-[color:var(--a-brand-line)] pb-6 text-center">
         <h1 className="alpha-font-display text-4xl font-bold tracking-widest text-[color:var(--a-ink)]">
