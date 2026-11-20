@@ -3879,6 +3879,10 @@ function ClaimCard({
               不采用
             </button>
           </div>
+        ) : !canReview && claim.status === "CONFLICTED" ? (
+          <p className="text-xs text-[color:var(--a-muted)]">
+            需管理员选用一种说法
+          </p>
         ) : null}
         {claim.status === "ACCEPTED" ? (
           <div className="flex flex-wrap gap-2">
