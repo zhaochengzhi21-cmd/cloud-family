@@ -269,6 +269,23 @@ function capabilitiesForRole(
       roles: ["OWNER", "ADMIN", "EDITOR"],
       policy: ["Soft-deletable; restore via …/restore"],
     },
+    {
+      id: "create_relationships_batch",
+      summary: "Record up to 20 parent/spouse edges in one call",
+      method: "POST",
+      path: `${base}/relationships/batch`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        relationships:
+          "array of { fromPersonId, toPersonId, relationshipType, clientItemId? }",
+        onDuplicate: "reuse|error — default reuse",
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
+      policy: [
+        "Partial success — check results[].ok",
+        "from=parent / to=child for parent types; SPOUSE is undirected",
+      ],
+    },
   ];
   if (!role) return [];
   return all.filter((c) =>

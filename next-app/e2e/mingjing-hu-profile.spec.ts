@@ -521,6 +521,31 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   expect(personsBody.created).toBe(2);
   const personId = personsBody.results.find((r) => r.clientItemId === "wg")!
     .person!.id;
+  const sideId = personsBody.results.find((r) => r.clientItemId === "side")!
+    .person!.id;
+
+  const relBatch = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/relationships/batch`,
+    {
+      method: "POST",
+      body: {
+        relationships: [
+          {
+            fromPersonId: personId,
+            toPersonId: sideId,
+            relationshipType: "BIOLOGICAL_PARENT",
+            clientItemId: "edge-1",
+          },
+        ],
+        onDuplicate: "reuse",
+      },
+      headers: { "Idempotency-Key": `e2e-rels-${Date.now()}` },
+    }
+  );
+  expect(relBatch.status, JSON.stringify(relBatch.body)).toBe(201);
+  expect((relBatch.body as { created: number }).created).toBe(1);
+
   const idem = `e2e-batch-${Date.now()}`;
 
   const body = {
@@ -646,6 +671,9 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   ).toBe(true);
   expect(
     channel.capabilities.some((c) => c.id === "create_persons_batch")
+  ).toBe(true);
+  expect(
+    channel.capabilities.some((c) => c.id === "create_relationships_batch")
   ).toBe(true);
 
   const ev = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {

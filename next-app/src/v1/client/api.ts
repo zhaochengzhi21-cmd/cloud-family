@@ -501,6 +501,46 @@ export const v1api = {
       { method: "POST", body }
     ),
 
+  createRelationshipsBatch: (
+    familyId: string,
+    body: {
+      relationships: Array<{
+        fromPersonId: string;
+        toPersonId: string;
+        relationshipType: string;
+        clientItemId?: string;
+      }>;
+      onDuplicate?: "error" | "reuse";
+    },
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{
+      results: Array<
+        | {
+            index: number;
+            ok: true;
+            relationship: { id: string };
+            reused: boolean;
+            clientItemId?: string;
+          }
+        | { index: number; ok: false; code: string; clientItemId?: string }
+      >;
+      created: number;
+      reused: number;
+      failed: number;
+      familyVersion: number | null;
+    }>(`/api/v1/families/${familyId}/relationships/batch`, {
+      method: "POST",
+      body: {
+        relationships: body.relationships,
+        onDuplicate: body.onDuplicate ?? "reuse",
+      },
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
+
   deleteRelationship: (familyId: string, relationshipId: string) =>
     v1Fetch<{ relationshipId: string; familyVersion: number }>(
       `/api/v1/families/${familyId}/relationships/${relationshipId}`,

@@ -74,6 +74,28 @@ export const createRelationshipBodySchema = z
   })
   .strict();
 
+const createRelationshipBatchItemSchema = z
+  .object({
+    fromPersonId: uuid,
+    toPersonId: uuid,
+    relationshipType: z.enum([
+      "BIOLOGICAL_PARENT",
+      "ADOPTIVE_PARENT",
+      "STEP_PARENT",
+      "SPOUSE",
+    ]),
+    clientItemId: z.string().min(1).max(64).optional(),
+  })
+  .strict();
+
+/** Batch create edges — AI/import friendly; max 20. */
+export const createRelationshipsBatchBodySchema = z
+  .object({
+    relationships: z.array(createRelationshipBatchItemSchema).min(1).max(20),
+    onDuplicate: z.enum(["error", "reuse"]).optional(),
+  })
+  .strict();
+
 export const createClaimBodySchema = z
   .object({
     subjectType: z.enum(["FAMILY", "PERSON", "RELATIONSHIP"]),
