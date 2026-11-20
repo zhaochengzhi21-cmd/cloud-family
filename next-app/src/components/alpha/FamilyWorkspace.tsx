@@ -243,7 +243,8 @@ export function FamilyWorkspace({
       | "evidence"
       | "evidence-link"
       | "claim"
-      | "claim-accept";
+      | "claim-accept"
+      | "claim-reopen";
     id: string;
     label: string;
     claimId?: string;
@@ -856,12 +857,14 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     let target = "";
+    let fromPendingScroll = false;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("scroll");
       if (fromUrl === "participants") {
         target = "overview-participants";
       } else if (fromUrl === "pending") {
         target = "overview-pending";
+        fromPendingScroll = true;
       } else if (fromUrl === "sources") {
         target = "overview-sources-section";
       } else {
@@ -869,6 +872,7 @@ export function FamilyWorkspace({
           sessionStorage.getItem(`alpha-overview-scroll:${familyId}`) ?? "";
         if (!target) return;
         sessionStorage.removeItem(`alpha-overview-scroll:${familyId}`);
+        fromPendingScroll = target === "overview-pending";
       }
     } catch {
       return;
@@ -884,6 +888,15 @@ export function FamilyWorkspace({
       }
       if (tries++ < 20) {
         window.setTimeout(tick, 100);
+        return;
+      }
+      if (fromPendingScroll) {
+        setFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?scroll=pending`
+        );
+        setFlash(
+          "当前没有待确认资料。可复制链接发给家人，或到资料页继续整理。"
+        );
       }
     };
     window.setTimeout(tick, 50);
@@ -1790,6 +1803,25 @@ export function FamilyWorkspace({
                         } else {
                           setFlashCopyUrl(null);
                           setFlash(`已恢复「${undo.label}」的挂接`);
+                        }
+                      } else if (undo.kind === "claim-reopen") {
+                        await v1api.rejectClaim(familyId, undo.id, {
+                          idempotencyKey: crypto.randomUUID(),
+                        });
+                        if (undo.personId) {
+                          const qs = new URLSearchParams({
+                            tab: "records",
+                            person: undo.personId,
+                            claim: undo.id,
+                          });
+                          setFlashCopyUrl(
+                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                          );
+                          setFlash(
+                            "已改回不采用。可复制链接发给家人核对。"
+                          );
+                        } else {
+                          setFlash("已改回不采用");
                         }
                       } else if (
                         undo.kind === "claim" ||
@@ -4248,7 +4280,7 @@ function RecordsTab({
   setFlashCopyUrl: (url: string | null) => void;
   setPendingUndo: (
     undo: null | {
-      kind: "claim" | "claim-accept";
+      kind: "claim" | "claim-accept" | "claim-reopen";
       id: string;
       label: string;
       personId?: string;
@@ -4529,6 +4561,8 @@ function RecordsTab({
     setClaimFocusMissUrl(null);
     setClaimFocusMissClaimId(null);
     const claimId = recordsFocus.claimId;
+    // Clear type chip so the focused row is mounted even if a prior filter hid it.
+    setTypeFilter("ALL");
     if (focused.status === "REJECTED") {
       setStatusFilter("ALL");
       setRejectedOpen(true);
@@ -4553,7 +4587,7 @@ function RecordsTab({
           el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
         }, 2400);
       }
-    }, 80);
+    }, 120);
     return () => window.clearTimeout(t);
   }, [
     recordsFocus,
@@ -4768,7 +4802,7 @@ function RecordsTab({
                     setRejectedOpen(false);
                     await loadClaims();
                     setFlash(
-                      "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                      "已重新打开这条资料，可再次确认或不采用。误操作可点恢复。可复制链接发给家人核对。"
                     );
                     const qs = new URLSearchParams({
                       tab: "records",
@@ -4779,6 +4813,12 @@ function RecordsTab({
                     setFlashCopyUrl(
                       `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
                     );
+                    setPendingUndo({
+                      kind: "claim-reopen",
+                      id,
+                      label: "这条资料",
+                      personId,
+                    });
                     window.setTimeout(() => {
                       const el = document.querySelector(
                         `[data-claim-id="${id}"]`
@@ -5310,8 +5350,14 @@ function RecordsTab({
                             `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
                           );
                           setFlash(
-                            "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                            "已重新打开这条资料，可再次确认或不采用。误操作可点恢复。可复制链接发给家人核对。"
                           );
+                          setPendingUndo({
+                            kind: "claim-reopen",
+                            id: c.id,
+                            label: "这条资料",
+                            personId,
+                          });
                           setRejectedOpen(false);
                           setStatusFilter("PROPOSED");
                           await loadClaims();

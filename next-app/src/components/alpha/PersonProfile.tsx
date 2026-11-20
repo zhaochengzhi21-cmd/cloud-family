@@ -140,7 +140,7 @@ export function PersonProfile({
   const [copyPageFlash, setCopyPageFlash] = useState("");
   const [pendingCopyFlash, setPendingCopyFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
-    kind: "relationship";
+    kind: "relationship" | "claim-reopen";
     id: string;
     label: string;
   }>(null);
@@ -778,19 +778,34 @@ export function PersonProfile({
                   setFlash("");
                   void (async () => {
                     try {
-                      await v1api.restoreRelationship(familyId, undo.id, {
-                        idempotencyKey: crypto.randomUUID(),
-                      });
-                      const qs = new URLSearchParams({
-                        tab: "lineage",
-                        person: personId,
-                      });
-                      setFlashCopyUrl(
-                        `${window.location.origin}${workspaceHref}?${qs.toString()}`
-                      );
-                      setFlash(
-                        `已恢复${undo.label}。可复制链接发给家人一起看世系。`
-                      );
+                      if (undo.kind === "claim-reopen") {
+                        await v1api.rejectClaim(familyId, undo.id, {
+                          idempotencyKey: crypto.randomUUID(),
+                        });
+                        const qs = new URLSearchParams({
+                          tab: "records",
+                          person: personId,
+                          claim: undo.id,
+                        });
+                        setFlashCopyUrl(
+                          `${window.location.origin}${workspaceHref}?${qs.toString()}`
+                        );
+                        setFlash("已改回不采用。可复制链接发给家人核对。");
+                      } else {
+                        await v1api.restoreRelationship(familyId, undo.id, {
+                          idempotencyKey: crypto.randomUUID(),
+                        });
+                        const qs = new URLSearchParams({
+                          tab: "lineage",
+                          person: personId,
+                        });
+                        setFlashCopyUrl(
+                          `${window.location.origin}${workspaceHref}?${qs.toString()}`
+                        );
+                        setFlash(
+                          `已恢复${undo.label}。可复制链接发给家人一起看世系。`
+                        );
+                      }
                       await load();
                     } catch (e) {
                       if (handleAuthRedirect(e, router)) return;
@@ -1581,9 +1596,23 @@ export function PersonProfile({
                             await v1api.reopenClaim(familyId, c.id, {
                               idempotencyKey: crypto.randomUUID(),
                             });
-                            setFlash(
-                              "已重新打开这条资料，可再次确认或不采用。"
+                            const qs = new URLSearchParams({
+                              tab: "records",
+                              person: personId,
+                              claim: c.id,
+                              claimStatus: "PROPOSED",
+                            });
+                            setFlashCopyUrl(
+                              `${window.location.origin}${workspaceHref}?${qs.toString()}`
                             );
+                            setFlash(
+                              "已重新打开这条资料，可再次确认或不采用。误操作可点恢复。可复制链接发给家人核对。"
+                            );
+                            setPendingUndo({
+                              kind: "claim-reopen",
+                              id: c.id,
+                              label: "这条资料",
+                            });
                             await load();
                             openRecordsFocus(c.id, "PROPOSED");
                           } catch (e) {
