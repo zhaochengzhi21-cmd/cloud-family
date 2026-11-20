@@ -2256,6 +2256,33 @@ function MembersTab({
           <p>
             档案里只有一位成员。有编辑权限的家人再补一位后，才能建立关系、排进世代。
           </p>
+          <button
+            type="button"
+            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              const url = `${window.location.origin}/alpha/families/${familyId}?tab=members&add=person`;
+              void navigator.clipboard.writeText(url).then(
+                () => {
+                  setCopyFlashId("sole-ok");
+                  window.setTimeout(() => {
+                    setCopyFlashId((id) => (id === "sole-ok" ? null : id));
+                  }, 2500);
+                },
+                () => {
+                  setCopyFlashId("sole-fail");
+                  window.setTimeout(() => {
+                    setCopyFlashId((id) => (id === "sole-fail" ? null : id));
+                  }, 2500);
+                }
+              );
+            }}
+          >
+            {copyFlashId === "sole-ok"
+              ? "已复制链接"
+              : copyFlashId === "sole-fail"
+                ? "请手动复制"
+                : "复制添加成员链接"}
+          </button>
           {onOpenParticipants ? (
             <button
               type="button"
