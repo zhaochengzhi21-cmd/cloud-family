@@ -1111,16 +1111,24 @@ export function FamilyWorkspace({
         <p className="text-[color:var(--a-danger)]" role="alert">
           {error}
         </p>
-        <button
-          type="button"
-          className="alpha-btn alpha-btn-secondary mt-4"
-          onClick={() => {
-            setLoading(true);
-            void load();
-          }}
-        >
-          重新加载
-        </button>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary"
+            onClick={() => {
+              setLoading(true);
+              void load();
+            }}
+          >
+            重新加载
+          </button>
+          <Link
+            href="/alpha/families"
+            className="alpha-btn alpha-btn-secondary inline-flex"
+          >
+            返回我的家族
+          </Link>
+        </div>
       </div>
     );
   }
