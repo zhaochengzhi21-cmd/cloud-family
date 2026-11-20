@@ -3086,6 +3086,11 @@ function RecordsTab({
 
   useEffect(() => {
     if (!claimSeed) return;
+    if (!canEdit) {
+      setClaimFocusMiss(true);
+      onClaimSeedConsumed();
+      return;
+    }
     if (persons.some((p) => p.id === claimSeed.personId)) {
       setPersonId(claimSeed.personId);
       setLocalSeed({
@@ -3093,7 +3098,7 @@ function RecordsTab({
         nonce: claimSeed.nonce,
       });
     }
-  }, [claimSeed, persons]);
+  }, [claimSeed, persons, canEdit, onClaimSeedConsumed]);
 
   useEffect(() => {
     if (!evidenceSeed) return;
@@ -3276,7 +3281,9 @@ function RecordsTab({
           role="status"
         >
           <p className="text-sm text-[color:var(--a-muted)]">
-            要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。
+            {canEdit
+              ? "要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。"
+              : "当前为只读，无法在此补充人物资料。可联系有编辑权限的家人，或查看参与家人。"}
           </p>
           <button
             type="button"
