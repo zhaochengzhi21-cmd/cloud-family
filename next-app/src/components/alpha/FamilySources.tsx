@@ -143,6 +143,7 @@ export function FamilySources({
     url: string;
     personId: string;
     claimId: string;
+    evidenceId?: string;
   } | null>(null);
   const [attachCopyFlash, setAttachCopyFlash] = useState("");
   const [focusMissId, setFocusMissId] = useState<string | null>(null);
@@ -410,8 +411,22 @@ export function FamilySources({
             initialEvidenceType={addSeedType}
             onAuthError={onAuthError}
             onCancel={() => setAdding(false)}
-            onDone={async () => {
+            onDone={async (created) => {
               setAdding(false);
+              const qs = new URLSearchParams({
+                tab: "overview",
+                scroll: "sources",
+                evidence: created.evidenceId,
+              });
+              setAttachFlash({
+                message:
+                  "已收录资料来源。可复制链接发给家人，或挂到人物资料。",
+                url: `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`,
+                personId: "",
+                claimId: "",
+                evidenceId: created.evidenceId,
+              });
+              setAttachCopyFlash("");
               await load();
               onCreated?.();
             }}
@@ -425,22 +440,43 @@ export function FamilySources({
             <p className="text-sm text-[color:var(--a-muted)]">
               {attachFlash.message}
             </p>
-            <button
-              type="button"
-              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-              onClick={() => {
-                if (onOpenRecords) {
-                  onOpenRecords(attachFlash.personId, {
-                    focusClaimId: attachFlash.claimId,
-                  });
+            {attachFlash.personId && attachFlash.claimId ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  if (onOpenRecords) {
+                    onOpenRecords(attachFlash.personId, {
+                      focusClaimId: attachFlash.claimId,
+                    });
+                    setAttachFlash(null);
+                    return;
+                  }
+                  window.location.assign(attachFlash.url);
+                }}
+              >
+                打开人物资料
+              </button>
+            ) : attachFlash.evidenceId && canEdit ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  setAttachingId(attachFlash.evidenceId!);
                   setAttachFlash(null);
-                  return;
-                }
-                window.location.assign(attachFlash.url);
-              }}
-            >
-              打开人物资料
-            </button>
+                  window.setTimeout(() => {
+                    const el = document.querySelector(
+                      `[data-evidence-id="${attachFlash.evidenceId}"]`
+                    );
+                    if (el instanceof HTMLElement) {
+                      el.scrollIntoView({ block: "center", behavior: "smooth" });
+                    }
+                  }, 80);
+                }}
+              >
+                挂到人物资料
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -984,7 +1020,7 @@ function LibraryAddSourceForm({
   initialEvidenceType?: string;
   onAuthError: (e: unknown) => boolean;
   onCancel: () => void;
-  onDone: () => Promise<void>;
+  onDone: (created: { evidenceId: string }) => Promise<void>;
 }) {
   const [evidenceType, setEvidenceType] = useState(initialEvidenceType);
   const [title, setTitle] = useState("");
@@ -1097,7 +1133,7 @@ function LibraryAddSourceForm({
         setUploadState("正在保存来源…");
         setUploadPct(92);
       }
-      await v1api.createEvidence(
+      const created = await v1api.createEvidence(
         familyId,
         {
           evidenceType,
@@ -1111,7 +1147,7 @@ function LibraryAddSourceForm({
       );
       setUploadState("");
       setUploadPct(0);
-      await onDone();
+      await onDone({ evidenceId: created.evidence.id });
     } catch (err) {
       if (onAuthError(err)) return;
       setUploadState(phase ? "上传失败" : "");

@@ -1567,8 +1567,35 @@ export function PersonProfile({
             ) : (
               <div className="mt-3 flex flex-wrap gap-2">
                 <p className="w-full text-sm text-[color:var(--a-muted)]">
-                  有编辑权限的家人可以补充父母、配偶或子女。
+                  有编辑权限的家人可以补充父母、配偶或子女。可复制添加链接发给对方。
                 </p>
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                  onClick={() => {
+                    const qs = new URLSearchParams({
+                      tab: "lineage",
+                      person: personId,
+                      kin: "child",
+                    });
+                    const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                    void navigator.clipboard.writeText(url).then(
+                      () => {
+                        setCopyPageFlash("已复制添加亲人链接");
+                        window.setTimeout(() => setCopyPageFlash(""), 2500);
+                      },
+                      () => {
+                        setCopyPageFlash("请手动复制地址栏链接");
+                        window.setTimeout(() => setCopyPageFlash(""), 2500);
+                      }
+                    );
+                  }}
+                >
+                  {copyPageFlash.includes("添加亲人") ||
+                  copyPageFlash.startsWith("请手动")
+                    ? copyPageFlash
+                    : "复制添加亲人链接"}
+                </button>
                 <Link
                   href={`${workspaceHref}?scroll=participants`}
                   className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
