@@ -25,6 +25,7 @@ const FEED_EVENT_TYPES = [
   "CLAIM_CREATED",
   "CLAIM_ACCEPTED",
   "CLAIM_REJECTED",
+  "CLAIM_REOPENED",
   "EVIDENCE_CREATED",
   "EVIDENCE_DELETED",
   "EVIDENCE_RESTORED",
@@ -201,7 +202,8 @@ export async function getFamilyActivity(
       }
       case "CLAIM_CREATED":
       case "CLAIM_ACCEPTED":
-      case "CLAIM_REJECTED": {
+      case "CLAIM_REJECTED":
+      case "CLAIM_REOPENED": {
         const c = r.entityId ? claimById.get(r.entityId) : undefined;
         if (!c || c.subjectType !== "PERSON") break;
         if (!FEED_CLAIM_TYPES.has(c.claimType)) break;
@@ -213,6 +215,8 @@ export async function getFamilyActivity(
           personName: name,
           claimId: c.id,
           claimType: c.claimType,
+          restorable:
+            r.eventType === "CLAIM_REJECTED" && c.status === "REJECTED",
         });
         break;
       }

@@ -556,6 +556,12 @@ export const v1api = {
       { method: "POST", body: {} }
     ),
 
+  reopenClaim: (familyId: string, claimId: string) =>
+    v1Fetch<{ claim: { id: string; status: string } }>(
+      `/api/v1/families/${familyId}/claims/${claimId}/reopen`,
+      { method: "POST", body: {} }
+    ),
+
   listEvidence: (familyId: string, limit = 100) =>
     v1Fetch<{
       evidence: Array<{

@@ -62,6 +62,7 @@ export async function findClaimSubjects(
       subjectType: claims.subjectType,
       subjectId: claims.subjectId,
       claimType: claims.claimType,
+      status: claims.status,
     })
     .from(claims)
     .where(and(eq(claims.familyId, familyId), inArray(claims.id, claimIds)));

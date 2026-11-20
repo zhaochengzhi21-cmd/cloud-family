@@ -792,6 +792,20 @@ export function FamilyWorkspace({
                 setError(userMessageForApiError(e));
               }
             }}
+            onReopenClaim={async (personId, claimId) => {
+              try {
+                await v1api.reopenClaim(familyId, claimId);
+                setFlash("已重新打开这条资料，可再次确认或不采用");
+                await load();
+                openRecordsFor(personId, {
+                  focusClaimId: claimId,
+                  statusFilter: "PROPOSED",
+                });
+              } catch (e) {
+                if (authRedirect(e)) return;
+                setError(userMessageForApiError(e));
+              }
+            }}
             onAuthError={authRedirect}
             externalFocusEvidenceId={sourcesFocusEvidenceId}
             onExternalFocusEvidenceConsumed={() =>
@@ -2456,10 +2470,32 @@ function RecordsTab({
               <li
                 key={c.id}
                 data-claim-id={c.id}
-                className="rounded-lg px-1 py-0.5"
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg px-1 py-0.5"
               >
-                {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
-                {c.value?.text ?? "—"}（不采用）
+                <span>
+                  {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
+                  {c.value?.text ?? "—"}（不采用）
+                </span>
+                {canReview ? (
+                  <button
+                    type="button"
+                    className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={async () => {
+                      try {
+                        await v1api.reopenClaim(familyId, c.id);
+                        setFlash("已重新打开这条资料，可再次确认或不采用");
+                        setRejectedOpen(false);
+                        setStatusFilter("PROPOSED");
+                        await loadClaims();
+                      } catch (e) {
+                        if (onAuthError(e)) return;
+                        setError(userMessageForApiError(e));
+                      }
+                    }}
+                  >
+                    恢复待确认
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -5382,10 +5418,34 @@ function PersonDrawer({
                   <li
                     key={c.id}
                     data-claim-id={c.id}
-                    className="rounded-lg px-1 py-0.5"
+                    className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg px-1 py-0.5"
                   >
-                    {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
-                    {c.value?.text ?? "—"}（不采用）
+                    <span>
+                      {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
+                      {c.value?.text ?? "—"}（不采用）
+                    </span>
+                    {canReview ? (
+                      <button
+                        type="button"
+                        className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={async () => {
+                          try {
+                            await v1api.reopenClaim(familyId, c.id);
+                            setLocalFlash(
+                              "已重新打开这条资料，可再次确认或不采用"
+                            );
+                            await loadClaims();
+                          } catch (e) {
+                            if (onAuth(e)) return;
+                            const msg = userMessageForApiError(e);
+                            setLocalError(msg);
+                            onError(msg);
+                          }
+                        }}
+                      >
+                        恢复待确认
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

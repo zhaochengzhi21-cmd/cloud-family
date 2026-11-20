@@ -159,6 +159,33 @@ export async function tryRejectReviewedClaim(
   return row ?? null;
 }
 
+/** Undo reject: REJECTED → PROPOSED (back into the review queue). */
+export async function tryReopenRejectedClaim(
+  db: DbOrTx,
+  args: {
+    claimId: string;
+    updatedAt: Date;
+  }
+): Promise<typeof claims.$inferSelect | null> {
+  const [row] = await db
+    .update(claims)
+    .set({
+      status: "PROPOSED",
+      reviewedByUserId: null,
+      reviewedAt: null,
+      updatedAt: args.updatedAt,
+    })
+    .where(
+      and(
+        eq(claims.id, args.claimId),
+        eq(claims.status, "REJECTED"),
+        isNull(claims.deletedAt)
+      )
+    )
+    .returning();
+  return row ?? null;
+}
+
 export async function listConflictCandidates(
   db: DbOrTx,
   args: {

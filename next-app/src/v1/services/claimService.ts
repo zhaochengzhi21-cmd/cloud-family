@@ -607,6 +607,78 @@ export async function rejectClaim(
   });
 }
 
+/**
+ * Undo a mistaken reject: REJECTED → PROPOSED (same ACL as review).
+ */
+export async function reopenClaim(
+  familyId: string,
+  claimId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db }
+): Promise<ReviewClaimResult> {
+  const database = dbOrDefault(options?.db);
+  const userId = actorUserId(actorContext);
+  if (!userId) {
+    throw new ClaimDomainError("FORBIDDEN");
+  }
+
+  const reviewAuth = await authorizeFamilyAction(
+    familyId,
+    actorContext,
+    "REVIEW_CLAIM",
+    { db: database }
+  ).catch(mapPerm);
+  if (reviewAuth.decision !== "ALLOW") {
+    throw new ClaimDomainError("FORBIDDEN");
+  }
+
+  const now = new Date();
+
+  return database.transaction(async (tx) => {
+    const family = await lockFamilyForMutation(tx, familyId);
+    if (!family) {
+      throw new ClaimDomainError("FAMILY_NOT_FOUND");
+    }
+
+    const existing = await claimRepo.findActiveClaimById(tx, claimId);
+    if (!existing || existing.familyId !== familyId) {
+      throw new ClaimDomainError("CLAIM_NOT_FOUND");
+    }
+    if (existing.status !== "REJECTED") {
+      throw new ClaimDomainError("INVALID_CLAIM_STATUS_TRANSITION");
+    }
+
+    const updated = await claimRepo.tryReopenRejectedClaim(tx, {
+      claimId,
+      updatedAt: now,
+    });
+    if (!updated) {
+      throw new ClaimDomainError("REVIEW_CONFLICT");
+    }
+
+    const familyVersion = await advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId: userId,
+      summary: "CLAIM_REOPENED",
+      eventType: "CLAIM_REOPENED",
+      entityType: "CLAIM",
+      entityId: claimId,
+      metadataJson: {
+        claimType: existing.claimType,
+        subjectType: existing.subjectType,
+      },
+      now: new Date(),
+    });
+
+    return {
+      claim: claimRepo.mapClaimDto(updated),
+      familyVersion,
+      conflictCount: 0,
+      changedClaimCount: 1,
+    };
+  });
+}
+
 export async function canReadClaim(
   row: {
     familyId: string;

@@ -99,6 +99,8 @@ function activityPieces(item: ActivityItem): Piece[] | null {
       return p ? ["确认了「", p, `」的${claimLabel}`] : null;
     case "CLAIM_REJECTED":
       return p ? ["不采用「", p, `」的一条${claimLabel}`] : null;
+    case "CLAIM_REOPENED":
+      return p ? ["重新打开了「", p, `」的一条${claimLabel}`] : null;
     case "EVIDENCE_CREATED": {
       const t = item.evidenceType ? EVIDENCE_TYPE_UI[item.evidenceType] : null;
       return [t ? `添加了一条资料来源（${t}）` : "添加了一条资料来源"];
@@ -136,6 +138,7 @@ export function OverviewTab({
   onRestorePerson,
   onRestoreRelationship,
   onRestoreEvidence,
+  onReopenClaim,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -177,6 +180,11 @@ export function OverviewTab({
   onRestoreRelationship?: (relationshipId: string) => void | Promise<void>;
   /** Undo soft-deleted evidence (OWNER/ADMIN). */
   onRestoreEvidence?: (evidenceId: string) => void | Promise<void>;
+  /** Undo mistaken reject (OWNER/ADMIN). */
+  onReopenClaim?: (
+    personId: string,
+    claimId: string
+  ) => void | Promise<void>;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -1130,6 +1138,25 @@ export function OverviewTab({
                           }
                         >
                           查看
+                        </button>
+                      </>
+                    ) : null}
+                    {item.eventType === "CLAIM_REJECTED" &&
+                    item.restorable &&
+                    item.claimId &&
+                    item.personId &&
+                    canReview &&
+                    onReopenClaim ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() =>
+                            void onReopenClaim(item.personId!, item.claimId!)
+                          }
+                        >
+                          恢复
                         </button>
                       </>
                     ) : null}
