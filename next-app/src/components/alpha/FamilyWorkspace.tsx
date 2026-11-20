@@ -4487,6 +4487,7 @@ function AddEvidenceForm({
                     {(EVIDENCE_TYPE_UI[e.evidenceType] ?? "来源") +
                       (e.title ? ` · ${e.title}` : "") +
                       (e.sourceLocator ? ` · ${e.sourceLocator}` : "") +
+                      (e.sourceDateText ? ` · ${e.sourceDateText}` : "") +
                       (e.linkCount ? `（已用于 ${e.linkCount} 条资料）` : "")}
                   </option>
                 ))}
