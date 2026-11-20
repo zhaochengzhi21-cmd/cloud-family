@@ -147,7 +147,7 @@ export const LOGIN_COPY = {
 
 export const EMPTY_FAMILIES = {
   title: "还没有家族档案",
-  body: "从两三个你熟悉的家人开始就可以，资料以后可以慢慢补充。",
+  body: "从两三个你熟悉的家人开始就可以，资料以后可以慢慢补充。若家人已发来邀请链接，打开链接即可加入。",
   cta: "创建第一个家族档案",
 } as const;
 

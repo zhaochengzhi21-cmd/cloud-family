@@ -177,6 +177,16 @@ export default function AlphaFamiliesPage() {
           >
             {EMPTY_FAMILIES.cta}
           </button>
+          <p className="mt-4 text-sm text-[color:var(--a-muted)]">
+            已有邀请？打开家人发来的链接，或到{" "}
+            <Link
+              href="/alpha/login"
+              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            >
+              登录页
+            </Link>{" "}
+            粘贴邀请码。
+          </p>
         </div>
       ) : null}
 
