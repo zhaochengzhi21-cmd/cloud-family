@@ -407,6 +407,20 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const kin = params.get("kin");
+      const person = params.get("person");
+      if (
+        person &&
+        (kin === "child" || kin === "parent" || kin === "spouse")
+      ) {
+        setRelFocusPersonId(person);
+        setKinRole(kin);
+        setShowAddKin(true);
+        setLineageUrlPerson(person);
+        setTab("lineage");
+        return;
+      }
       const raw = sessionStorage.getItem(`alpha-add-kin:${familyId}`);
       if (!raw) return;
       sessionStorage.removeItem(`alpha-add-kin:${familyId}`);
@@ -722,12 +736,26 @@ export function FamilyWorkspace({
       params.delete("claimStatus");
       // Prefer open drawer; otherwise keep lineage highlight subject shareable.
       const lineagePerson =
-        selectedPersonId || lineageUrlPerson || pendingClaimPerson || null;
+        selectedPersonId ||
+        (showAddKin ? relFocusPersonId : null) ||
+        lineageUrlPerson ||
+        pendingClaimPerson ||
+        null;
       if (lineagePerson) params.set("person", lineagePerson);
       else params.delete("person");
+      if (
+        showAddKin &&
+        relFocusPersonId &&
+        (kinRole === "child" || kinRole === "parent" || kinRole === "spouse")
+      ) {
+        params.set("kin", kinRole);
+      } else {
+        params.delete("kin");
+      }
     } else {
       params.delete("claim");
       params.delete("claimStatus");
+      params.delete("kin");
       if (selectedPersonId) params.set("person", selectedPersonId);
       else params.delete("person");
     }
@@ -748,6 +776,9 @@ export function FamilyWorkspace({
     recordsUrlPerson,
     lineageUrlPerson,
     drawerBasicsFocus,
+    showAddKin,
+    relFocusPersonId,
+    kinRole,
     pathname,
     router,
     searchParams,

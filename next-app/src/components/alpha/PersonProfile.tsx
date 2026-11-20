@@ -411,7 +411,12 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(`${workspaceHref}?tab=lineage`);
+    const qs = new URLSearchParams({
+      tab: "lineage",
+      person: personId,
+      kin: role,
+    });
+    router.push(`${workspaceHref}?${qs.toString()}`);
   }
 
   function openPersonBasics(focus: "living" | "gender" | "name") {
