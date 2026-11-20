@@ -338,7 +338,14 @@ export function PersonProfile({
       sessionStorage.setItem(`alpha-records-person:${familyId}`, personId);
       sessionStorage.setItem(`alpha-tab:${familyId}`, "records");
       sessionStorage.removeItem(`alpha-records-claim-seed:${familyId}`);
-      sessionStorage.removeItem(`alpha-records-focus:${familyId}`);
+      sessionStorage.setItem(
+        `alpha-records-focus:${familyId}`,
+        JSON.stringify({
+          personId,
+          claimId,
+          nonce: Date.now(),
+        })
+      );
       sessionStorage.setItem(
         `alpha-records-evidence-seed:${familyId}`,
         JSON.stringify({
@@ -351,7 +358,12 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(`${workspaceHref}?tab=records`);
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: personId,
+      claim: claimId,
+    });
+    router.push(`${workspaceHref}?${qs.toString()}`);
   }
 
   function openRecordsFocus(claimId: string, status?: string) {
@@ -770,7 +782,13 @@ export function PersonProfile({
                 <button
                   type="button"
                   className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
-                  onClick={() => openRecords()}
+                  onClick={() => {
+                    const firstRejected = claims.find(
+                      (c) => c.status === "REJECTED"
+                    );
+                    if (firstRejected) openRecordsFocus(firstRejected.id);
+                    else openRecords();
+                  }}
                 >
                   去资料页查看
                 </button>

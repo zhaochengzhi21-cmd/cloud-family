@@ -314,20 +314,27 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             href={
               canEdit
                 ? `/alpha/families/${familyId}?tab=members`
-                : `/alpha/families/${familyId}`
+                : `/alpha/families/${familyId}?scroll=participants`
             }
             onClick={() => {
-              if (!canEdit) return;
               try {
-                sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
-                sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
+                if (canEdit) {
+                  sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
+                  sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
+                } else {
+                  sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
+                  sessionStorage.setItem(
+                    `alpha-overview-scroll:${familyId}`,
+                    "overview-participants"
+                  );
+                }
               } catch {
                 /* private mode */
               }
             }}
             className="alpha-btn alpha-btn-primary mt-6 inline-flex !min-h-[40px] !text-sm"
           >
-            {canEdit ? "去添加成员" : "返回家族档案"}
+            {canEdit ? "去添加成员" : "查看参与家人"}
           </Link>
         </div>
       </div>
