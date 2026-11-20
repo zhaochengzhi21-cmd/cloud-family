@@ -1706,6 +1706,7 @@ export function FamilyWorkspace({
           onNeedMorePeople={() => {
             setShowAddRel(false);
             setRelFocusPersonId(null);
+            setTab("members");
             setShowAddPerson(true);
           }}
           onDone={async () => {
@@ -1729,6 +1730,12 @@ export function FamilyWorkspace({
           onClose={() => {
             setShowAddKin(false);
             setRelFocusPersonId(null);
+          }}
+          onNeedMorePeople={() => {
+            setShowAddKin(false);
+            setRelFocusPersonId(null);
+            setTab("members");
+            setShowAddPerson(true);
           }}
           onDone={async (result) => {
             setShowAddKin(false);
@@ -1797,6 +1804,7 @@ export function FamilyWorkspace({
             const pid = selectedPersonId;
             setSelectedPersonId(null);
             setDrawerBasicsFocus(null);
+            setTab("lineage");
             setRelFocusPersonId(pid);
             setKinRole(role);
             setShowAddKin(true);
