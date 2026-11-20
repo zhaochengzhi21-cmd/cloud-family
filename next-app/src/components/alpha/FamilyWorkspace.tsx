@@ -1683,6 +1683,9 @@ export function FamilyWorkspace({
             recordsFocus={recordsFocus}
             onRecordsFocusConsumed={() => setRecordsFocus(null)}
             onRecordsPersonChange={setRecordsUrlPerson}
+            onShareClaim={(personId, claimId) =>
+              setShareClaim({ personId, claimId })
+            }
             onOpenSourcesLibrary={(evidenceId) => {
               setSourcesFocusEvidenceId(evidenceId);
               setTab("overview");
@@ -3045,6 +3048,7 @@ function RecordsTab({
   recordsFocus,
   onRecordsFocusConsumed,
   onRecordsPersonChange,
+  onShareClaim,
   onOpenSourcesLibrary,
   onAuthError,
   onOpenPerson,
@@ -3080,6 +3084,7 @@ function RecordsTab({
   } | null;
   onRecordsFocusConsumed: () => void;
   onRecordsPersonChange?: (personId: string | null) => void;
+  onShareClaim?: (personId: string, claimId: string) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
@@ -3540,6 +3545,7 @@ function RecordsTab({
             );
             setFlash(flashAfterClaimSave(followUp, savedType));
             setStatusFilter("ALL");
+            onShareClaim?.(personId, claimId);
             await loadClaims();
             if (followUp) {
               setLocalSeed({ claimType: followUp, nonce: Date.now() });
