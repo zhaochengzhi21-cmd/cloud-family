@@ -609,6 +609,22 @@ export function PersonProfile({
       c.status === "PROPOSED" &&
       (c.originType === "AI_EXTRACTION" || c.originType === "IMPORT")
   ).length;
+  function timelineFill(
+    type: string,
+    seedLabel: string,
+    pendingLabel: string
+  ): TimelineFill | undefined {
+    if (pickShown(claims, type).length > 0) return undefined;
+    const pending = pendingClaims.find((c) => c.claimType === type);
+    if (pending) {
+      return {
+        label: pendingLabel,
+        claimId: pending.id,
+        status: pending.status,
+      };
+    }
+    return { label: seedLabel, claimType: type };
+  }
   const showDeath =
     person.livingStatus === "DECEASED" ||
     deathDate.length > 0 ||
@@ -905,17 +921,19 @@ export function PersonProfile({
               {
                 label: "时间",
                 claims: birthDate,
-                fill:
-                  birthDate.length === 0
-                    ? { label: "补充出生", claimType: "BIRTH_DATE" }
-                    : undefined,
+                fill: timelineFill("BIRTH_DATE", "补充出生", "查看待确认出生"),
               },
               {
                 label: "地点",
                 claims: birthPlace,
                 fill:
-                  birthDate.length > 0 && birthPlace.length === 0
-                    ? { label: "补充出生地", claimType: "BIRTH_PLACE" }
+                  birthDate.length > 0 ||
+                  pendingClaims.some((c) => c.claimType === "BIRTH_DATE")
+                    ? timelineFill(
+                        "BIRTH_PLACE",
+                        "补充出生地",
+                        "查看待确认出生地"
+                      )
                     : undefined,
               },
             ]}
@@ -931,10 +949,14 @@ export function PersonProfile({
           />
           {generationWord.length > 0 ||
           birthOrder.length > 0 ||
-          (canEdit && generation != null && generationWord.length === 0) ||
+          (canEdit &&
+            generation != null &&
+            (generationWord.length === 0 ||
+              pendingClaims.some((c) => c.claimType === "GENERATION_WORD"))) ||
           (canEdit &&
             family.siblings.length > 0 &&
-            birthOrder.length === 0) ? (
+            (birthOrder.length === 0 ||
+              pendingClaims.some((c) => c.claimType === "BIRTH_ORDER"))) ? (
             <TimelineEvent
               title="辈分"
               rows={[
@@ -942,16 +964,24 @@ export function PersonProfile({
                   label: "字辈",
                   claims: generationWord,
                   fill:
-                    generation != null && generationWord.length === 0
-                      ? { label: "补充字辈", claimType: "GENERATION_WORD" }
+                    generation != null
+                      ? timelineFill(
+                          "GENERATION_WORD",
+                          "补充字辈",
+                          "查看待确认字辈"
+                        )
                       : undefined,
                 },
                 {
                   label: "排行",
                   claims: birthOrder,
                   fill:
-                    family.siblings.length > 0 && birthOrder.length === 0
-                      ? { label: "补充排行", claimType: "BIRTH_ORDER" }
+                    family.siblings.length > 0
+                      ? timelineFill(
+                          "BIRTH_ORDER",
+                          "补充排行",
+                          "查看待确认排行"
+                        )
                       : undefined,
                 },
               ]}
@@ -967,17 +997,22 @@ export function PersonProfile({
             />
           ) : null}
           {ancestral.length > 0 ||
-          (canEdit && birthPlace.length > 0 && ancestral.length === 0) ? (
+          (canEdit &&
+            (birthPlace.length > 0 ||
+              pendingClaims.some((c) => c.claimType === "BIRTH_PLACE")) &&
+            (ancestral.length === 0 ||
+              pendingClaims.some((c) => c.claimType === "ANCESTRAL_PLACE"))) ? (
             <TimelineEvent
               title="祖籍"
               rows={[
                 {
                   label: "地方",
                   claims: ancestral,
-                  fill:
-                    ancestral.length === 0
-                      ? { label: "补充祖籍", claimType: "ANCESTRAL_PLACE" }
-                      : undefined,
+                  fill: timelineFill(
+                    "ANCESTRAL_PLACE",
+                    "补充祖籍",
+                    "查看待确认祖籍"
+                  ),
                 },
               ]}
               sources={sources}
@@ -992,17 +1027,22 @@ export function PersonProfile({
             />
           ) : null}
           {occupation.length > 0 ||
-          (canEdit && ancestral.length > 0 && occupation.length === 0) ? (
+          (canEdit &&
+            (ancestral.length > 0 ||
+              pendingClaims.some((c) => c.claimType === "ANCESTRAL_PLACE")) &&
+            (occupation.length === 0 ||
+              pendingClaims.some((c) => c.claimType === "OCCUPATION"))) ? (
             <TimelineEvent
               title="职业"
               rows={[
                 {
                   label: "职事",
                   claims: occupation,
-                  fill:
-                    occupation.length === 0
-                      ? { label: "补充职业", claimType: "OCCUPATION" }
-                      : undefined,
+                  fill: timelineFill(
+                    "OCCUPATION",
+                    "补充职业",
+                    "查看待确认职业"
+                  ),
                 },
               ]}
               sources={sources}
@@ -1017,17 +1057,18 @@ export function PersonProfile({
             />
           ) : null}
           {alias.length > 0 ||
-          (canEdit && occupation.length > 0 && alias.length === 0) ? (
+          (canEdit &&
+            (occupation.length > 0 ||
+              pendingClaims.some((c) => c.claimType === "OCCUPATION")) &&
+            (alias.length === 0 ||
+              pendingClaims.some((c) => c.claimType === "ALIAS"))) ? (
             <TimelineEvent
               title="字号"
               rows={[
                 {
                   label: "称呼",
                   claims: alias,
-                  fill:
-                    alias.length === 0
-                      ? { label: "补充字号", claimType: "ALIAS" }
-                      : undefined,
+                  fill: timelineFill("ALIAS", "补充字号", "查看待确认字号"),
                 },
               ]}
               sources={sources}
@@ -1048,17 +1089,23 @@ export function PersonProfile({
                 {
                   label: "时间",
                   claims: deathDate,
-                  fill:
-                    deathDate.length === 0
-                      ? { label: "补充去世", claimType: "DEATH_DATE" }
-                      : undefined,
+                  fill: timelineFill(
+                    "DEATH_DATE",
+                    "补充去世",
+                    "查看待确认去世"
+                  ),
                 },
                 {
                   label: "安葬",
                   claims: burial,
                   fill:
-                    deathDate.length > 0 && burial.length === 0
-                      ? { label: "补充安葬地", claimType: "BURIAL_PLACE" }
+                    deathDate.length > 0 ||
+                    pendingClaims.some((c) => c.claimType === "DEATH_DATE")
+                      ? timelineFill(
+                          "BURIAL_PLACE",
+                          "补充安葬地",
+                          "查看待确认安葬地"
+                        )
                       : undefined,
                 },
               ]}
@@ -1615,10 +1662,14 @@ export function PersonProfile({
   );
 }
 
+type TimelineFill =
+  | { label: string; claimType: string }
+  | { label: string; claimId: string; status: string };
+
 type TimelineRow = {
   label: string;
   claims: Claim[];
-  fill?: { label: string; claimType: string };
+  fill?: TimelineFill;
 };
 
 function TimelineEvent({
@@ -1647,7 +1698,9 @@ function TimelineEvent({
   onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
   const visible = rows.filter(
-    (r) => r.claims.length > 0 || (canEdit && r.fill && onFill)
+    (r) =>
+      r.claims.length > 0 ||
+      (canEdit && r.fill && (onFill || onFocusClaim))
   );
   if (visible.length === 0) return null;
 
@@ -1679,11 +1732,25 @@ function TimelineEvent({
                   onProposeAlternate={onProposeAlternate}
                   onOpenSourcesLibrary={onOpenSourcesLibrary}
                 />
-              ) : r.fill && onFill ? (
+              ) : r.fill && "claimId" in r.fill && onFocusClaim ? (
                 <button
                   type="button"
                   className="alpha-print-hide text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                  onClick={() => onFill(r.fill!.claimType)}
+                  onClick={() => {
+                    const f = r.fill;
+                    if (f && "claimId" in f) onFocusClaim(f.claimId, f.status);
+                  }}
+                >
+                  {r.fill.label}
+                </button>
+              ) : r.fill && "claimType" in r.fill && onFill ? (
+                <button
+                  type="button"
+                  className="alpha-print-hide text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => {
+                    const f = r.fill;
+                    if (f && "claimType" in f) onFill(f.claimType);
+                  }}
                 >
                   {r.fill.label}
                 </button>

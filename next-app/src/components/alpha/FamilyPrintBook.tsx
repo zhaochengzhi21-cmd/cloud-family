@@ -80,6 +80,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [canReview, setCanReview] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [personFocusMiss, setPersonFocusMiss] = useState(false);
@@ -105,6 +106,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         setCanEdit(
           role === "OWNER" || role === "ADMIN" || role === "EDITOR"
         );
+        setCanReview(role === "OWNER" || role === "ADMIN");
       })
       .catch((e) => {
         if (cancelled || handleAuthRedirect(e, router)) return;
@@ -553,6 +555,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                 kin={layout.kin.get(p.id)}
                 sourceNo={layout.sourceNo}
                 canEdit={canEdit}
+                canReview={canReview}
               />
             ))}
           </div>
@@ -667,6 +670,7 @@ function BookEntry({
   kin,
   sourceNo,
   canEdit = false,
+  canReview = false,
 }: {
   familyId: string;
   person: BookPerson;
@@ -677,6 +681,7 @@ function BookEntry({
   };
   sourceNo: Map<string, number>;
   canEdit?: boolean;
+  canReview?: boolean;
 }) {
   const meta = [
     person.gender !== "UNKNOWN"
@@ -798,12 +803,21 @@ function BookEntry({
           >
             在人物页查看
           </Link>
-          <Link
-            href={`/alpha/families/${familyId}?tab=records&person=${encodeURIComponent(person.id)}&claimStatus=PROPOSED`}
-            className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-          >
-            去资料页确认
-          </Link>
+          {canReview ? (
+            <Link
+              href={`/alpha/families/${familyId}?tab=records&person=${encodeURIComponent(person.id)}&claimStatus=PROPOSED`}
+              className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            >
+              去资料页确认
+            </Link>
+          ) : (
+            <Link
+              href={`/alpha/families/${familyId}?tab=records&person=${encodeURIComponent(person.id)}&claimStatus=PROPOSED`}
+              className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            >
+              去资料页查看
+            </Link>
+          )}
         </p>
       ) : null}
       {stories.length > 0 ? (
