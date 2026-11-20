@@ -686,7 +686,7 @@ export function OverviewTab({
         : `还有 ${unconnected.length} 位成员未连入世系`,
       body: canEdit
         ? "还没有父母或配偶关系，暂时无法排进世代。点人名可为 TA 添加父母（也可在弹窗里改成配偶或子女）。"
-        : "还没有父母或配偶关系，暂时无法排进世代。可先打开人物页了解他们；有编辑权限的家人补上关系后，世系会出现。",
+        : "还没有父母或配偶关系，暂时无法排进世代。可先打开人物资料了解他们；有编辑权限的家人补上关系后，世系会出现。",
       people: unconnected.slice(0, 6),
       peopleAria: canEdit ? "建立关系" : "查看",
       browsePeople: !canEdit,
@@ -699,7 +699,7 @@ export function OverviewTab({
         : `档案里有 ${componentCount} 个尚未连接的分支`,
       body: canEdit
         ? "档案里有几支还没有连在一起。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。"
-        : "几支还没有连在一起。可先打开较小分支里的人物页；有编辑权限的家人补上关系后，会并入主支。",
+        : "几支还没有连在一起。可先打开较小分支里的人物资料；有编辑权限的家人补上关系后，会并入主支。",
       people: branchReps.length > 0 ? branchReps : undefined,
       peopleAria: canEdit ? "连接分支" : "查看",
       browsePeople: !canEdit,
@@ -717,7 +717,7 @@ export function OverviewTab({
     browsePeople: !canEdit,
   });
   const viewerReadHint =
-    "可先打开人物页了解；有编辑权限的家人补充后，这里会更新。";
+    "可先打开人物资料了解；有编辑权限的家人补充后，这里会更新。";
 
   if (missingSpouse.length > 0) {
     steps.push({
@@ -869,7 +869,7 @@ export function OverviewTab({
         ? `补充 ${missingBirthOrder.length} 位兄弟姐妹的排行`
         : `${missingBirthOrder.length} 位兄弟姐妹还没有排行`,
       body: canEdit
-        ? "同一父母下有多位子女时，补上长/次/三…，人物页与打印版的子女顺序会更清楚。"
+        ? "同一父母下有多位子女时，补上长/次/三…，人物资料与打印版的子女顺序会更清楚。"
         : viewerReadHint,
       ...peopleChips(missingBirthOrder, "补充排行"),
     });
@@ -913,7 +913,7 @@ export function OverviewTab({
         : `${unsourcedAcceptedTotal} 条已确认资料还没有来源`,
       body: canEdit
         ? "有出处的资料才经得起后人核对。点人名打开那条资料并挂上来源；谱页、口述、照片都可以。"
-        : "可先打开人物页查看；有编辑权限的家人补上来源后，这里会更新。",
+        : "可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。",
       people: unsourcedPeople.slice(0, 6),
       peopleAria: canEdit ? "补上来源" : "查看",
       browsePeople: !canEdit,
@@ -926,7 +926,7 @@ export function OverviewTab({
         ? `处理 ${pendingTotal} 条待确认资料`
         : `${pendingTotal} 条资料等待确认`,
       body: canReview
-        ? "确认或标记不采用后，资料会在人物档案中正式生效。"
+        ? "确认或标记不采用后，资料会在人物资料中正式生效。"
         : `${REVIEWER_CONTACT}确认后，资料会正式生效。`,
       action: {
         label: canReview ? "去确认" : "查看待确认",

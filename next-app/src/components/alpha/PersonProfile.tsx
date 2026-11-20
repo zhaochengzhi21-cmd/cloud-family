@@ -498,7 +498,7 @@ export function PersonProfile({
   if (loading && !person) {
     return (
       <p className="py-16 text-center text-[color:var(--a-muted)]" role="status">
-        正在打开人物档案…
+        正在打开人物资料…
       </p>
     );
   }

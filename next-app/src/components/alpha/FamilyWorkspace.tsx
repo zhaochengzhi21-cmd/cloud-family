@@ -2406,7 +2406,7 @@ function LineageTab({
           <p className="text-sm text-[color:var(--a-muted)]">
             {canEdit
               ? `档案里有 ${componentCount} 个尚未连接的家族分支。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。`
-              : `档案里有 ${componentCount} 个尚未连接的家族分支。可先打开较小分支里的人物页；有编辑权限的家人补上关系后，会并入主支。`}
+              : `档案里有 ${componentCount} 个尚未连接的家族分支。可先打开较小分支里的人物资料；有编辑权限的家人补上关系后，会并入主支。`}
           </p>
           {branchReps.length > 0 ? (
             <div
@@ -6671,7 +6671,7 @@ function PersonDrawer({
                 {pendingPersonId
                   ? "有未保存的修改，切换成员前要放弃吗？"
                   : pendingProfile
-                    ? "有未保存的修改，打开人物页前要放弃吗？"
+                    ? "有未保存的修改，打开人物资料前要放弃吗？"
                     : "有未保存的修改，确定放弃？"}
               </p>
               <div className="flex gap-2">
@@ -6964,7 +6964,7 @@ function PersonDrawer({
               className="text-sm font-semibold text-[color:var(--a-brand)]"
               onClick={openProfile}
             >
-              查看人物页
+              查看人物资料
             </button>
           </div>
           <h3 className="mt-6 font-bold text-[color:var(--a-ink)]">人物资料</h3>
