@@ -837,7 +837,9 @@ export function PersonProfile({
         burial.length === 0 ? (
           <div className="alpha-panel border-dashed px-4 py-5">
             <p className="text-sm text-[color:var(--a-muted)]">
-              暂无生平记录。有编辑权限的家人补充后，会显示在这里。
+              {pendingClaims.length > 0
+                ? `正式生平尚无已确认记载。下方「待确认资料」有 ${pendingClaims.length} 条，需${REVIEWER_CONTACT}确认后才会写入生平。`
+                : "暂无生平记录。有编辑权限的家人补充后，会显示在这里。"}
             </p>
             {claims.some((c) => c.status === "REJECTED") ? (
               <p className="mt-2 text-sm text-[color:var(--a-muted)]">
@@ -847,6 +849,19 @@ export function PersonProfile({
               </p>
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
+              {pendingClaims.length > 0 ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                  onClick={() => {
+                    document
+                      .getElementById("profile-pending")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  查看待确认
+                </button>
+              ) : null}
               {claims.some((c) => c.status === "REJECTED") ? (
                 <button
                   type="button"
