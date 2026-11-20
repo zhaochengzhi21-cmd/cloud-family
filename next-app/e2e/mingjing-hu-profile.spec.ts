@@ -3564,6 +3564,41 @@ test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：人物页可移除错误的父母关系", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物页移除关系（测试）",
+    sample.surname
+  );
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, []);
+  const childId = await seedPerson(page, familyId, sample.yuanXi, []);
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}/people/${childId}`);
+  const kin = page.locator("section").filter({
+    has: page.getByRole("heading", { name: "家人" }),
+  });
+  await expect(
+    kin.getByRole("link", { name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  page.once("dialog", (d) => d.accept());
+  await kin.getByRole("button", { name: "移除" }).click();
+  await expect(
+    kin.getByRole("link", { name: sample.guanSan.preferredName })
+  ).toHaveCount(0, { timeout: 60_000 });
+});
+
 test("明经胡氏：打印版空条目可去补充资料", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

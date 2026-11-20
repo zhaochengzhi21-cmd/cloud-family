@@ -64,6 +64,8 @@ const ALL_TYPES = [
   "STORY",
 ] as const;
 
+type KinLink = { person: Person; relationshipId: string | null };
+
 function sortByBirthOrder(
   list: Person[],
   orders: Record<string, string>
@@ -78,6 +80,28 @@ function sortByBirthOrder(
   });
 }
 
+function sortKinLinksByBirthOrder(
+  list: KinLink[],
+  orders: Record<string, string>
+): KinLink[] {
+  return list.slice().sort((a, b) => {
+    const ra = orders[a.person.id] ? birthOrderRank(orders[a.person.id]) : null;
+    const rb = orders[b.person.id] ? birthOrderRank(orders[b.person.id]) : null;
+    if (ra != null && rb != null && ra !== rb) return ra - rb;
+    if (ra != null && rb == null) return -1;
+    if (ra == null && rb != null) return 1;
+    return a.person.preferredName.localeCompare(b.person.preferredName, "zh-CN");
+  });
+}
+
+function sortKinLinksByName(list: KinLink[]): KinLink[] {
+  return list
+    .slice()
+    .sort((a, b) =>
+      a.person.preferredName.localeCompare(b.person.preferredName, "zh-CN")
+    );
+}
+
 /** Accepted claims win; otherwise show every open claim so differences stay visible. */
 function pickShown(claims: Claim[], type: string): Claim[] {
   const rows = claims.filter(
@@ -85,12 +109,6 @@ function pickShown(claims: Claim[], type: string): Claim[] {
   );
   const accepted = rows.filter((c) => c.status === "ACCEPTED");
   return accepted.length ? accepted : rows;
-}
-
-function sortByName(list: Person[]): Person[] {
-  return list
-    .slice()
-    .sort((a, b) => a.preferredName.localeCompare(b.preferredName, "zh-CN"));
 }
 
 export function PersonProfile({
@@ -215,17 +233,17 @@ export function PersonProfile({
   }, [person, familyName]);
 
   const family = useMemo(() => {
-    const parents: Person[] = [];
-    const children: Person[] = [];
-    const spouses: Person[] = [];
+    const parents: KinLink[] = [];
+    const children: KinLink[] = [];
+    const spouses: KinLink[] = [];
     for (const r of relationships) {
       if (PARENT_TYPES.has(r.type)) {
         if (r.toPersonId === personId) {
           const p = personMap.get(r.fromPersonId);
-          if (p) parents.push(p);
+          if (p) parents.push({ person: p, relationshipId: r.id });
         } else if (r.fromPersonId === personId) {
           const c = personMap.get(r.toPersonId);
-          if (c) children.push(c);
+          if (c) children.push({ person: c, relationshipId: r.id });
         }
       } else if (r.type === "SPOUSE") {
         const other =
@@ -235,10 +253,10 @@ export function PersonProfile({
               ? r.fromPersonId
               : null;
         const s = other ? personMap.get(other) : undefined;
-        if (s) spouses.push(s);
+        if (s) spouses.push({ person: s, relationshipId: r.id });
       }
     }
-    const parentIds = new Set(parents.map((p) => p.id));
+    const parentIds = new Set(parents.map((p) => p.person.id));
     const siblingIds = new Set<string>();
     for (const r of relationships) {
       if (
@@ -249,14 +267,15 @@ export function PersonProfile({
         siblingIds.add(r.toPersonId);
       }
     }
-    const siblings = [...siblingIds]
+    const siblings: KinLink[] = [...siblingIds]
       .map((id) => personMap.get(id))
-      .filter((p): p is Person => Boolean(p));
+      .filter((p): p is Person => Boolean(p))
+      .map((p) => ({ person: p, relationshipId: null }));
     return {
-      parents: sortByName(parents),
-      spouses: sortByName(spouses),
-      siblings: sortByBirthOrder(siblings, birthOrders),
-      children: sortByBirthOrder(children, birthOrders),
+      parents: sortKinLinksByName(parents),
+      spouses: sortKinLinksByName(spouses),
+      siblings: sortKinLinksByBirthOrder(siblings, birthOrders),
+      children: sortKinLinksByBirthOrder(children, birthOrders),
     };
   }, [relationships, personId, personMap, birthOrders]);
 
@@ -392,6 +411,25 @@ export function PersonProfile({
       /* private mode */
     }
     router.push(workspaceHref);
+  }
+
+  async function removeKin(relationshipId: string, name: string) {
+    if (
+      !window.confirm(
+        `确认移除与「${name}」的家庭关系？可在世系或最近动态中恢复。`
+      )
+    ) {
+      return;
+    }
+    try {
+      await v1api.deleteRelationship(familyId, relationshipId, {
+        idempotencyKey: crypto.randomUUID(),
+      });
+      await load();
+    } catch (e) {
+      if (handleAuthRedirect(e, router)) return;
+      setError(userMessageForApiError(e));
+    }
   }
 
   if (loading && !person) {
@@ -1017,19 +1055,33 @@ export function PersonProfile({
                 </button>
               </div>
             ) : null}
-            <KinRow label="父母" people={family.parents} familyId={familyId} />
-            <KinRow label="配偶" people={family.spouses} familyId={familyId} />
+            <KinRow
+              label="父母"
+              links={family.parents}
+              familyId={familyId}
+              canEdit={canEdit}
+              onRemove={removeKin}
+            />
+            <KinRow
+              label="配偶"
+              links={family.spouses}
+              familyId={familyId}
+              canEdit={canEdit}
+              onRemove={removeKin}
+            />
             <KinRow
               label="兄弟姐妹"
-              people={family.siblings}
+              links={family.siblings}
               familyId={familyId}
               orders={birthOrders}
             />
             <KinRow
               label="子女"
-              people={family.children}
+              links={family.children}
               familyId={familyId}
               orders={birthOrders}
+              canEdit={canEdit}
+              onRemove={removeKin}
             />
             {canEdit ? (
               <div
@@ -1684,24 +1736,31 @@ function ClaimValues({
 
 function KinRow({
   label,
-  people,
+  links,
   familyId,
   orders,
+  canEdit = false,
+  onRemove,
 }: {
   label: string;
-  people: Person[];
+  links: KinLink[];
   familyId: string;
   orders?: Record<string, string>;
+  canEdit?: boolean;
+  onRemove?: (relationshipId: string, name: string) => void | Promise<void>;
 }) {
-  if (people.length === 0) return null;
+  if (links.length === 0) return null;
   return (
     <div className="flex gap-4">
       <p className="w-16 shrink-0 pt-2 text-sm text-[color:var(--a-muted)]">
         {label}
       </p>
       <ul className="flex min-w-0 flex-1 flex-wrap gap-2">
-        {people.map((p) => (
-          <li key={p.id}>
+        {links.map(({ person: p, relationshipId }) => (
+          <li
+            key={relationshipId ?? p.id}
+            className="inline-flex min-h-[40px] items-center gap-1"
+          >
             <Link
               href={`/alpha/families/${familyId}/people/${p.id}`}
               className="alpha-panel alpha-panel-interactive inline-flex min-h-[40px] items-center gap-2 px-3 text-sm font-semibold text-[color:var(--a-ink)]"
@@ -1713,6 +1772,15 @@ function KinRow({
               ) : null}
               {p.preferredName}
             </Link>
+            {canEdit && relationshipId && onRemove ? (
+              <button
+                type="button"
+                className="alpha-print-hide px-1 text-xs font-semibold text-[color:var(--a-danger)] underline-offset-2 hover:underline"
+                onClick={() => void onRemove(relationshipId, p.preferredName)}
+              >
+                移除
+              </button>
+            ) : null}
           </li>
         ))}
       </ul>
