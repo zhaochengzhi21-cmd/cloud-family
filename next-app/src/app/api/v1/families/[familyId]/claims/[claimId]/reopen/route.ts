@@ -9,6 +9,7 @@ import {
 } from "@/v1/http/errors";
 import { claimDto, okJson } from "@/v1/http/response";
 import { getClaim, reopenClaim } from "@/v1/services/claimService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -40,29 +41,38 @@ export async function POST(
     if (!parsed.success) return invalidRequest();
   }
 
-  try {
-    const existing = await getClaim(p.data.claimId, ctx.actorContext, {
-      db: ctx.db,
-    });
-    if (!existing || existing.familyId !== p.data.familyId) {
-      return notFound();
-    }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "claims.reopen",
+    body: { claimId: p.data.claimId },
+    run: async () => {
+      try {
+        const existing = await getClaim(p.data.claimId, ctx.actorContext, {
+          db: ctx.db,
+        });
+        if (!existing || existing.familyId !== p.data.familyId) {
+          return notFound();
+        }
 
-    const result = await reopenClaim(
-      p.data.familyId,
-      p.data.claimId,
-      ctx.actorContext,
-      { db: ctx.db }
-    );
-    return okJson({
-      claim: claimDto(result.claim),
-      familyVersion: result.familyVersion,
-    });
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+        const result = await reopenClaim(
+          p.data.familyId,
+          p.data.claimId,
+          ctx.actorContext,
+          { db: ctx.db }
+        );
+        return okJson({
+          claim: claimDto(result.claim),
+          familyVersion: result.familyVersion,
+        });
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }
