@@ -649,6 +649,12 @@ export function OverviewTab({
   };
 
   const steps: Step[] = [];
+  const scrollToParticipants = () => {
+    document
+      .getElementById("overview-participants")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (total === 0) {
     steps.push({
       key: "first",
@@ -656,7 +662,9 @@ export function OverviewTab({
       body: canEdit
         ? "从你最熟悉的长辈开始，姓名或常用称呼就够了。"
         : "有编辑权限的家人添加成员后，名单会出现在这里。",
-      action: canEdit ? { label: "添加成员", onClick: onAddPerson } : undefined,
+      action: canEdit
+        ? { label: "添加成员", onClick: onAddPerson }
+        : { label: "查看参与家人", onClick: scrollToParticipants },
     });
   } else if (total === 1) {
     steps.push({
@@ -665,7 +673,9 @@ export function OverviewTab({
       body: canEdit
         ? "有两位成员后，就能建立父母或配偶关系，世系开始成形。"
         : "有编辑权限的家人再补一位后，才能建立关系、排进世代。",
-      action: canEdit ? { label: "添加成员", onClick: onAddPerson } : undefined,
+      action: canEdit
+        ? { label: "添加成员", onClick: onAddPerson }
+        : { label: "查看参与家人", onClick: scrollToParticipants },
     });
   }
   if (total >= 2 && unconnected.length > 0) {

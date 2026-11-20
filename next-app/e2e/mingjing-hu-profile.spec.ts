@@ -4484,6 +4484,36 @@ test("明经胡氏：编辑者概览待确认显示需管理员", async ({
   ).toHaveCount(0);
 });
 
+test("明经胡氏：工作区 URL records+person 不打开抽屉", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·URL records person（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "OCCUPATION", text: "万载知县，后升胶州刺史" },
+  ]);
+
+  await page.goto(
+    `/alpha/families/${familyId}?tab=records&person=${personId}`
+  );
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`tab=records`));
+  await expect(page).toHaveURL(new RegExp(`person=${personId}`));
+  await expect(page.getByText("万载知县，后升胶州刺史")).toBeVisible({
+    timeout: 60_000,
+  });
+});
+
 test("明经胡氏：工作区 URL claim 可直达资料卡片", async ({
   page,
   baseURL,

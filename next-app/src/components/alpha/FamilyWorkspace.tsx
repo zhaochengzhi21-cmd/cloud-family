@@ -500,6 +500,8 @@ export function FamilyWorkspace({
     personId: string;
     claimId: string;
   } | null>(null);
+  /** Records-tab subject mirrored into ?person= (not the member drawer). */
+  const [recordsUrlPerson, setRecordsUrlPerson] = useState<string | null>(null);
   const [sourcesFocusEvidenceId, setSourcesFocusEvidenceId] = useState<
     string | null
   >(null);
@@ -703,6 +705,14 @@ export function FamilyWorkspace({
       params.set("tab", "records");
       params.set("claim", pendingClaim);
       params.set("person", pendingClaimPerson);
+    } else if (tab === "records") {
+      params.delete("claim");
+      params.delete("claimStatus");
+      // On 资料, ?person= is the records subject — not the member drawer.
+      const recordsPerson =
+        recordsUrlPerson || pendingClaimPerson || null;
+      if (recordsPerson) params.set("person", recordsPerson);
+      else params.delete("person");
     } else {
       params.delete("claim");
       params.delete("claimStatus");
@@ -718,6 +728,7 @@ export function FamilyWorkspace({
     tab,
     selectedPersonId,
     shareClaim,
+    recordsUrlPerson,
     pathname,
     router,
     searchParams,
@@ -726,6 +737,7 @@ export function FamilyWorkspace({
   useEffect(() => {
     if (tab === "records") return;
     setShareClaim((prev) => (prev ? null : prev));
+    setRecordsUrlPerson((prev) => (prev ? null : prev));
   }, [tab]);
 
   useEffect(() => {
@@ -738,20 +750,39 @@ export function FamilyWorkspace({
     setTab((prev) => (prev === desired ? prev : desired));
     const claim = searchParams.get("claim");
     const person = searchParams.get("person");
-    // ?claim= owns person as the records subject — do not open the drawer.
-    if (claim && person) return;
+    const urlTab = searchParams.get("tab");
+    // On 资料, ?person= selects the records subject — do not open the drawer.
+    if ((claim && person) || urlTab === "records") {
+      if (person) {
+        try {
+          sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
+        } catch {
+          /* private mode */
+        }
+        setRecordsUrlPerson(person);
+      }
+      return;
+    }
     setSelectedPersonId((prev) => {
       if (!person) return prev ? null : prev;
       return prev === person ? prev : person;
     });
-  }, [searchParams]);
+  }, [searchParams, familyId]);
 
   useEffect(() => {
     if (loading) return;
     const claim = searchParams.get("claim");
     const person = searchParams.get("person");
+    const urlTab = searchParams.get("tab");
     if (!person) return;
-    if (claim) return;
+    if (claim || urlTab === "records") {
+      try {
+        sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
+      } catch {
+        /* private mode */
+      }
+      return;
+    }
     if (persons.some((p) => p.id === person)) {
       setSelectedPersonId(person);
     } else {
@@ -1337,6 +1368,7 @@ export function FamilyWorkspace({
             onEvidenceSeedConsumed={() => setEvidenceSeed(null)}
             recordsFocus={recordsFocus}
             onRecordsFocusConsumed={() => setRecordsFocus(null)}
+            onRecordsPersonChange={setRecordsUrlPerson}
             onOpenSourcesLibrary={(evidenceId) => {
               setSourcesFocusEvidenceId(evidenceId);
               setTab("overview");
@@ -2616,6 +2648,7 @@ function RecordsTab({
   onEvidenceSeedConsumed,
   recordsFocus,
   onRecordsFocusConsumed,
+  onRecordsPersonChange,
   onOpenSourcesLibrary,
   onAuthError,
   onOpenPerson,
@@ -2649,6 +2682,7 @@ function RecordsTab({
     nonce: number;
   } | null;
   onRecordsFocusConsumed: () => void;
+  onRecordsPersonChange?: (personId: string | null) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
@@ -2744,6 +2778,7 @@ function RecordsTab({
     if (!personId || !persons.some((p) => p.id === personId)) return;
     if (!personReady.current) {
       personReady.current = true;
+      onRecordsPersonChange?.(personId);
       return;
     }
     try {
@@ -2751,7 +2786,8 @@ function RecordsTab({
     } catch {
       /* private mode */
     }
-  }, [familyId, personId, persons]);
+    onRecordsPersonChange?.(personId);
+  }, [familyId, personId, persons, onRecordsPersonChange]);
 
   useEffect(() => {
     if (!personId || !topRef.current) return;

@@ -330,7 +330,9 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(`${workspaceHref}?tab=records`);
+    router.push(
+      `${workspaceHref}?tab=records&person=${encodeURIComponent(personId)}`
+    );
   }
 
   function openEvidence(claimId: string, evidenceType?: string) {
