@@ -232,6 +232,7 @@ function capabilitiesForRole(
       bodyHints: {
         evidenceType: "GENEALOGY_PAGE|ORAL_HISTORY|DOCUMENT|…",
         title: "optional",
+        "Idempotency-Key": "optional header — safe AI retry",
       },
       policy: [
         "Link one claim: POST …/claims/{claimId}/evidence",

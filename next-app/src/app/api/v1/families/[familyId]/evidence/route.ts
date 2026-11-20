@@ -8,6 +8,7 @@ import {
   createEvidence,
   listFamilyEvidence,
 } from "@/v1/services/evidenceService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -68,33 +69,42 @@ export async function POST(
   const parsed = createEvidenceBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
 
-  try {
-    const result = await createEvidence(
-      {
-        familyId: p.data.familyId,
-        actorContext: ctx.actorContext,
-        evidenceType: parsed.data.evidenceType,
-        title: parsed.data.title,
-        description: parsed.data.description,
-        sourceLocator: parsed.data.sourceLocator,
-        sourceDateText: parsed.data.sourceDateText,
-        visibility: parsed.data.visibility,
-        mediaObjectId: parsed.data.mediaObjectId ?? null,
-      },
-      { db: ctx.db }
-    );
-    return okJson(
-      {
-        evidence: evidenceDto(result.evidence),
-        familyVersion: result.familyVersion,
-      },
-      201
-    );
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "evidence.create",
+    body: parsed.data,
+    run: async () => {
+      try {
+        const result = await createEvidence(
+          {
+            familyId: p.data.familyId,
+            actorContext: ctx.actorContext,
+            evidenceType: parsed.data.evidenceType,
+            title: parsed.data.title,
+            description: parsed.data.description,
+            sourceLocator: parsed.data.sourceLocator,
+            sourceDateText: parsed.data.sourceDateText,
+            visibility: parsed.data.visibility,
+            mediaObjectId: parsed.data.mediaObjectId ?? null,
+          },
+          { db: ctx.db }
+        );
+        return okJson(
+          {
+            evidence: evidenceDto(result.evidence),
+            familyVersion: result.familyVersion,
+          },
+          201
+        );
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }
