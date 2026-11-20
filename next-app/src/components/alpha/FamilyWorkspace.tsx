@@ -2125,7 +2125,12 @@ export function FamilyWorkspace({
           onDone={async () => {
             setShowEditFamily(false);
             setError("");
-            setFlash("已更新家族档案");
+            setFlashCopyUrl(
+              `${window.location.origin}/alpha/families/${familyId}`
+            );
+            setFlash(
+              "已更新家族档案。可复制链接发给家人一起看。"
+            );
             await load();
           }}
           onError={(msg) => setError(msg)}
