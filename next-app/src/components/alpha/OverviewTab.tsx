@@ -996,10 +996,14 @@ export function OverviewTab({
             {overview ? (
               <>
                 <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                  成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。可以邀请家人一起维护，或打开打印版家谱。
+                  {canReview
+                    ? "成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。可以邀请家人一起维护，或打开打印版家谱。"
+                    : canEdit
+                      ? "成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。需要新成员加入时，请联系创建者或管理员生成邀请；也可打开打印版家谱。"
+                      : "成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。可以浏览资料来源，或打开打印版家谱。"}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {canEdit ? (
+                  {canReview ? (
                     <button
                       type="button"
                       className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"

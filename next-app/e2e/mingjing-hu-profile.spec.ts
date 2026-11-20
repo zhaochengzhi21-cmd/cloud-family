@@ -4002,6 +4002,34 @@ test("明经胡氏：唯一成员添加亲属提示新建", async ({ page, baseU
   await expect(dialog.locator("#kin-name")).toBeVisible();
 });
 
+test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·编辑者无邀请（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  const editorId = await insertFakeUser();
+  await insertMembership(familyId, editorId, "EDITOR");
+  await loginAs(page, editorId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  await expect(
+    page.getByRole("region", { name: "邀请家人" })
+  ).toHaveCount(0, { timeout: 60_000 });
+  const next = page.getByRole("region", { name: "下一步" }).or(
+    page.locator("section").filter({ has: page.getByRole("heading", { name: "下一步" }) })
+  );
+  await expect(next.first()).toBeVisible({ timeout: 60_000 });
+  await expect(
+    next.first().getByRole("button", { name: "邀请家人" })
+  ).toHaveCount(0);
+});
+
 test("明经胡氏：邀请链接丢失会话可重新生成", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
