@@ -144,7 +144,7 @@ export function InviteLanding({ token }: { token: string }) {
               邀请链接无效
             </h1>
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-              请确认链接完整，或向家人要一条新的邀请链接。
+              请确认链接完整，或向家人要一条新的邀请链接；也可复制「我的家族」页发给对方。
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               <Link
@@ -153,6 +153,7 @@ export function InviteLanding({ token }: { token: string }) {
               >
                 查看我的家族
               </Link>
+              <UnavailableInviteCopyButton />
             </div>
           </>
         ) : null}
@@ -197,6 +198,7 @@ export function InviteLanding({ token }: { token: string }) {
               >
                 查看我的家族
               </Link>
+              <UnavailableInviteCopyButton />
             </div>
           </>
         ) : null}
