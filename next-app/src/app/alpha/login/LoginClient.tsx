@@ -277,9 +277,14 @@ export default function AlphaLoginPage() {
                         try {
                           const text = await navigator.clipboard.readText();
                           const normalized = normalizeInviteToken(text);
-                          if (normalized) setInviteToken(normalized);
+                          if (normalized) {
+                            setInviteToken(normalized);
+                            setMessage("已从剪贴板填入邀请码");
+                          } else {
+                            setMessage("剪贴板里没有识别到邀请码或链接");
+                          }
                         } catch {
-                          /* permission / empty */
+                          setMessage("无法读取剪贴板，请手动粘贴");
                         }
                       })();
                     }}
