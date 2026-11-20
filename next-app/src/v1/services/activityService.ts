@@ -118,7 +118,12 @@ export async function getFamilyActivity(
     .filter((r) => r.eventType.startsWith("EVIDENCE_") && r.entityId)
     .map((r) => r.entityId as string);
   const suspendedMembershipIds = rows
-    .filter((r) => r.eventType === "MEMBERSHIP_SUSPENDED" && r.entityId)
+    .filter(
+      (r) =>
+        (r.eventType === "MEMBERSHIP_SUSPENDED" ||
+          r.eventType === "MEMBERSHIP_LEFT") &&
+        r.entityId
+    )
     .map((r) => r.entityId as string);
 
   const [claimRows, relRows, evidenceRows, suspendedMemberships] =
@@ -155,10 +160,10 @@ export async function getFamilyActivity(
     switch (r.eventType) {
       case "FAMILY_CREATED":
       case "FAMILY_IDENTITY_UPDATED":
-      case "MEMBERSHIP_LEFT":
         items.push(base);
         break;
-      case "MEMBERSHIP_SUSPENDED": {
+      case "MEMBERSHIP_SUSPENDED":
+      case "MEMBERSHIP_LEFT": {
         const mid = r.entityId ?? undefined;
         const stillSuspended = mid
           ? suspendedMembershipById.has(mid)

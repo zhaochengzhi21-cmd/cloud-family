@@ -1919,7 +1919,10 @@ export function OverviewTab({
             return Boolean(
               canReview && onReopenClaim && item.claimId && item.personId
             );
-          if (item.eventType === "MEMBERSHIP_SUSPENDED")
+          if (
+            item.eventType === "MEMBERSHIP_SUSPENDED" ||
+            item.eventType === "MEMBERSHIP_LEFT"
+          )
             return Boolean(
               canReview && onRestoreMember && item.membershipId
             );
@@ -1951,7 +1954,9 @@ export function OverviewTab({
                           ? `不采用的${CLAIM_TYPE_UI[item.claimType ?? ""]?.label ?? "资料"}`
                           : item.eventType === "MEMBERSHIP_SUSPENDED"
                             ? "一位被移除的参与家人"
-                            : "一条记录";
+                            : item.eventType === "MEMBERSHIP_LEFT"
+                              ? "一位已退出的参与家人"
+                              : "一条记录";
                 return (
                   <li
                     key={`restorable-${item.id}`}
@@ -1990,7 +1995,8 @@ export function OverviewTab({
                         ) {
                           void onReopenClaim?.(item.personId, item.claimId);
                         } else if (
-                          item.eventType === "MEMBERSHIP_SUSPENDED" &&
+                          (item.eventType === "MEMBERSHIP_SUSPENDED" ||
+                            item.eventType === "MEMBERSHIP_LEFT") &&
                           item.membershipId
                         ) {
                           void onRestoreMember?.(item.membershipId);
@@ -2502,7 +2508,8 @@ export function OverviewTab({
                       canReview ? (
                         <>
                           {" "}
-                          {item.eventType === "MEMBERSHIP_SUSPENDED" &&
+                          {(item.eventType === "MEMBERSHIP_SUSPENDED" ||
+                            item.eventType === "MEMBERSHIP_LEFT") &&
                           item.restorable &&
                           item.membershipId &&
                           onRestoreMember ? (
