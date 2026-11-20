@@ -84,6 +84,7 @@ export function FamilySources({
   onLinked,
   focusEvidenceId = null,
   onFocusEvidenceConsumed,
+  onOpenParticipants,
   dataVersion = 0,
 }: {
   familyId: string;
@@ -108,6 +109,8 @@ export function FamilySources({
   onLinked?: () => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
+  /** Non-managers: jump to 参与家人 when a focused source is missing. */
+  onOpenParticipants?: () => void;
   /** Bumps when the workspace reloads so the library stays in sync. */
   dataVersion?: number;
 }) {
@@ -419,6 +422,18 @@ export function FamilySources({
                 }}
               >
                 {focusRestoreBusy ? "恢复中…" : "恢复这条来源"}
+              </button>
+            ) : null}
+            {!canManage && onOpenParticipants ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  setFocusMissId(null);
+                  onOpenParticipants();
+                }}
+              >
+                查看参与家人
               </button>
             ) : null}
             <button

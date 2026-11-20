@@ -1660,6 +1660,15 @@ export function OverviewTab({
         }}
         focusEvidenceId={focusEvidenceId}
         onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
+        onOpenParticipants={
+          canReview
+            ? undefined
+            : () => {
+                document
+                  .getElementById("overview-participants")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+        }
         dataVersion={dataVersion}
       />
 

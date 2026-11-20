@@ -1186,7 +1186,7 @@ export function FamilyWorkspace({
             }}
             onGoMembers={() => {
               setTab("members");
-              setShowAddPerson(true);
+              if (canEdit) setShowAddPerson(true);
             }}
             onOpen={(id) => setSelectedPersonId(id)}
             personMap={personMap}
@@ -1224,7 +1224,7 @@ export function FamilyWorkspace({
             onOpenPerson={(id) => setSelectedPersonId(id)}
             onGoMembers={() => {
               setTab("members");
-              setShowAddPerson(true);
+              if (canEdit) setShowAddPerson(true);
             }}
             setFlash={setFlash}
             setPendingUndo={(undo) => setPendingUndo(undo)}
@@ -2163,9 +2163,20 @@ function LineageTab({
               {persons.length < 2 ? "去添加成员" : "添加家庭关系"}
             </button>
           ) : (
-            <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-              有编辑权限的家人补充后，世系会出现在这里。
-            </p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <p className="w-full text-sm text-[color:var(--a-muted)]">
+                有编辑权限的家人补充后，世系会出现在这里。
+              </p>
+              {persons.length > 0 ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                  onClick={onGoMembers}
+                >
+                  查看成员
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       ) : (
