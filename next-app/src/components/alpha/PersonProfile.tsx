@@ -888,19 +888,54 @@ export function PersonProfile({
                 </button>
               ) : null}
               {claims.some((c) => c.status === "REJECTED") ? (
-                <button
-                  type="button"
-                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
-                  onClick={() => {
-                    const firstRejected = claims.find(
-                      (c) => c.status === "REJECTED"
-                    );
-                    if (firstRejected) openRecordsFocus(firstRejected.id);
-                    else openRecords();
-                  }}
-                >
-                  去资料页查看
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                    onClick={() => {
+                      const firstRejected = claims.find(
+                        (c) => c.status === "REJECTED"
+                      );
+                      if (firstRejected) openRecordsFocus(firstRejected.id);
+                      else openRecords();
+                    }}
+                  >
+                    去资料页查看
+                  </button>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                    onClick={() => {
+                      const firstRejected = claims.find(
+                        (c) => c.status === "REJECTED"
+                      );
+                      if (!firstRejected) return;
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: personId,
+                        claim: firstRejected.id,
+                      });
+                      const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () => {
+                          setPendingCopyFlash(
+                            `已复制链接，可发给${REVIEWER_CONTACT}重新打开`
+                          );
+                          window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                        },
+                        () => {
+                          setPendingCopyFlash("请手动复制地址栏链接");
+                          window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                        }
+                      );
+                    }}
+                  >
+                    {pendingCopyFlash.includes("重新打开") ||
+                    pendingCopyFlash.startsWith("请手动")
+                      ? pendingCopyFlash
+                      : `复制链接发给${REVIEWER_CONTACT}`}
+                  </button>
+                </>
               ) : null}
               <Link
                 href={`${workspaceHref}?scroll=participants`}

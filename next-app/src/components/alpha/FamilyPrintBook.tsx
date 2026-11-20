@@ -695,6 +695,7 @@ function BookEntry({
   })).filter((x) => x.rows.length > 0);
   const stories = shownFacts(person.facts, "STORY");
   const pendingCount = pendingFactCount(person.facts);
+  const [pendingCopyFlash, setPendingCopyFlash] = useState("");
   const childRefs = (kin?.children ?? []).map((c) => {
     const raw = firstFactText(c.facts, "BIRTH_ORDER");
     return {
@@ -811,12 +812,38 @@ function BookEntry({
               去资料页确认
             </Link>
           ) : (
-            <Link
-              href={`/alpha/families/${familyId}?tab=records&person=${encodeURIComponent(person.id)}&claimStatus=PROPOSED`}
-              className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            >
-              去资料页查看
-            </Link>
+            <>
+              <Link
+                href={`/alpha/families/${familyId}?tab=records&person=${encodeURIComponent(person.id)}&claimStatus=PROPOSED`}
+                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              >
+                去资料页查看
+              </Link>
+              <button
+                type="button"
+                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "records",
+                    person: person.id,
+                    claimStatus: "PROPOSED",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setPendingCopyFlash("已复制确认链接");
+                      window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setPendingCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {pendingCopyFlash || "复制确认链接发给家人"}
+              </button>
+            </>
           )}
         </p>
       ) : null}
