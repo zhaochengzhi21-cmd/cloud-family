@@ -118,6 +118,8 @@ export function FamilySources({
   const [linksLoadingId, setLinksLoadingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [attachingId, setAttachingId] = useState<string | null>(null);
+  const [focusMissId, setFocusMissId] = useState<string | null>(null);
+  const [focusRestoreBusy, setFocusRestoreBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -232,9 +234,11 @@ export function FamilySources({
       }
       const item = list?.find((e) => e.id === focusId);
       if (!item) {
+        setFocusMissId(focusId);
         onFocusEvidenceConsumed?.();
         return;
       }
+      setFocusMissId(null);
       setFilter("ALL");
       window.setTimeout(() => {
         if (cancelled) return;
@@ -314,6 +318,54 @@ export function FamilySources({
               onCreated?.();
             }}
           />
+        ) : null}
+        {focusMissId ? (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+            role="status"
+          >
+            <p className="text-sm text-[color:var(--a-muted)]">
+              这条来源已不在资料来源库中
+              {canManage ? "，可能刚被移除。" : "。"}
+            </p>
+            {canManage ? (
+              <button
+                type="button"
+                disabled={focusRestoreBusy}
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const id = focusMissId;
+                  setFocusRestoreBusy(true);
+                  void (async () => {
+                    try {
+                      await v1api.restoreEvidence(familyId, id, {
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                      setFocusMissId(null);
+                      await load();
+                      onCreated?.();
+                      onLinked?.();
+                    } catch (e) {
+                      if (onAuthError(e)) return;
+                      setError(userMessageForApiError(e));
+                      setFocusMissId(null);
+                    } finally {
+                      setFocusRestoreBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {focusRestoreBusy ? "恢复中…" : "恢复这条来源"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-muted)] underline-offset-2 hover:underline"
+              onClick={() => setFocusMissId(null)}
+            >
+              知道了
+            </button>
+          </div>
         ) : null}
         {items.length === 0 && !adding ? (
           <p className="mt-3 text-sm text-[color:var(--a-muted)]">
