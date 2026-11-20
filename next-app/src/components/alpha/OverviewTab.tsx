@@ -158,6 +158,7 @@ export function OverviewTab({
   onAddKin,
   onOpenPerson,
   onOpenRecords,
+  onOpenRecordsTab,
   onOpenLineage,
   onRestorePerson,
   onRestoreRelationship,
@@ -199,6 +200,8 @@ export function OverviewTab({
           evidenceType?: string;
         }
   ) => void;
+  /** Open the 资料 tab without focusing a person (empty pending CTA). */
+  onOpenRecordsTab?: () => void;
   /** Jump to 世系 and highlight a person (relationship feed). */
   onOpenLineage?: (personId: string) => void;
   /** Undo soft-delete (OWNER/ADMIN). */
@@ -1705,48 +1708,77 @@ export function OverviewTab({
         </div>
       ) : null}
 
-      {overview && overview.pending.length > 0 ? (
-        <section
-          aria-labelledby="overview-pending"
-          aria-label="待确认资料"
-        >
-          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-            <h2
-              id="overview-pending"
-              className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-            >
-              待确认资料
-              {overview.pendingTotal > overview.pending.length
-                ? `（优先 ${overview.pending.length} 条，共 ${overview.pendingTotal} 条）`
-                : `（${overview.pendingTotal}）`}
-            </h2>
-            {canReview && smartPendingIds.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  disabled={batchBusy}
-                  onClick={() => void reviewSmartPending("accept")}
-                  className="alpha-btn alpha-btn-primary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
-                >
-                  {batchBusy
-                    ? "处理中…"
-                    : smartPendingIds.length > 20
-                      ? `确认前 ${smartBatchCount} 条智能整理/导入`
-                      : `确认 ${smartBatchCount} 条智能整理/导入`}
-                </button>
-                <button
-                  type="button"
-                  disabled={batchBusy}
-                  onClick={() => void reviewSmartPending("reject")}
-                  className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
-                >
-                  {smartPendingIds.length > 20
-                    ? `不采用前 ${smartBatchCount} 条`
-                    : "不采用这些"}
-                </button>
-              </div>
+      <section
+        id="overview-pending"
+        aria-labelledby="overview-pending-title"
+        aria-label="待确认资料"
+        className="scroll-mt-24"
+      >
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <h2
+            id="overview-pending-title"
+            className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            待确认资料
+            {!overview
+              ? ""
+              : overview.pending.length === 0
+                ? "（暂无）"
+                : overview.pendingTotal > overview.pending.length
+                  ? `（优先 ${overview.pending.length} 条，共 ${overview.pendingTotal} 条）`
+                  : `（${overview.pendingTotal}）`}
+          </h2>
+          {overview &&
+          overview.pending.length > 0 &&
+          canReview &&
+          smartPendingIds.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={batchBusy}
+                onClick={() => void reviewSmartPending("accept")}
+                className="alpha-btn alpha-btn-primary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
+              >
+                {batchBusy
+                  ? "处理中…"
+                  : smartPendingIds.length > 20
+                    ? `确认前 ${smartBatchCount} 条智能整理/导入`
+                    : `确认 ${smartBatchCount} 条智能整理/导入`}
+              </button>
+              <button
+                type="button"
+                disabled={batchBusy}
+                onClick={() => void reviewSmartPending("reject")}
+                className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
+              >
+                {smartPendingIds.length > 20
+                  ? `不采用前 ${smartBatchCount} 条`
+                  : "不采用这些"}
+              </button>
+            </div>
+          ) : null}
+        </div>
+        {!overview ? (
+          <div className="alpha-panel px-4 py-4">
+            <p className="text-sm text-[color:var(--a-muted)]">待确认资料加载中…</p>
+          </div>
+        ) : overview.pending.length === 0 ? (
+          <div className="alpha-panel px-4 py-4">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              当前没有待确认资料。可到资料页继续整理人物记载。
+            </p>
+            {onOpenRecordsTab ? (
+              <button
+                type="button"
+                className="mt-2 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => onOpenRecordsTab()}
+              >
+                去资料页
+              </button>
             ) : null}
           </div>
+        ) : (
+          <>
           {smartPendingIds.length > 0 && !canReview ? (
             <p className="mb-2 text-sm text-[color:var(--a-muted)]">
               其中有智能整理或导入写入的资料，需{REVIEWER_CONTACT}确认后才会成为正式记载。
@@ -1901,8 +1933,9 @@ export function OverviewTab({
               );
             })}
           </ul>
-        </section>
-      ) : null}
+          </>
+        )}
+      </section>
 
       {(() => {
         const restorable = (activity ?? []).filter((item) => {

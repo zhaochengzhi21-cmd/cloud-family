@@ -2183,6 +2183,7 @@ export function FamilyWorkspace({
               setSelectedPersonId(personId);
             }}
             onOpenRecords={openRecordsFor}
+            onOpenRecordsTab={() => setTab("records")}
             onOpenLineage={(personId) => {
               setLineageFocusId(personId);
               setTab("lineage");
