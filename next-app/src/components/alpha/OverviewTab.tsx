@@ -509,130 +509,183 @@ export function OverviewTab({
         : undefined,
     });
   }
+  const peopleChips = (
+    list: Person[],
+    editAria: string
+  ): Pick<Step, "people" | "peopleAria" | "browsePeople"> => ({
+    people: list.slice(0, 6),
+    peopleAria: canEdit ? editAria : "查看",
+    browsePeople: !canEdit,
+  });
+  const viewerReadHint =
+    "可先打开人物页了解；有编辑权限的家人补充后，这里会更新。";
+
   if (missingSpouse.length > 0) {
     steps.push({
       key: "spouse",
-      title: `补充 ${missingSpouse.length} 位已有子女成员的配偶`,
-      body: "已有子女的人补上配偶，世系和打印版家谱会更完整。也可以先跳过。",
-      people: canEdit ? missingSpouse.slice(0, 6) : undefined,
-      peopleAria: "补充配偶",
+      title: canEdit
+        ? `补充 ${missingSpouse.length} 位已有子女成员的配偶`
+        : `${missingSpouse.length} 位已有子女的成员还没有配偶记录`,
+      body: canEdit
+        ? "已有子女的人补上配偶，世系和打印版家谱会更完整。也可以先跳过。"
+        : viewerReadHint,
+      ...peopleChips(missingSpouse, "补充配偶"),
     });
   }
   if (missingChildren.length > 0) {
     steps.push({
       key: "children",
-      title: `补充 ${missingChildren.length} 位已有配偶成员的子女`,
-      body: "已有配偶的人补上子女，世系和打印版家谱会更完整。也可以先跳过。",
-      people: canEdit ? missingChildren.slice(0, 6) : undefined,
-      peopleAria: "补充子女",
+      title: canEdit
+        ? `补充 ${missingChildren.length} 位已有配偶成员的子女`
+        : `${missingChildren.length} 位已有配偶的成员还没有子女记录`,
+      body: canEdit
+        ? "已有配偶的人补上子女，世系和打印版家谱会更完整。也可以先跳过。"
+        : viewerReadHint,
+      ...peopleChips(missingChildren, "补充子女"),
     });
   }
   if (missingParents.length > 0) {
     steps.push({
       key: "parents",
-      title: `补充 ${missingParents.length} 位已有亲人成员的父母`,
-      body: "已有配偶或子女的人补上父母，世系向上更完整。也可以先跳过。",
-      people: canEdit ? missingParents.slice(0, 6) : undefined,
-      peopleAria: "补充父母",
+      title: canEdit
+        ? `补充 ${missingParents.length} 位已有亲人成员的父母`
+        : `${missingParents.length} 位已有亲人的成员还没有父母记录`,
+      body: canEdit
+        ? "已有配偶或子女的人补上父母，世系向上更完整。也可以先跳过。"
+        : viewerReadHint,
+      ...peopleChips(missingParents, "补充父母"),
     });
   }
   if (overview && total > 0 && missingBirth.length > 0) {
     steps.push({
       key: "birth",
-      title: `补充 ${missingBirth.length} 位成员的出生信息`,
-      body: "出生年代是排辈、核对来源最常用的线索，大概的年份也可以。",
-      people: canEdit ? missingBirth.slice(0, 6) : undefined,
-      peopleAria: "补充出生信息",
+      title: canEdit
+        ? `补充 ${missingBirth.length} 位成员的出生信息`
+        : `${missingBirth.length} 位成员还没有出生信息`,
+      body: canEdit
+        ? "出生年代是排辈、核对来源最常用的线索，大概的年份也可以。"
+        : viewerReadHint,
+      ...peopleChips(missingBirth, "补充出生信息"),
     });
   }
   if (overview && missingBirthPlace.length > 0) {
     steps.push({
       key: "birthPlace",
-      title: `补充 ${missingBirthPlace.length} 位成员的出生地`,
-      body: "有了出生年代后，补上出生地，后人核对族谱页会更容易。",
-      people: canEdit ? missingBirthPlace.slice(0, 6) : undefined,
-      peopleAria: "补充出生地",
+      title: canEdit
+        ? `补充 ${missingBirthPlace.length} 位成员的出生地`
+        : `${missingBirthPlace.length} 位成员还没有出生地`,
+      body: canEdit
+        ? "有了出生年代后，补上出生地，后人核对族谱页会更容易。"
+        : viewerReadHint,
+      ...peopleChips(missingBirthPlace, "补充出生地"),
     });
   }
   if (overview && missingDeath.length > 0) {
     steps.push({
       key: "death",
-      title: `补充 ${missingDeath.length} 位已故成员的去世信息`,
-      body: "标为已故后，补上大概的卒年，后人查阅和排谱会清楚很多。",
-      people: canEdit ? missingDeath.slice(0, 6) : undefined,
-      peopleAria: "补充去世信息",
+      title: canEdit
+        ? `补充 ${missingDeath.length} 位已故成员的去世信息`
+        : `${missingDeath.length} 位已故成员还没有去世信息`,
+      body: canEdit
+        ? "标为已故后，补上大概的卒年，后人查阅和排谱会清楚很多。"
+        : viewerReadHint,
+      ...peopleChips(missingDeath, "补充去世信息"),
     });
   } else if (overview && missingBurial.length > 0) {
     steps.push({
       key: "burial",
-      title: `补充 ${missingBurial.length} 位已故成员的安葬地`,
-      body: "安葬地是扫墓与核对族谱页的重要线索，记得不清楚也可以先写大概位置。",
-      people: canEdit ? missingBurial.slice(0, 6) : undefined,
-      peopleAria: "补充安葬地",
+      title: canEdit
+        ? `补充 ${missingBurial.length} 位已故成员的安葬地`
+        : `${missingBurial.length} 位已故成员还没有安葬地`,
+      body: canEdit
+        ? "安葬地是扫墓与核对族谱页的重要线索，记得不清楚也可以先写大概位置。"
+        : viewerReadHint,
+      ...peopleChips(missingBurial, "补充安葬地"),
     });
   }
   if (overview && total > 0 && missingAncestral.length > 0) {
     steps.push({
       key: "ancestral",
-      title: `补充 ${missingAncestral.length} 位成员的祖籍`,
-      body: "祖籍是认亲、核对旧谱最常用的线索，写到县或村一级就可以。",
-      people: canEdit ? missingAncestral.slice(0, 6) : undefined,
-      peopleAria: "补充祖籍",
+      title: canEdit
+        ? `补充 ${missingAncestral.length} 位成员的祖籍`
+        : `${missingAncestral.length} 位成员还没有祖籍`,
+      body: canEdit
+        ? "祖籍是认亲、核对旧谱最常用的线索，写到县或村一级就可以。"
+        : viewerReadHint,
+      ...peopleChips(missingAncestral, "补充祖籍"),
     });
   }
   if (overview && missingOccupation.length > 0) {
     steps.push({
       key: "occupation",
-      title: `补充 ${missingOccupation.length} 位成员的职业`,
-      body: "职事与身份便于认亲和核对旧谱，知县、商贾、务农等写清楚即可。",
-      people: canEdit ? missingOccupation.slice(0, 6) : undefined,
-      peopleAria: "补充职业",
+      title: canEdit
+        ? `补充 ${missingOccupation.length} 位成员的职业`
+        : `${missingOccupation.length} 位成员还没有职业`,
+      body: canEdit
+        ? "职事与身份便于认亲和核对旧谱，知县、商贾、务农等写清楚即可。"
+        : viewerReadHint,
+      ...peopleChips(missingOccupation, "补充职业"),
     });
   }
   if (overview && missingAlias.length > 0) {
     steps.push({
       key: "alias",
-      title: `补充 ${missingAlias.length} 位成员的字号`,
-      body: "字、号、乳名等便于认亲和对照旧谱称呼，写一条常用的即可。",
-      people: canEdit ? missingAlias.slice(0, 6) : undefined,
-      peopleAria: "补充字号",
+      title: canEdit
+        ? `补充 ${missingAlias.length} 位成员的字号`
+        : `${missingAlias.length} 位成员还没有字号`,
+      body: canEdit
+        ? "字、号、乳名等便于认亲和对照旧谱称呼，写一条常用的即可。"
+        : viewerReadHint,
+      ...peopleChips(missingAlias, "补充字号"),
     });
   }
   if (overview && missingStory.length > 0) {
     steps.push({
       key: "story",
-      title: `补充 ${missingStory.length} 位成员的故事或口述`,
-      body: "记下口碑、功绩或迁居缘起，一两段也可以；可注明讲述人。",
-      people: canEdit ? missingStory.slice(0, 6) : undefined,
-      peopleAria: "补充故事",
+      title: canEdit
+        ? `补充 ${missingStory.length} 位成员的故事或口述`
+        : `${missingStory.length} 位成员还没有故事或口述`,
+      body: canEdit
+        ? "记下口碑、功绩或迁居缘起，一两段也可以；可注明讲述人。"
+        : viewerReadHint,
+      ...peopleChips(missingStory, "补充故事"),
     });
   }
   if (overview && missingGenerationWord.length > 0) {
     steps.push({
       key: "generationWord",
-      title: `补充 ${missingGenerationWord.length} 位成员的字辈`,
-      body: "有了世代后，补上字辈，世系标题与打印版家谱会按辈分更清楚。同辈常用同一个字。",
-      people: canEdit ? missingGenerationWord.slice(0, 6) : undefined,
-      peopleAria: "补充字辈",
+      title: canEdit
+        ? `补充 ${missingGenerationWord.length} 位成员的字辈`
+        : `${missingGenerationWord.length} 位成员还没有字辈`,
+      body: canEdit
+        ? "有了世代后，补上字辈，世系标题与打印版家谱会按辈分更清楚。同辈常用同一个字。"
+        : viewerReadHint,
+      ...peopleChips(missingGenerationWord, "补充字辈"),
     });
   }
   if (overview && missingBirthOrder.length > 0) {
     steps.push({
       key: "birthOrder",
-      title: `补充 ${missingBirthOrder.length} 位兄弟姐妹的排行`,
-      body: "同一父母下有多位子女时，补上长/次/三…，人物页与打印版的子女顺序会更清楚。",
-      people: canEdit ? missingBirthOrder.slice(0, 6) : undefined,
-      peopleAria: "补充排行",
+      title: canEdit
+        ? `补充 ${missingBirthOrder.length} 位兄弟姐妹的排行`
+        : `${missingBirthOrder.length} 位兄弟姐妹还没有排行`,
+      body: canEdit
+        ? "同一父母下有多位子女时，补上长/次/三…，人物页与打印版的子女顺序会更清楚。"
+        : viewerReadHint,
+      ...peopleChips(missingBirthOrder, "补充排行"),
     });
   }
   // Living status unlocks death/burial capture — nudge once the tree is connected.
   if (overview && missingLiving.length > 0 && unconnected.length === 0) {
     steps.push({
       key: "living",
-      title: `确认 ${missingLiving.length} 位成员是否在世`,
-      body: "还标成「不确定」的，在人物卡片里改成在世或已故；标为已故后才能提示补去世与安葬信息。",
-      people: canEdit ? missingLiving.slice(0, 6) : undefined,
-      peopleAria: "确认在世状态",
+      title: canEdit
+        ? `确认 ${missingLiving.length} 位成员是否在世`
+        : `${missingLiving.length} 位成员的在世状态尚不确定`,
+      body: canEdit
+        ? "还标成「不确定」的，在人物卡片里改成在世或已故；标为已故后才能提示补去世与安葬信息。"
+        : viewerReadHint,
+      ...peopleChips(missingLiving, "确认在世状态"),
     });
   }
   // Gender is person basics (drawer), not a claim — only nudge after births are in.
@@ -644,10 +697,13 @@ export function OverviewTab({
   ) {
     steps.push({
       key: "gender",
-      title: `确认 ${missingGender.length} 位成员的性别`,
-      body: "性别还标成「不确定」的，在人物卡片里改一下，排谱和称呼会更顺。",
-      people: canEdit ? missingGender.slice(0, 6) : undefined,
-      peopleAria: "确认性别",
+      title: canEdit
+        ? `确认 ${missingGender.length} 位成员的性别`
+        : `${missingGender.length} 位成员的性别尚不确定`,
+      body: canEdit
+        ? "性别还标成「不确定」的，在人物卡片里改一下，排谱和称呼会更顺。"
+        : viewerReadHint,
+      ...peopleChips(missingGender, "确认性别"),
     });
   }
   if (pendingTotal > 0) {

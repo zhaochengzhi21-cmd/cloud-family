@@ -2339,6 +2339,57 @@ test("明经胡氏：只读成员概览下一步用浏览文案", async ({
   await viewerCtx.close();
 });
 
+test("明经胡氏：只读成员概览缺出生信息可打开人物", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·只读出生（测试）",
+    sample.surname
+  );
+  void ownerId;
+
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, [
+    { claimType: "BIRTH_DATE", text: "约清乾隆年间" },
+  ]);
+  const childId = await seedPerson(page, familyId, sample.yuanXi, []);
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+
+  const viewerId = await insertFakeUser();
+  await insertMembership(familyId, viewerId, "VIEWER");
+  const viewerCtx = await browser.newContext({ baseURL });
+  const viewerPage = await viewerCtx.newPage();
+  await loginAs(viewerPage, viewerId, baseURL!);
+  await viewerPage.goto(`/alpha/families/${familyId}`);
+  const birthStep = viewerPage
+    .getByRole("listitem")
+    .filter({ hasText: "还没有出生信息" });
+  await expect(birthStep).toBeVisible({ timeout: 60_000 });
+  await expect(birthStep).toContainText("可先打开人物页了解");
+  await birthStep
+    .getByRole("button", { name: `查看${sample.yuanXi.preferredName}` })
+    .click();
+  await expect(
+    viewerPage.getByRole("dialog").getByRole("heading", {
+      name: sample.yuanXi.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await viewerCtx.close();
+});
+
 test("明经胡氏：只读成员人物页无资料时生平为空提示", async ({
   page,
   browser,
