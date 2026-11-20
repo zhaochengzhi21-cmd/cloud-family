@@ -1304,27 +1304,29 @@ export function FamilyWorkspace({
         }
         setRecordsUrlPerson(person);
         personMissAnnounced.current = null;
-      } else if (
-        persons.length > 0 &&
-        personMissAnnounced.current !== person
-      ) {
+      } else if (personMissAnnounced.current !== person) {
         personMissAnnounced.current = person;
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
         );
+        const emptyRoster = persons.length === 0;
         if (canReview) {
           setFlashRestorePersonId(person);
           setFlash(
-            "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；可点恢复这位家人。"
+            emptyRoster
+              ? "链接指向的成员已不在名单中，可能刚被移除。名单暂时为空；可点恢复这位家人。"
+              : "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；可点恢复这位家人。"
           );
           setFlashParticipantsCta(false);
         } else {
           setFlashRestorePersonId(null);
           setFlash(
-            `链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+            emptyRoster
+              ? `链接指向的成员已不在名单中，可能刚被移除。名单暂时为空；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+              : `链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
           );
           setFlashRecordsCta(false);
-            setFlashParticipantsCta(true);
+          setFlashParticipantsCta(true);
         }
         setRecordsUrlPerson(null);
       }
@@ -1335,27 +1337,29 @@ export function FamilyWorkspace({
         setLineageUrlPerson(person);
         setLineageFocusId(person);
         personMissAnnounced.current = null;
-      } else if (
-        persons.length > 0 &&
-        personMissAnnounced.current !== person
-      ) {
+      } else if (personMissAnnounced.current !== person) {
         personMissAnnounced.current = person;
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
         );
+        const emptyRoster = persons.length === 0;
         if (canReview) {
           setFlashRestorePersonId(person);
           setFlash(
-            "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；可点恢复这位家人。"
+            emptyRoster
+              ? "链接指向的成员已不在名单中，可能刚被移除。名单暂时为空；可点恢复这位家人。"
+              : "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；可点恢复这位家人。"
           );
           setFlashParticipantsCta(false);
         } else {
           setFlashRestorePersonId(null);
           setFlash(
-            `链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+            emptyRoster
+              ? `链接指向的成员已不在名单中，可能刚被移除。名单暂时为空；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+              : `链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
           );
           setFlashRecordsCta(false);
-            setFlashParticipantsCta(true);
+          setFlashParticipantsCta(true);
         }
         setLineageUrlPerson(null);
       }
@@ -1364,10 +1368,7 @@ export function FamilyWorkspace({
     if (persons.some((p) => p.id === person)) {
       setSelectedPersonId(person);
       personMissAnnounced.current = null;
-    } else if (
-      persons.length > 0 &&
-      personMissAnnounced.current !== person
-    ) {
+    } else if (personMissAnnounced.current !== person) {
       personMissAnnounced.current = person;
       setSelectedPersonId(null);
       setFlashCopyUrl(
@@ -1376,7 +1377,9 @@ export function FamilyWorkspace({
       if (canReview) {
         setFlashRestorePersonId(person);
         setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。可点恢复这位家人。"
+          persons.length === 0
+            ? "链接指向的成员已不在名单中，可能刚被移除。名单暂时为空；可点恢复这位家人。"
+            : "链接指向的成员已不在名单中，可能刚被移除。可点恢复这位家人。"
         );
         setFlashParticipantsCta(false);
       } else {
@@ -1385,7 +1388,7 @@ export function FamilyWorkspace({
           `链接指向的成员已不在名单中，可能刚被移除。可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
         );
         setFlashRecordsCta(false);
-            setFlashParticipantsCta(true);
+        setFlashParticipantsCta(true);
       }
     }
     // Hydrate drawer from URL after graph load.
@@ -3538,7 +3541,6 @@ function LineageTab({
 
   useEffect(() => {
     if (!focusPersonId) return;
-    if (persons.length === 0) return;
     if (!persons.some((p) => p.id === focusPersonId)) {
       setFocusMissPersonId(focusPersonId);
       setFocusMiss(true);
