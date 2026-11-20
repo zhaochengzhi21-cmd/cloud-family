@@ -3647,6 +3647,7 @@ function RecordsTab({
                   <ClaimCard
                     key={c.id}
                     familyId={familyId}
+                    personId={personId}
                     claim={c}
                     canEdit={canEdit}
                     canReview={canReview}
@@ -3668,6 +3669,7 @@ function RecordsTab({
                       setLocalSeed({ claimType, nonce: Date.now() });
                     }}
                     onOpenSourcesLibrary={onOpenSourcesLibrary}
+                    onOpenParticipants={onOpenParticipants}
                     onAuthError={onAuthError}
                     onChanged={loadClaims}
                     onError={setError}
@@ -3763,6 +3765,14 @@ function RecordsTab({
                 setLocalSeed({ claimType, nonce: Date.now() })
               }
             />
+          ) : onOpenParticipants ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
+              onClick={onOpenParticipants}
+            >
+              查看参与家人
+            </button>
           ) : null}
         </div>
       ) : null}
@@ -4369,6 +4379,7 @@ function ConflictChooser({
 
 function ClaimCard({
   familyId,
+  personId,
   claim,
   canEdit,
   canReview,
@@ -4378,6 +4389,7 @@ function ClaimCard({
   onOpenEvidenceAfterAccept,
   onProposeAlternate,
   onOpenSourcesLibrary,
+  onOpenParticipants,
   onChanged,
   onError,
   onFlash,
@@ -4386,6 +4398,7 @@ function ClaimCard({
   onAuthError,
 }: {
   familyId: string;
+  personId: string;
   claim: ClaimRow;
   canEdit: boolean;
   canReview: boolean;
@@ -4396,6 +4409,7 @@ function ClaimCard({
   /** Seed composer for a different SINGLETON saying. */
   onProposeAlternate?: (claimType: string) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
+  onOpenParticipants?: () => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
   onFlash: (s: string, undoClaimId?: string) => void;
@@ -4422,6 +4436,26 @@ function ClaimCard({
   const [removingBusy, setRemovingBusy] = useState(false);
   const [evidenceDetailId, setEvidenceDetailId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [copyFlash, setCopyFlash] = useState("");
+
+  async function copyClaimLink() {
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: personId,
+      claim: claim.id,
+    });
+    if (claim.status === "PROPOSED" || claim.status === "CONFLICTED") {
+      qs.set("claimStatus", claim.status);
+    }
+    const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyFlash("已复制链接");
+    } catch {
+      setCopyFlash("请手动复制地址栏链接");
+    }
+    window.setTimeout(() => setCopyFlash(""), 2500);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -4490,6 +4524,20 @@ function ClaimCard({
             ) : null}
             <span className={statusChip}>{statusLabel}</span>
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => void copyClaimLink()}
+            >
+              复制本条链接
+            </button>
+            {copyFlash ? (
+              <span className="text-xs text-[color:var(--a-muted)]" role="status">
+                {copyFlash}
+              </span>
+            ) : null}
+          </div>
         </div>
         {canReview && claim.status === "PROPOSED" ? (
           <div className="flex gap-2">
@@ -4556,9 +4604,20 @@ function ClaimCard({
             </button>
           </div>
         ) : !canReview && claim.status === "PROPOSED" ? (
-          <p className="text-xs text-[color:var(--a-muted)]">
-            需{REVIEWER_CONTACT}确认后才会成为正式记载
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-[color:var(--a-muted)]">
+              需{REVIEWER_CONTACT}确认后才会成为正式记载
+            </p>
+            {onOpenParticipants ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={onOpenParticipants}
+              >
+                查看参与家人
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {canReview && claim.status === "CONFLICTED" ? (
           <div className="flex gap-2">
@@ -4625,9 +4684,20 @@ function ClaimCard({
             </button>
           </div>
         ) : !canReview && claim.status === "CONFLICTED" ? (
-          <p className="text-xs text-[color:var(--a-muted)]">
-            需{REVIEWER_CONTACT}选用一种说法
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-[color:var(--a-muted)]">
+              需{REVIEWER_CONTACT}选用一种说法
+            </p>
+            {onOpenParticipants ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={onOpenParticipants}
+              >
+                查看参与家人
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {claim.status === "ACCEPTED" ? (
           <div className="flex flex-wrap gap-2">
@@ -7149,6 +7219,7 @@ function PersonDrawer({
                       <ClaimCard
                         key={c.id}
                         familyId={familyId}
+                        personId={person.id}
                         claim={c}
                         canEdit={canEdit}
                         canReview={canReview}
@@ -7166,6 +7237,7 @@ function PersonDrawer({
                           });
                         }}
                         onOpenSourcesLibrary={onOpenSourcesLibrary}
+                        onOpenParticipants={onOpenParticipants}
                         onAuthError={onAuth}
                         onChanged={loadClaims}
                         onError={(msg) => {
