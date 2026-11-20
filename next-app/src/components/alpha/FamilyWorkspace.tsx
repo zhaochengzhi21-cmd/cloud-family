@@ -420,6 +420,10 @@ export function FamilyWorkspace({
           claimType: parsed.claimType,
           nonce: parsed.nonce ?? Date.now(),
         });
+        setShareClaimTypeHandoff({
+          personId: parsed.personId,
+          claimType: parsed.claimType,
+        });
         setTab("records");
       }
     } catch {
@@ -862,6 +866,10 @@ export function FamilyWorkspace({
           personId,
           claimType: resolved.claimType,
           nonce: Date.now(),
+        });
+        setShareClaimTypeHandoff({
+          personId,
+          claimType: resolved.claimType,
         });
       }
       if (resolved.focusClaimId || resolved.statusFilter) {
@@ -3732,6 +3740,7 @@ function RecordsTab({
         `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
       );
       setSeedBlockedCopyFlash("");
+      // Parent keeps shareClaimTypeHandoff so ?claimType= stays in the URL.
       onClaimSeedConsumed();
       return;
     }
