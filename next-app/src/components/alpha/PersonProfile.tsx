@@ -104,13 +104,11 @@ function sortKinLinksByName(list: KinLink[]): KinLink[] {
     );
 }
 
-/** Accepted claims win; otherwise show every open claim so differences stay visible. */
+/** Formal 生平 / 档案 — only confirmed (ACCEPTED) facts. */
 function pickShown(claims: Claim[], type: string): Claim[] {
-  const rows = claims.filter(
-    (c) => c.claimType === type && c.status !== "REJECTED"
+  return claims.filter(
+    (c) => c.claimType === type && c.status === "ACCEPTED"
   );
-  const accepted = rows.filter((c) => c.status === "ACCEPTED");
-  return accepted.length ? accepted : rows;
 }
 
 export function PersonProfile({
@@ -601,6 +599,9 @@ export function PersonProfile({
   const deathDate = pickShown(claims, "DEATH_DATE");
   const burial = pickShown(claims, "BURIAL_PLACE");
   const stories = pickShown(claims, "STORY");
+  const pendingClaims = claims.filter(
+    (c) => c.status === "PROPOSED" || c.status === "CONFLICTED"
+  );
   const showDeath =
     person.livingStatus === "DECEASED" ||
     deathDate.length > 0 ||
@@ -1125,6 +1126,60 @@ export function PersonProfile({
           >
             补充录音
           </button>
+        </section>
+      ) : null}
+
+      {pendingClaims.length > 0 ? (
+        <section
+          aria-labelledby="profile-pending"
+          className="mb-8 alpha-print-hide"
+        >
+          <h2
+            id="profile-pending"
+            className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            待确认资料
+            {`（${pendingClaims.length}）`}
+          </h2>
+          <p className="mb-3 text-sm text-[color:var(--a-muted)]">
+            {canReview
+              ? "以下内容尚未成为正式记载，请到资料页确认或选用一种说法。"
+              : `以下内容尚未成为正式记载，需${REVIEWER_CONTACT}确认后才会写入档案。`}
+          </p>
+          <ul className="space-y-2">
+            {pendingClaims.map((c) => {
+              const typeLabel =
+                CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType;
+              return (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    className="alpha-panel alpha-panel-interactive flex w-full min-h-[52px] items-center justify-between gap-3 px-4 py-2 text-left"
+                    onClick={() => openRecordsFocus(c.id, c.status)}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-[color:var(--a-ink)]">
+                        {typeLabel}
+                        <span className="font-normal text-[color:var(--a-muted)]">
+                          {" · "}
+                          {c.value?.text ?? "—"}
+                        </span>
+                      </p>
+                    </div>
+                    <span
+                      className={`alpha-chip shrink-0 ${
+                        c.status === "CONFLICTED"
+                          ? "alpha-chip-conflicted"
+                          : "alpha-chip-proposed"
+                      }`}
+                    >
+                      {pendingStatusLabel(c.status, canReview)}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       ) : null}
 

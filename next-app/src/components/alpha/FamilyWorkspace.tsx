@@ -639,6 +639,10 @@ export function FamilyWorkspace({
   } | null>(null);
   /** Records-tab subject mirrored into ?person= (not the member drawer). */
   const [recordsUrlPerson, setRecordsUrlPerson] = useState<string | null>(null);
+  /** Records filter mirrored into ?claimStatus= when no focused ?claim=. */
+  const [recordsUrlStatus, setRecordsUrlStatus] = useState<
+    "PROPOSED" | "CONFLICTED" | "ALL" | null
+  >(null);
   /** Lineage-tab highlight subject mirrored into ?person= when drawer is closed. */
   const [lineageUrlPerson, setLineageUrlPerson] = useState<string | null>(null);
   const [sourcesFocusEvidenceId, setSourcesFocusEvidenceId] = useState<
@@ -680,14 +684,14 @@ export function FamilyWorkspace({
       const params = new URLSearchParams(window.location.search);
       const claim = params.get("claim");
       const person = params.get("person");
+      const statusRaw = params.get("claimStatus");
+      const statusFilter =
+        statusRaw === "PROPOSED" ||
+        statusRaw === "CONFLICTED" ||
+        statusRaw === "ALL"
+          ? statusRaw
+          : undefined;
       if (claim && person) {
-        const statusRaw = params.get("claimStatus");
-        const statusFilter =
-          statusRaw === "PROPOSED" ||
-          statusRaw === "CONFLICTED" ||
-          statusRaw === "ALL"
-            ? statusRaw
-            : undefined;
         try {
           sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
         } catch {
@@ -704,8 +708,30 @@ export function FamilyWorkspace({
           claimId: claim,
           statusFilter,
         });
+        if (statusFilter) setRecordsUrlStatus(statusFilter);
         setTab("records");
         return;
+      }
+      // Person + filter only (overview pending overflow chips).
+      if (
+        !claim &&
+        person &&
+        statusFilter &&
+        params.get("tab") === "records"
+      ) {
+        try {
+          sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
+        } catch {
+          /* private mode */
+        }
+        setRecordsFocus({
+          personId: person,
+          statusFilter,
+          nonce: Date.now(),
+        });
+        setRecordsUrlPerson(person);
+        setRecordsUrlStatus(statusFilter);
+        setTab("records");
       }
     } catch {
       /* ignore */
@@ -815,6 +841,10 @@ export function FamilyWorkspace({
         } else {
           setShareClaim(null);
           setRecordsUrlPerson(personId);
+          setRecordsUrlStatus(resolved.statusFilter ?? null);
+        }
+        if (resolved.statusFilter) {
+          setRecordsUrlStatus(resolved.statusFilter);
         }
       }
       setTab("records");
@@ -895,7 +925,6 @@ export function FamilyWorkspace({
       }
     } else if (tab === "records") {
       params.delete("claim");
-      params.delete("claimStatus");
       params.delete("openEvidence");
       params.delete("evidenceType");
       // On 资料, ?person= is the records subject — not the member drawer.
@@ -903,6 +932,15 @@ export function FamilyWorkspace({
         recordsUrlPerson || pendingClaimPerson || null;
       if (recordsPerson) params.set("person", recordsPerson);
       else params.delete("person");
+      if (
+        recordsUrlStatus === "PROPOSED" ||
+        recordsUrlStatus === "CONFLICTED" ||
+        recordsUrlStatus === "ALL"
+      ) {
+        params.set("claimStatus", recordsUrlStatus);
+      } else {
+        params.delete("claimStatus");
+      }
       if (claimSeed?.claimType && claimSeed.personId === recordsPerson) {
         params.set("claimType", claimSeed.claimType);
       } else {
@@ -960,6 +998,7 @@ export function FamilyWorkspace({
     selectedPersonId,
     shareClaim,
     recordsUrlPerson,
+    recordsUrlStatus,
     lineageUrlPerson,
     drawerBasicsFocus,
     claimSeed,
@@ -1783,6 +1822,7 @@ export function FamilyWorkspace({
             recordsFocus={recordsFocus}
             onRecordsFocusConsumed={() => setRecordsFocus(null)}
             onRecordsPersonChange={setRecordsUrlPerson}
+            onRecordsStatusChange={setRecordsUrlStatus}
             onShareClaim={(personId, claimId, statusFilter, opts) =>
               setShareClaim({
                 personId,
@@ -3174,6 +3214,7 @@ function RecordsTab({
   recordsFocus,
   onRecordsFocusConsumed,
   onRecordsPersonChange,
+  onRecordsStatusChange,
   onShareClaim,
   onOpenSourcesLibrary,
   onAuthError,
@@ -3211,6 +3252,9 @@ function RecordsTab({
   } | null;
   onRecordsFocusConsumed: () => void;
   onRecordsPersonChange?: (personId: string | null) => void;
+  onRecordsStatusChange?: (
+    status: "PROPOSED" | "CONFLICTED" | "ALL" | null
+  ) => void;
   onShareClaim?: (
     personId: string,
     claimId: string,
@@ -3356,6 +3400,18 @@ function RecordsTab({
     }
     setTypeFilter("ALL");
   }, [personId]);
+
+  useEffect(() => {
+    if (
+      statusFilter === "PROPOSED" ||
+      statusFilter === "CONFLICTED" ||
+      statusFilter === "ALL"
+    ) {
+      onRecordsStatusChange?.(statusFilter);
+    } else {
+      onRecordsStatusChange?.(null);
+    }
+  }, [statusFilter, onRecordsStatusChange]);
 
   useEffect(() => {
     if (!claimSeed) return;
