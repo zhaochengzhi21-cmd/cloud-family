@@ -1696,6 +1696,41 @@ export function FamilyWorkspace({
             >
               重试
             </button>
+            {error === ERROR_COPY.forbidden ? (
+              <>
+                <button
+                  type="button"
+                  className="text-sm font-semibold underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setError("");
+                    openParticipantsFromFlash();
+                  }}
+                >
+                  查看参与家人
+                </button>
+                <button
+                  type="button"
+                  className="text-sm font-semibold underline-offset-2 hover:underline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                    void navigator.clipboard.writeText(url).then(
+                      () => {
+                        setError("");
+                        setFlash(
+                          "已复制参与家人链接，可发给有相应权限的家人"
+                        );
+                      },
+                      () => {
+                        setError("");
+                        setFlash("请手动复制地址栏链接");
+                      }
+                    );
+                  }}
+                >
+                  复制链接发给家人
+                </button>
+              </>
+            ) : null}
             {error === ERROR_COPY.notFound ||
             error === ERROR_COPY.forbidden ? (
               <Link
