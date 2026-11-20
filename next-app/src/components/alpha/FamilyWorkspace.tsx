@@ -170,6 +170,11 @@ export function FamilyWorkspace({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
+  const [pendingUndo, setPendingUndo] = useState<null | {
+    kind: "person";
+    id: string;
+    label: string;
+  }>(null);
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [lineageFocusId, setLineageFocusId] = useState<string | null>(null);
@@ -660,18 +665,56 @@ export function FamilyWorkspace({
 
       {flash ? (
         <div
-          className="mb-3 flex items-start justify-between gap-3 alpha-alert alpha-alert-ok"
+          className="mb-3 flex flex-wrap items-start justify-between gap-3 alpha-alert alpha-alert-ok"
           role="status"
         >
           <p className="min-w-0 flex-1">{flash}</p>
-          <button
-            type="button"
-            className="shrink-0 text-sm font-semibold text-[color:var(--a-ok)] underline-offset-2 hover:underline"
-            onClick={() => setFlash("")}
-            aria-label="关闭提示"
-          >
-            关闭
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {pendingUndo?.kind === "person" ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const undo = pendingUndo;
+                  setPendingUndo(null);
+                  setFlash("");
+                  void (async () => {
+                    try {
+                      const r = await v1api.restorePerson(
+                        familyId,
+                        undo.id,
+                        { idempotencyKey: crypto.randomUUID() }
+                      );
+                      setFlash(
+                        `已恢复「${r.person.preferredName}」${
+                          r.relationshipsRestoredCount > 0
+                            ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
+                            : ""
+                        }`
+                      );
+                      await load();
+                    } catch (e) {
+                      if (handleAuthRedirect(e, router)) return;
+                      setError(userMessageForApiError(e));
+                    }
+                  })();
+                }}
+              >
+                恢复
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-ok)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setFlash("");
+                setPendingUndo(null);
+              }}
+              aria-label="关闭提示"
+            >
+              关闭
+            </button>
+          </div>
         </div>
       ) : null}
       {error && !flash ? (
@@ -1058,13 +1101,22 @@ export function FamilyWorkspace({
             setSourcesFocusEvidenceId(evidenceId);
             setTab("overview");
           }}
-          onDeleted={async (name) => {
+          onDeleted={async (name, personId) => {
             setSelectedPersonId(null);
             setDrawerExternalSeed(null);
             setDrawerBasicsFocus(null);
             setError("");
-            setFlash(`已移除「${name}」`);
+            setPendingUndo({ kind: "person", id: personId, label: name });
+            setFlash(
+              `已移除「${name}」。误删可点恢复，或稍后在概览「最近动态」找回。`
+            );
+            setTab("overview");
             await load();
+            requestAnimationFrame(() => {
+              document
+                .getElementById("overview-restorable")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            });
           }}
           onError={(msg) => setError(msg)}
           onAuth={(e) => handleAuthRedirect(e, router)}
@@ -2952,6 +3004,7 @@ function ClaimCard({
   const [removingEvidenceId, setRemovingEvidenceId] = useState<string | null>(
     null
   );
+  const [removingEvidenceShared, setRemovingEvidenceShared] = useState(0);
   const [removingBusy, setRemovingBusy] = useState(false);
   const [evidenceDetailId, setEvidenceDetailId] = useState<string | null>(null);
 
@@ -3208,13 +3261,18 @@ function ClaimCard({
                 removingEvidenceId === l.evidence.id ? (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[color:var(--a-danger)]">
-                      确认移除？
+                      {removingEvidenceShared > 1
+                        ? `此来源还用于 ${removingEvidenceShared - 1} 条其他资料，移除会从家族来源库一并拿掉。确认移除？`
+                        : "确认从家族来源库移除？"}
                     </span>
                     <button
                       type="button"
                       className="font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-ink)]"
                       disabled={removingBusy}
-                      onClick={() => setRemovingEvidenceId(null)}
+                      onClick={() => {
+                        setRemovingEvidenceId(null);
+                        setRemovingEvidenceShared(0);
+                      }}
                     >
                       取消
                     </button>
@@ -3230,8 +3288,11 @@ function ClaimCard({
                             l.evidence.id,
                             { idempotencyKey: crypto.randomUUID() }
                           );
-                          onFlash("已移除资料来源");
+                          onFlash(
+                            "已从家族来源库移除。误删可在概览「最近动态」恢复。"
+                          );
                           setRemovingEvidenceId(null);
+                          setRemovingEvidenceShared(0);
                           const b = await v1api.getClaim(familyId, claim.id);
                           setBundle(b);
                           await onChanged();
@@ -3239,6 +3300,7 @@ function ClaimCard({
                           if (onAuthError(e)) return;
                           onError(userMessageForApiError(e));
                           setRemovingEvidenceId(null);
+                          setRemovingEvidenceShared(0);
                         } finally {
                           setRemovingBusy(false);
                         }
@@ -3251,7 +3313,21 @@ function ClaimCard({
                   <button
                     type="button"
                     className="shrink-0 font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-danger)]"
-                    onClick={() => setRemovingEvidenceId(l.evidence.id)}
+                    onClick={() => {
+                      setRemovingEvidenceId(l.evidence.id);
+                      setRemovingEvidenceShared(0);
+                      void (async () => {
+                        try {
+                          const r = await v1api.listEvidenceLinks(
+                            familyId,
+                            l.evidence.id
+                          );
+                          setRemovingEvidenceShared(r.links.length);
+                        } catch {
+                          setRemovingEvidenceShared(1);
+                        }
+                      })();
+                    }}
                   >
                     移除来源
                   </button>
@@ -4787,7 +4863,7 @@ function PersonDrawer({
   onBasicsFocusConsumed?: () => void;
   onClose: () => void;
   onChanged: () => Promise<void>;
-  onDeleted: (name: string) => Promise<void>;
+  onDeleted: (name: string, personId: string) => Promise<void>;
   onRequestAddRel: () => void;
   onRequestAddKin: (role: KinRole) => void;
   onShowInLineage: () => void;
@@ -5578,7 +5654,7 @@ function PersonDrawer({
                           await v1api.deletePerson(familyId, person.id, {
                             idempotencyKey: crypto.randomUUID(),
                           });
-                          await onDeleted(removedName);
+                          await onDeleted(removedName, person.id);
                         } catch (err) {
                           if (onAuth(err)) return;
                           const msg = userMessageForApiError(err);

@@ -21,6 +21,8 @@ export function FamilySources({
   familyId,
   onAuthError,
   onOpenRecords,
+  canManage = false,
+  onRemoved,
   focusEvidenceId = null,
   onFocusEvidenceConsumed,
   dataVersion = 0,
@@ -34,14 +36,21 @@ export function FamilySources({
       statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     }
   ) => void;
+  /** OWNER/ADMIN — soft-delete from the library. */
+  canManage?: boolean;
+  onRemoved?: () => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
   /** Bumps when the workspace reloads so the library stays in sync. */
   dataVersion?: number;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
-  const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO">("ALL");
+  const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO" | "DOC">(
+    "ALL"
+  );
   const [error, setError] = useState("");
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removingBusy, setRemovingBusy] = useState(false);
   const [playing, setPlaying] = useState<{
     id: string;
     url: string;
@@ -81,6 +90,14 @@ export function FamilySources({
     }
     if (filter === "AUDIO") {
       return items.filter((e) => isAudio(e.mimeType, e.evidenceType));
+    }
+    if (filter === "DOC") {
+      return items.filter(
+        (e) =>
+          e.evidenceType === "DOCUMENT" ||
+          e.evidenceType === "GENEALOGY_PAGE" ||
+          e.evidenceType === "ARCHIVE"
+      );
     }
     return items;
   }, [items, filter]);
@@ -211,7 +228,6 @@ export function FamilySources({
     );
   }
   if (!items) return null;
-  if (items.length === 0) return null;
 
   return (
     <section aria-labelledby="overview-sources">
@@ -225,6 +241,13 @@ export function FamilySources({
         <p className="text-sm text-[color:var(--a-muted)]">
           家族里已收录的出处。添加人物资料时可以选择「使用已有来源」，不必重复上传。
         </p>
+        {items.length === 0 ? (
+          <p className="mt-3 text-sm text-[color:var(--a-muted)]">
+            还没有资料来源。打开某位家人的资料，添加谱页、照片或口述出处后，会汇总到这里。
+          </p>
+        ) : null}
+        {items.length > 0 ? (
+        <>
         <div
           className="mt-3 flex flex-wrap gap-2"
           role="group"
@@ -235,6 +258,7 @@ export function FamilySources({
               ["ALL", "全部"],
               ["PHOTO", "照片"],
               ["AUDIO", "口述 / 录音"],
+              ["DOC", "谱页 / 文书"],
             ] as const
           ).map(([k, label]) => (
             <button
@@ -326,6 +350,57 @@ export function FamilySources({
                         打开
                       </button>
                     ) : null}
+                    {canManage ? (
+                      removingId === e.id ? (
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-[color:var(--a-danger)]">
+                            {e.linkCount > 1
+                              ? `用于 ${e.linkCount} 条资料，确认从库中移除？`
+                              : "确认移除？"}
+                          </span>
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-muted)]"
+                            disabled={removingBusy}
+                            onClick={() => setRemovingId(null)}
+                          >
+                            取消
+                          </button>
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-danger)] hover:underline"
+                            disabled={removingBusy}
+                            onClick={async () => {
+                              setRemovingBusy(true);
+                              try {
+                                await v1api.deleteEvidence(familyId, e.id, {
+                                  idempotencyKey: crypto.randomUUID(),
+                                });
+                                setRemovingId(null);
+                                await load();
+                                onRemoved?.();
+                              } catch (err) {
+                                if (onAuthError(err)) return;
+                                setError(userMessageForApiError(err));
+                                setRemovingId(null);
+                              } finally {
+                                setRemovingBusy(false);
+                              }
+                            }}
+                          >
+                            {removingBusy ? "移除中…" : "确认移除"}
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-muted)] hover:text-[color:var(--a-danger)]"
+                          onClick={() => setRemovingId(e.id)}
+                        >
+                          移除
+                        </button>
+                      )
+                    ) : null}
                   </div>
                 </div>
                 {detailId === e.id ? (
@@ -400,6 +475,8 @@ export function FamilySources({
             ))}
           </ul>
         )}
+        </>
+        ) : null}
         {playing ? (
           <div className="mt-3 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-3">
             <div className="mb-2 flex items-center justify-between gap-2">

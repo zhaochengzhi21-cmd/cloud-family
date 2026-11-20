@@ -219,7 +219,7 @@ export function OverviewTab({
     try {
       const [ov, act] = await Promise.all([
         v1api.getOverview(familyId),
-        v1api.getActivity(familyId),
+        v1api.getActivity(familyId, 40),
       ]);
       setOverview(ov.overview);
       setActivity(act.activity);
@@ -1211,6 +1211,98 @@ export function OverviewTab({
         </section>
       ) : null}
 
+      {(() => {
+        const restorable = (activity ?? []).filter((item) => {
+          if (!item.restorable) return false;
+          if (item.eventType === "PERSON_DELETED")
+            return Boolean(canReview && onRestorePerson && item.personId);
+          if (item.eventType === "RELATIONSHIP_DELETED")
+            return Boolean(
+              canEdit && onRestoreRelationship && item.relationshipId
+            );
+          if (item.eventType === "EVIDENCE_DELETED")
+            return Boolean(canReview && onRestoreEvidence && item.evidenceId);
+          if (item.eventType === "CLAIM_REJECTED")
+            return Boolean(
+              canReview && onReopenClaim && item.claimId && item.personId
+            );
+          return false;
+        });
+        if (restorable.length === 0) return null;
+        return (
+          <section
+            id="overview-restorable"
+            aria-labelledby="overview-restorable-title"
+            className="scroll-mt-24"
+          >
+            <h2
+              id="overview-restorable-title"
+              className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+            >
+              可恢复
+            </h2>
+            <ul className="alpha-panel divide-y divide-[color:var(--a-brand-line)]">
+              {restorable.slice(0, 8).map((item) => {
+                const label =
+                  item.eventType === "PERSON_DELETED"
+                    ? `成员「${item.personName ?? "未命名"}」`
+                    : item.eventType === "RELATIONSHIP_DELETED"
+                      ? "一条家庭关系"
+                      : item.eventType === "EVIDENCE_DELETED"
+                        ? `资料来源${item.evidenceType ? `（${EVIDENCE_TYPE_UI[item.evidenceType] ?? item.evidenceType}）` : ""}`
+                        : item.eventType === "CLAIM_REJECTED"
+                          ? `不采用的${CLAIM_TYPE_UI[item.claimType ?? ""]?.label ?? "资料"}`
+                          : "一条记录";
+                return (
+                  <li
+                    key={`restorable-${item.id}`}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm"
+                  >
+                    <p className="min-w-0 text-[color:var(--a-ink)]">
+                      {label}
+                      <span className="text-[color:var(--a-muted)]">
+                        {" · "}
+                        {relativeTimeLabel(item.at)}
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                      onClick={() => {
+                        if (
+                          item.eventType === "PERSON_DELETED" &&
+                          item.personId
+                        ) {
+                          void onRestorePerson?.(item.personId);
+                        } else if (
+                          item.eventType === "RELATIONSHIP_DELETED" &&
+                          item.relationshipId
+                        ) {
+                          void onRestoreRelationship?.(item.relationshipId);
+                        } else if (
+                          item.eventType === "EVIDENCE_DELETED" &&
+                          item.evidenceId
+                        ) {
+                          void onRestoreEvidence?.(item.evidenceId);
+                        } else if (
+                          item.eventType === "CLAIM_REJECTED" &&
+                          item.claimId &&
+                          item.personId
+                        ) {
+                          void onReopenClaim?.(item.personId, item.claimId);
+                        }
+                      }}
+                    >
+                      恢复
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })()}
+
       {activity && activity.length > 0 ? (
         <section aria-labelledby="overview-activity">
           <h2
@@ -1395,6 +1487,11 @@ export function OverviewTab({
           familyId={familyId}
           onAuthError={onAuthError}
           onOpenRecords={onOpenRecords}
+          canManage={canReview}
+          onRemoved={() => {
+            void load();
+            void onReload?.();
+          }}
           focusEvidenceId={focusEvidenceId}
           onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
           dataVersion={dataVersion}
