@@ -2127,6 +2127,48 @@ export function OverviewTab({
                         >
                           查看参与家人
                         </button>
+                        {item.claimId && item.personId ? (
+                          <>
+                            {" · "}
+                            <button
+                              type="button"
+                              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                              onClick={() => {
+                                const qs = new URLSearchParams({
+                                  tab: "records",
+                                  person: item.personId!,
+                                  claim: item.claimId!,
+                                });
+                                const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                                void navigator.clipboard.writeText(url).then(
+                                  () => {
+                                    setActivityCopyFlash(
+                                      `已复制链接，可发给${REVIEWER_CONTACT}重新打开`
+                                    );
+                                    window.setTimeout(
+                                      () => setActivityCopyFlash(""),
+                                      2500
+                                    );
+                                  },
+                                  () => {
+                                    setActivityCopyFlash(
+                                      "请手动复制地址栏链接"
+                                    );
+                                    window.setTimeout(
+                                      () => setActivityCopyFlash(""),
+                                      2500
+                                    );
+                                  }
+                                );
+                              }}
+                            >
+                              {activityCopyFlash.includes("重新打开") ||
+                              activityCopyFlash.startsWith("请手动")
+                                ? activityCopyFlash
+                                : "复制链接发给家人"}
+                            </button>
+                          </>
+                        ) : null}
                       </span>
                     ) : null}
                     {(item.eventType === "EVIDENCE_CREATED" ||
@@ -2198,6 +2240,39 @@ export function OverviewTab({
                           onClick={scrollToParticipants}
                         >
                           查看参与家人
+                        </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash(
+                                  `已复制链接，可发给${REVIEWER_CONTACT}恢复`
+                                );
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash(
+                                  "请手动复制地址栏链接"
+                                );
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          {activityCopyFlash.includes("恢复") ||
+                          activityCopyFlash.startsWith("请手动")
+                            ? activityCopyFlash
+                            : "复制链接发给家人"}
                         </button>
                       </span>
                     ) : null}
@@ -2277,6 +2352,39 @@ export function OverviewTab({
                         >
                           查看参与家人
                         </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash(
+                                  "已复制链接，可发给有编辑权限的家人恢复"
+                                );
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash(
+                                  "请手动复制地址栏链接"
+                                );
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          {activityCopyFlash.includes("编辑权限") ||
+                          activityCopyFlash.startsWith("请手动")
+                            ? activityCopyFlash
+                            : "复制链接发给家人"}
+                        </button>
                       </span>
                     ) : null}
                     {(item.eventType === "PERSON_CREATED" ||
@@ -2347,6 +2455,39 @@ export function OverviewTab({
                         >
                           查看参与家人
                         </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash(
+                                  `已复制链接，可发给${REVIEWER_CONTACT}恢复`
+                                );
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash(
+                                  "请手动复制地址栏链接"
+                                );
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          {activityCopyFlash.includes("恢复") ||
+                          activityCopyFlash.startsWith("请手动")
+                            ? activityCopyFlash
+                            : "复制链接发给家人"}
+                        </button>
                       </span>
                     ) : null}
                     {item.eventType === "MEMBERSHIP_SUSPENDED" ||
@@ -2377,6 +2518,39 @@ export function OverviewTab({
                             onClick={scrollToParticipants}
                           >
                             查看参与家人
+                          </button>
+                          {" · "}
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                            onClick={() => {
+                              const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                              void navigator.clipboard.writeText(url).then(
+                                () => {
+                                  setActivityCopyFlash(
+                                    `已复制链接，可发给${REVIEWER_CONTACT}发新邀请`
+                                  );
+                                  window.setTimeout(
+                                    () => setActivityCopyFlash(""),
+                                    2500
+                                  );
+                                },
+                                () => {
+                                  setActivityCopyFlash(
+                                    "请手动复制地址栏链接"
+                                  );
+                                  window.setTimeout(
+                                    () => setActivityCopyFlash(""),
+                                    2500
+                                  );
+                                }
+                              );
+                            }}
+                          >
+                            {activityCopyFlash.includes("发新邀请") ||
+                            activityCopyFlash.startsWith("请手动")
+                              ? activityCopyFlash
+                              : "复制链接发给家人"}
                           </button>
                         </span>
                       )
