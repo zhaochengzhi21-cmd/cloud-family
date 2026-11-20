@@ -1723,7 +1723,27 @@ test("明经胡氏：人物页不确定在世/性别直达抽屉焦点", async (
     page.getByRole("button", { name: "确认在世状态" })
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "确认性别" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "修改姓名" })).toBeVisible();
 
+  await page.getByRole("button", { name: "修改姓名" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  const nameDrawer = page.getByRole("dialog");
+  await expect(
+    nameDrawer.getByRole("heading", { name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(nameDrawer.locator("#edit-name")).toHaveValue(
+    sample.guanSan.preferredName
+  );
+  await expect(nameDrawer.locator("#edit-name")).toBeFocused();
+  await nameDrawer.getByRole("button", { name: "关闭" }).click();
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.guanSan.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
   await page.getByRole("button", { name: "确认在世状态" }).click();
   await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
   const livingDrawer = page.getByRole("dialog");

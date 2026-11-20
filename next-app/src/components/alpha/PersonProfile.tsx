@@ -358,7 +358,7 @@ export function PersonProfile({
     router.push(workspaceHref);
   }
 
-  function openPersonBasics(focus: "living" | "gender") {
+  function openPersonBasics(focus: "living" | "gender" | "name") {
     try {
       sessionStorage.setItem(
         `alpha-person-basics:${familyId}`,
@@ -498,6 +498,15 @@ export function PersonProfile({
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
             >
               补充或修改资料
+            </button>
+          ) : null}
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => openPersonBasics("name")}
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            >
+              修改姓名
             </button>
           ) : null}
           {canEdit &&

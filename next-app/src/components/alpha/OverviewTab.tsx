@@ -181,7 +181,7 @@ export function OverviewTab({
   /** Open person drawer (e.g. to edit gender / living status). */
   onOpenPerson?: (
     personId: string,
-    basicsFocus?: "living" | "gender"
+    basicsFocus?: "living" | "gender" | "name"
   ) => void;
   onOpenRecords: (
     personId: string,

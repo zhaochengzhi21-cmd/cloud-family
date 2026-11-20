@@ -194,7 +194,7 @@ export function FamilyWorkspace({
     nonce: number;
   } | null>(null);
   const [drawerBasicsFocus, setDrawerBasicsFocus] = useState<
-    "living" | "gender" | null
+    "living" | "gender" | "name" | null
   >(null);
 
   const canEdit = role === "OWNER" || role === "ADMIN" || role === "EDITOR";
@@ -384,11 +384,13 @@ export function FamilyWorkspace({
       sessionStorage.removeItem(`alpha-person-basics:${familyId}`);
       const parsed = JSON.parse(raw) as {
         personId?: string;
-        focus?: "living" | "gender";
+        focus?: "living" | "gender" | "name";
       };
       if (
         parsed.personId &&
-        (parsed.focus === "living" || parsed.focus === "gender")
+        (parsed.focus === "living" ||
+          parsed.focus === "gender" ||
+          parsed.focus === "name")
       ) {
         setDrawerBasicsFocus(parsed.focus);
         setSelectedPersonId(parsed.personId);
@@ -5140,7 +5142,7 @@ function PersonDrawer({
   canReview: boolean;
   externalClaimSeed?: { claimType: string; nonce: number } | null;
   onExternalClaimSeedConsumed?: () => void;
-  basicsFocus?: "living" | "gender" | null;
+  basicsFocus?: "living" | "gender" | "name" | null;
   onBasicsFocusConsumed?: () => void;
   onClose: () => void;
   onChanged: () => Promise<void>;
@@ -5188,10 +5190,19 @@ function PersonDrawer({
   }, [externalClaimSeed, onExternalClaimSeedConsumed]);
   useEffect(() => {
     if (!basicsFocus) return;
-    const id = basicsFocus === "living" ? "edit-living" : "edit-gender";
+    const id =
+      basicsFocus === "living"
+        ? "edit-living"
+        : basicsFocus === "gender"
+          ? "edit-gender"
+          : "edit-name";
     const t = window.setTimeout(() => {
-      const el = document.getElementById(id) as HTMLSelectElement | null;
+      const el = document.getElementById(id) as
+        | HTMLInputElement
+        | HTMLSelectElement
+        | null;
       el?.focus();
+      if (el && "select" in el) el.select();
       onBasicsFocusConsumed?.();
     }, 0);
     return () => window.clearTimeout(t);
