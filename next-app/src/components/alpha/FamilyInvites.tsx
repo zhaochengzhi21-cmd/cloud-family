@@ -411,9 +411,20 @@ export function FamilyInvites({
         </div>
 
         {access.invitableRoles.length === 0 ? (
-          <p className="text-sm text-[color:var(--a-muted)]">
-            当前账号不能生成新的邀请。请向家族创建者确认权限。
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
+            <p>当前账号不能生成新的邀请。请向家族创建者确认权限。</p>
+            <button
+              type="button"
+              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                document
+                  .getElementById("overview-participants")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              查看参与家人
+            </button>
+          </div>
         ) : (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <label className="min-w-0 flex-1">
