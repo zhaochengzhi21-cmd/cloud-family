@@ -119,6 +119,7 @@ export function OverviewTab({
   onAddKin,
   onOpenPerson,
   onOpenRecords,
+  onOpenLineage,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -150,6 +151,8 @@ export function OverviewTab({
           statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
         }
   ) => void;
+  /** Jump to 世系 and highlight a person (relationship feed). */
+  onOpenLineage?: (personId: string) => void;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -936,6 +939,21 @@ export function OverviewTab({
                           type="button"
                           className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                           onClick={() => setFocusEvidenceId(item.evidenceId!)}
+                        >
+                          查看
+                        </button>
+                      </>
+                    ) : null}
+                    {(item.eventType === "RELATIONSHIP_CREATED" ||
+                      item.eventType === "RELATIONSHIP_DELETED") &&
+                    onOpenLineage &&
+                    item.personId ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => onOpenLineage(item.personId!)}
                         >
                           查看
                         </button>

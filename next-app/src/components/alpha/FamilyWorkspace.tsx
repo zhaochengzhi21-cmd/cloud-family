@@ -706,6 +706,10 @@ export function FamilyWorkspace({
               setSelectedPersonId(personId);
             }}
             onOpenRecords={openRecordsFor}
+            onOpenLineage={(personId) => {
+              setLineageFocusId(personId);
+              setTab("lineage");
+            }}
             onAuthError={authRedirect}
             externalFocusEvidenceId={sourcesFocusEvidenceId}
             onExternalFocusEvidenceConsumed={() =>
