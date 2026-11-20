@@ -5,6 +5,7 @@ import { createRelationshipBodySchema } from "@/v1/http/schemas/workspace";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { okJson, relationshipDto } from "@/v1/http/response";
 import { createRelationship } from "@/v1/services/relationshipService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -27,30 +28,39 @@ export async function POST(
   const parsed = createRelationshipBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
 
-  try {
-    // HTTP contract: from=parent / to=child → Domain personA/personB
-    const result = await createRelationship(
-      {
-        familyId: p.data.familyId,
-        actorContext: ctx.actorContext,
-        personAId: parsed.data.fromPersonId,
-        personBId: parsed.data.toPersonId,
-        relationshipType: parsed.data.relationshipType,
-      },
-      { db: ctx.db }
-    );
-    return okJson(
-      {
-        relationship: relationshipDto(result.relationship),
-        familyVersion: result.familyVersion,
-      },
-      201
-    );
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "relationships.create",
+    body: parsed.data,
+    run: async () => {
+      try {
+        // HTTP contract: from=parent / to=child → Domain personA/personB
+        const result = await createRelationship(
+          {
+            familyId: p.data.familyId,
+            actorContext: ctx.actorContext,
+            personAId: parsed.data.fromPersonId,
+            personBId: parsed.data.toPersonId,
+            relationshipType: parsed.data.relationshipType,
+          },
+          { db: ctx.db }
+        );
+        return okJson(
+          {
+            relationship: relationshipDto(result.relationship),
+            familyVersion: result.familyVersion,
+          },
+          201
+        );
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }

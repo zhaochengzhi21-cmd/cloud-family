@@ -293,6 +293,9 @@ function capabilitiesForRole(
       method: "POST",
       path: `${base}/persons`,
       roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
       policy: ["Then propose facts / relationships as needed"],
     },
     {
@@ -316,6 +319,9 @@ function capabilitiesForRole(
       method: "POST",
       path: `${base}/relationships`,
       roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
       policy: ["Soft-deletable; restore via …/restore"],
     },
     {
