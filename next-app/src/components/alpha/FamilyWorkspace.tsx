@@ -910,8 +910,12 @@ export function FamilyWorkspace({
       /* private mode */
     }
     const params = new URLSearchParams(searchParams.toString());
-    if (tab === "overview") params.delete("tab");
-    else {
+    if (tab === "overview") {
+      params.delete("tab");
+      if (sourcesFocusEvidenceId) {
+        params.set("evidence", sourcesFocusEvidenceId);
+      }
+    } else {
       params.set("tab", tab);
       params.delete("evidence");
     }
@@ -1066,6 +1070,7 @@ export function FamilyWorkspace({
     showAddRel,
     shareKinHandoff,
     shareAddHandoff,
+    sourcesFocusEvidenceId,
     relFocusPersonId,
     kinRole,
     pathname,
