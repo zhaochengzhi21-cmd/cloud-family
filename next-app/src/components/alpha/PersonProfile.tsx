@@ -472,9 +472,7 @@ export function PersonProfile({
           {error ||
             (canReview
               ? "找不到这份资料。若刚移除了这位家人，可在下方恢复。"
-              : canEdit
-                ? "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「参与家人」中找到可恢复的人。"
-                : "找不到这份资料。若刚被移除，请联系创建者或管理员恢复。")}
+              : "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「参与家人」中找到可恢复的人。")}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {canReview && !error ? (
@@ -502,7 +500,7 @@ export function PersonProfile({
               {restoring ? "恢复中…" : "恢复这位家人"}
             </button>
           ) : null}
-          {canEdit && !canReview && !error ? (
+          {!canReview && !error ? (
             <button
               type="button"
               className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
@@ -1201,9 +1199,23 @@ export function PersonProfile({
                 ))}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-                有编辑权限的家人可以补充父母、配偶或子女。
-              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <p className="w-full text-sm text-[color:var(--a-muted)]">
+                  有编辑权限的家人可以补充父母、配偶或子女。
+                </p>
+                <Link
+                  href={workspaceHref}
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                >
+                  返回家族档案
+                </Link>
+                <Link
+                  href={`/alpha/families/${familyId}/print?person=${personId}`}
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                >
+                  在打印版家谱中查看
+                </Link>
+              </div>
             )}
           </div>
         ) : (

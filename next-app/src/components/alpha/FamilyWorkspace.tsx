@@ -657,8 +657,8 @@ export function FamilyWorkspace({
     } else {
       setSelectedPersonId(null);
     }
-    // Only when graph finishes loading for this family.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: hydrate once per load
+    // Hydrate drawer from URL after graph load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: hydrate on load
   }, [loading, familyId, persons]);
 
   useEffect(() => {

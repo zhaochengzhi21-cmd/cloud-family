@@ -3737,6 +3737,41 @@ test("明经胡氏：已移除人物页可恢复", async ({ page, baseURL }) => 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：只读打开已移除人物页可去参与家人", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·只读见已移除（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const del = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}`,
+    { method: "DELETE", body: {} }
+  );
+  expect(del.status, JSON.stringify(del.body)).toBe(200);
+
+  const viewerId = await insertFakeUser();
+  await insertMembership(familyId, viewerId, "VIEWER");
+  await loginAs(page, viewerId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByText(/请联系创建者或管理员恢复/)
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "去概览参与家人" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}`));
+  await expect(
+    page.getByRole("region", { name: "参与家人" })
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：编辑者打开已移除人物页可去概览", async ({
   page,
   baseURL,
