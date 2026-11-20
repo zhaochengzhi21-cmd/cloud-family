@@ -188,11 +188,21 @@ export function FamilyInvites({
         setLink(null);
       }
       setFailed(false);
-      setMessage("已撤销邀请");
+      setMessageCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+      );
+      setMessageCopyFlash("");
+      setMessage(
+        "已撤销邀请。可在上方重新生成；也可复制本段链接发给有邀请权限的家人核对。"
+      );
       await load();
+      window.setTimeout(() => {
+        document.getElementById("invite-email")?.focus();
+      }, 80);
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
+      setMessageCopyUrl(null);
       setMessage(userMessageForApiError(e));
     }
   }
