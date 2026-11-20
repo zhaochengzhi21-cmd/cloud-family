@@ -819,6 +819,7 @@ export function FamilyWorkspace({
     }
     const pendingClaim = searchParams.get("claim");
     const pendingClaimPerson = searchParams.get("person");
+    const pendingClaimStatus = searchParams.get("claimStatus");
     const urlWantsRecords = searchParams.get("tab") === "records";
     if (tab === "records" && shareClaim) {
       params.set("claim", shareClaim.claimId);
@@ -838,6 +839,13 @@ export function FamilyWorkspace({
       params.set("tab", "records");
       params.set("claim", pendingClaim);
       params.set("person", pendingClaimPerson);
+      if (
+        pendingClaimStatus === "PROPOSED" ||
+        pendingClaimStatus === "CONFLICTED" ||
+        pendingClaimStatus === "ALL"
+      ) {
+        params.set("claimStatus", pendingClaimStatus);
+      }
       params.delete("claimType");
     } else if (tab === "records") {
       params.delete("claim");
