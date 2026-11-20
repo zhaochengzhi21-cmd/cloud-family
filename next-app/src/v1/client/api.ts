@@ -418,6 +418,7 @@ export const v1api = {
         familyId: string | null;
         familyName: string | null;
         role: string | null;
+        rejoining?: boolean;
       };
     }>(`/api/v1/invites/${encodeURIComponent(token)}`),
 

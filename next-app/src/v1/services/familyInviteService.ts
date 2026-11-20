@@ -425,6 +425,8 @@ export type InvitePreview = {
   familyId: string | null;
   familyName: string | null;
   role: string | null;
+  /** True when the caller left/was removed and this invite will reinstate them. */
+  rejoining?: boolean;
 };
 
 /**
@@ -458,11 +460,22 @@ export async function previewFamilyInvite(
   if (!family || !inviteRepo.isInviteOpen(invite, now)) {
     return { status: "UNAVAILABLE", familyId: null, familyName: null, role: null };
   }
+  const [anyMembership] = await db
+    .select({ status: familyMemberships.status })
+    .from(familyMemberships)
+    .where(
+      and(
+        eq(familyMemberships.familyId, family.id),
+        eq(familyMemberships.userId, userId)
+      )
+    )
+    .limit(1);
   return {
     status: "OPEN",
     familyId: family.id,
     familyName: family.displayName,
     role: invite.role,
+    rejoining: anyMembership?.status === "SUSPENDED" ? true : undefined,
   };
 }
 

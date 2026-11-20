@@ -3508,6 +3508,11 @@ function RecordsTab({
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [rejectedOpen, setRejectedOpen] = useState(false);
   const [claimFocusMiss, setClaimFocusMiss] = useState(false);
+  /** Keep the deep link forwardable when the focused claim/person is gone. */
+  const [claimFocusMissUrl, setClaimFocusMissUrl] = useState<string | null>(
+    null
+  );
+  const [claimFocusMissCopyFlash, setClaimFocusMissCopyFlash] = useState("");
   const [claimSeedBlocked, setClaimSeedBlocked] = useState(false);
   /** When VIEWER hits ?openEvidence= / claim seed — keep a forwardable handoff URL. */
   const [seedBlockedHandoffUrl, setSeedBlockedHandoffUrl] = useState<
@@ -3694,9 +3699,22 @@ function RecordsTab({
       setPersonId(recordsFocus.personId);
       return;
     }
+    {
+      const qs = new URLSearchParams({
+        tab: "records",
+        person: recordsFocus.personId,
+      });
+      if (recordsFocus.claimId) qs.set("claim", recordsFocus.claimId);
+      if (recordsFocus.statusFilter) {
+        qs.set("claimStatus", recordsFocus.statusFilter);
+      }
+      setClaimFocusMissUrl(
+        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+      );
+    }
     setClaimFocusMiss(true);
     onRecordsFocusConsumed();
-  }, [recordsFocus, persons, onRecordsFocusConsumed]);
+  }, [recordsFocus, persons, onRecordsFocusConsumed, familyId]);
 
   useEffect(() => {
     if (!recordsFocus || loading) return;
@@ -3705,6 +3723,7 @@ function RecordsTab({
     // Person + status filter only (e.g. overview pending overflow chips).
     if (!recordsFocus.claimId) {
       setClaimFocusMiss(false);
+      setClaimFocusMissUrl(null);
       if (recordsFocus.statusFilter) {
         setStatusFilter(recordsFocus.statusFilter);
       }
@@ -3713,11 +3732,23 @@ function RecordsTab({
     }
     const focused = claims.find((c) => c.id === recordsFocus.claimId);
     if (!focused) {
+      const qs = new URLSearchParams({
+        tab: "records",
+        person: recordsFocus.personId,
+        claim: recordsFocus.claimId,
+      });
+      if (recordsFocus.statusFilter) {
+        qs.set("claimStatus", recordsFocus.statusFilter);
+      }
+      setClaimFocusMissUrl(
+        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+      );
       setClaimFocusMiss(true);
       onRecordsFocusConsumed();
       return;
     }
     setClaimFocusMiss(false);
+    setClaimFocusMissUrl(null);
     const claimId = recordsFocus.claimId;
     if (focused.status === "REJECTED") {
       setStatusFilter("ALL");
@@ -3905,12 +3936,43 @@ function RecordsTab({
         >
           <p className="text-sm text-[color:var(--a-muted)]">
             要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。
+            {claimFocusMissUrl
+              ? ` 可复制链接发给${REVIEWER_CONTACT}核对，或查看全部资料。`
+              : ""}
           </p>
+          {claimFocusMissUrl ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = claimFocusMissUrl;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setClaimFocusMissCopyFlash("已复制链接");
+                    window.setTimeout(
+                      () => setClaimFocusMissCopyFlash(""),
+                      2500
+                    );
+                  },
+                  () => {
+                    setClaimFocusMissCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(
+                      () => setClaimFocusMissCopyFlash(""),
+                      2500
+                    );
+                  }
+                );
+              }}
+            >
+              {claimFocusMissCopyFlash || "复制链接发给家人"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
             onClick={() => {
               setClaimFocusMiss(false);
+              setClaimFocusMissUrl(null);
               setStatusFilter("ALL");
               setTypeFilter("ALL");
               setRejectedOpen(true);
@@ -3921,7 +3983,10 @@ function RecordsTab({
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-muted)] underline-offset-2 hover:underline"
-            onClick={() => setClaimFocusMiss(false)}
+            onClick={() => {
+              setClaimFocusMiss(false);
+              setClaimFocusMissUrl(null);
+            }}
           >
             知道了
           </button>

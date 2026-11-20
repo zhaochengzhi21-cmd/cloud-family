@@ -193,11 +193,14 @@ export function InviteLanding({ token }: { token: string }) {
               家族邀请
             </p>
             <h1 className="alpha-font-display mt-2 text-2xl font-bold text-[color:var(--a-ink)]">
-              加入「{view.invite.familyName}」
+              {view.invite.rejoining
+                ? `重新加入「${view.invite.familyName}」`
+                : `加入「${view.invite.familyName}」`}
             </h1>
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-              加入后你的权限是「{roleLabel(view.invite.role)}」，可以和家人一起查看
-              {view.invite.role === "VIEWER" ? "" : "、补充"}家族档案。
+              {view.invite.rejoining
+                ? `你曾离开或被移出过这个家族。确认后将按「${roleLabel(view.invite.role)}」重新加入，可以和家人一起查看${view.invite.role === "VIEWER" ? "" : "、补充"}家族档案。`
+                : `加入后你的权限是「${roleLabel(view.invite.role)}」，可以和家人一起查看${view.invite.role === "VIEWER" ? "" : "、补充"}家族档案。`}
             </p>
             <button
               type="button"
@@ -205,7 +208,13 @@ export function InviteLanding({ token }: { token: string }) {
               disabled={busy}
               className="alpha-btn alpha-btn-primary mt-6"
             >
-              {busy ? "正在加入…" : "加入家族"}
+              {busy
+                ? view.invite.rejoining
+                  ? "正在重新加入…"
+                  : "正在加入…"
+                : view.invite.rejoining
+                  ? "重新加入家族"
+                  : "加入家族"}
             </button>
           </>
         ) : null}
