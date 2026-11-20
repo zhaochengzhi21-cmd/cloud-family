@@ -72,6 +72,8 @@ export function FamilyInvites({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
+  const [messageCopyUrl, setMessageCopyUrl] = useState<string | null>(null);
+  const [messageCopyFlash, setMessageCopyFlash] = useState("");
   const [sectionCopyFlash, setSectionCopyFlash] = useState("");
 
   const load = useCallback(async () => {
@@ -101,6 +103,8 @@ export function FamilyInvites({
   async function create() {
     setBusy(true);
     setMessage("");
+    setMessageCopyUrl(null);
+    setMessageCopyFlash("");
     setFailed(false);
     try {
       const trimmed = email.trim();
@@ -202,6 +206,8 @@ export function FamilyInvites({
     }
     setBusy(true);
     setMessage("");
+    setMessageCopyUrl(null);
+    setMessageCopyFlash("");
     setFailed(false);
     try {
       await v1api.revokeFamilyInvite(familyId, invite.id);
@@ -238,17 +244,25 @@ export function FamilyInvites({
   ) {
     setBusy(true);
     setMessage("");
+    setMessageCopyUrl(null);
+    setMessageCopyFlash("");
     setFailed(false);
     try {
       await v1api.updateFamilyMemberRole(familyId, membershipId, next, {
         idempotencyKey: crypto.randomUUID(),
       });
-      setMessage(`已改为${roleLabel(next)}`);
+      setMessageCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}`
+      );
+      setMessage(
+        `已改为${roleLabel(next)}。可复制链接发给对方打开家族。`
+      );
       await load();
       onMembershipChanged?.();
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
+      setMessageCopyUrl(null);
       setMessage(userMessageForApiError(e));
     } finally {
       setBusy(false);
@@ -261,13 +275,18 @@ export function FamilyInvites({
     }
     setBusy(true);
     setMessage("");
+    setMessageCopyUrl(null);
+    setMessageCopyFlash("");
     setFailed(false);
     try {
       await v1api.removeFamilyMember(familyId, membershipId, {
         idempotencyKey: crypto.randomUUID(),
       });
+      setMessageCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+      );
       setMessage(
-        "已移除。若需对方再加入，在下方生成一条新邀请（同一邮箱会再次加入）。"
+        "已移除。若需对方再加入，在下方生成一条新邀请（同一邮箱会再次加入）。可复制本段链接发给有邀请权限的家人核对。"
       );
       await load();
       onMembershipChanged?.();
@@ -277,6 +296,7 @@ export function FamilyInvites({
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
+      setMessageCopyUrl(null);
       setMessage(userMessageForApiError(e));
     } finally {
       setBusy(false);
@@ -441,6 +461,8 @@ export function FamilyInvites({
                         }
                         setBusy(true);
                         setMessage("");
+                        setMessageCopyUrl(null);
+                        setMessageCopyFlash("");
                         setFailed(false);
                         void (async () => {
                           try {
@@ -636,6 +658,29 @@ export function FamilyInvites({
             <p role={failed ? "alert" : "status"} className="min-w-0">
               {message}
             </p>
+            {messageCopyUrl &&
+            !failed &&
+            message.includes("可复制") ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = messageCopyUrl;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setMessageCopyFlash("已复制链接");
+                      window.setTimeout(() => setMessageCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setMessageCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setMessageCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {messageCopyFlash || "复制链接"}
+              </button>
+            ) : null}
             {failed ? (
               <button
                 type="button"
@@ -643,6 +688,7 @@ export function FamilyInvites({
                 disabled={busy}
                 onClick={() => {
                   setMessage("");
+                  setMessageCopyUrl(null);
                   setFailed(false);
                   void load();
                 }}
