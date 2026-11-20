@@ -2866,6 +2866,10 @@ function RecordsTab({
                       setOpenEvidenceClaimId(id);
                       setOpenEvidenceType(null);
                     }}
+                    onProposeAlternate={(claimType) => {
+                      setStatusFilter("ALL");
+                      setLocalSeed({ claimType, nonce: Date.now() });
+                    }}
                     onOpenSourcesLibrary={onOpenSourcesLibrary}
                     onAuthError={onAuthError}
                     onChanged={loadClaims}
@@ -3548,6 +3552,7 @@ function ClaimCard({
   seedEvidenceType = null,
   onAutoOpenEvidenceConsumed,
   onOpenEvidenceAfterAccept,
+  onProposeAlternate,
   onOpenSourcesLibrary,
   onChanged,
   onError,
@@ -3564,6 +3569,8 @@ function ClaimCard({
   seedEvidenceType?: string | null;
   onAutoOpenEvidenceConsumed?: () => void;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
+  /** Seed composer for a different SINGLETON saying. */
+  onProposeAlternate?: (claimType: string) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
@@ -3790,30 +3797,47 @@ function ClaimCard({
             </button>
           </div>
         ) : null}
-        {canReview && claim.status === "ACCEPTED" ? (
-          <button
-            type="button"
-            disabled={reviewBusy}
-            className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
-            onClick={async () => {
-              if (reviewBusy) return;
-              setReviewBusy(true);
-              try {
-                await v1api.rejectClaim(familyId, claim.id, {
-                  idempotencyKey: crypto.randomUUID(),
-                });
-                onFlash("已标记为不采用");
-                await onChanged();
-              } catch (e) {
-                if (onAuthError(e)) return;
-                onError(userMessageForApiError(e));
-              } finally {
-                setReviewBusy(false);
-              }
-            }}
-          >
-            不采用
-          </button>
+        {claim.status === "ACCEPTED" ? (
+          <div className="flex flex-wrap gap-2">
+            {canEdit &&
+            onProposeAlternate &&
+            !new Set(listMultiClaimTypes() as readonly string[]).has(
+              claim.claimType
+            ) ? (
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+                onClick={() => onProposeAlternate(claim.claimType)}
+              >
+                记下另一种说法
+              </button>
+            ) : null}
+            {canReview ? (
+              <button
+                type="button"
+                disabled={reviewBusy}
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+                onClick={async () => {
+                  if (reviewBusy) return;
+                  setReviewBusy(true);
+                  try {
+                    await v1api.rejectClaim(familyId, claim.id, {
+                      idempotencyKey: crypto.randomUUID(),
+                    });
+                    onFlash("已标记为不采用");
+                    await onChanged();
+                  } catch (e) {
+                    if (onAuthError(e)) return;
+                    onError(userMessageForApiError(e));
+                  } finally {
+                    setReviewBusy(false);
+                  }
+                }}
+              >
+                不采用
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -6190,6 +6214,12 @@ function PersonDrawer({
                         onOpenEvidenceAfterAccept={(id) =>
                           setDrawerOpenEvidenceClaimId(id)
                         }
+                        onProposeAlternate={(claimType) => {
+                          setDrawerClaimSeed({
+                            claimType,
+                            nonce: Date.now(),
+                          });
+                        }}
                         onOpenSourcesLibrary={onOpenSourcesLibrary}
                         onAuthError={onAuth}
                         onChanged={loadClaims}

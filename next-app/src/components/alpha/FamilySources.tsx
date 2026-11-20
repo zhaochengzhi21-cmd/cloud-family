@@ -345,6 +345,27 @@ export function FamilySources({
                       await load();
                       onCreated?.();
                       onLinked?.();
+                      window.setTimeout(() => {
+                        const el = document.querySelector(
+                          `[data-evidence-id="${id}"]`
+                        );
+                        if (el instanceof HTMLElement) {
+                          el.scrollIntoView({
+                            block: "center",
+                            behavior: "smooth",
+                          });
+                          el.classList.add(
+                            "ring-2",
+                            "ring-[color:var(--a-brand)]"
+                          );
+                          window.setTimeout(() => {
+                            el.classList.remove(
+                              "ring-2",
+                              "ring-[color:var(--a-brand)]"
+                            );
+                          }, 2400);
+                        }
+                      }, 80);
                     } catch (e) {
                       if (onAuthError(e)) return;
                       setError(userMessageForApiError(e));
