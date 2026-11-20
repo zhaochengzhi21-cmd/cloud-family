@@ -751,7 +751,23 @@ export function PersonProfile({
             <p className="text-sm text-[color:var(--a-muted)]">
               暂无生平记录。有编辑权限的家人补充后，会显示在这里。
             </p>
+            {claims.some((c) => c.status === "REJECTED") ? (
+              <p className="mt-2 text-sm text-[color:var(--a-muted)]">
+                另有{" "}
+                {claims.filter((c) => c.status === "REJECTED").length}{" "}
+                条不采用的记录，需创建者或管理员重新打开后才会显示在生平中。
+              </p>
+            ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
+              {claims.some((c) => c.status === "REJECTED") ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                  onClick={() => openRecords()}
+                >
+                  去资料页查看
+                </button>
+              ) : null}
               <Link
                 href={workspaceHref}
                 className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
