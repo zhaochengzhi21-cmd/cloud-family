@@ -500,7 +500,7 @@ export function FamilySources({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
-                    {canEdit && e.linkCount === 0 && persons.length > 0 ? (
+                    {canEdit && persons.length > 0 ? (
                       <button
                         type="button"
                         className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -509,7 +509,7 @@ export function FamilySources({
                           setAttachingId((id) => (id === e.id ? null : e.id))
                         }
                       >
-                        挂到人物资料
+                        {e.linkCount > 0 ? "再挂到人物资料" : "挂到人物资料"}
                       </button>
                     ) : null}
                     {e.description || e.sourceDateText ? (
@@ -655,9 +655,22 @@ export function FamilySources({
                         正在加载关联资料…
                       </p>
                     ) : (linksById[e.id] ?? []).length === 0 ? (
-                      <p className="text-xs text-[color:var(--a-muted)]">
-                        暂无可见的关联资料。
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-xs text-[color:var(--a-muted)]">
+                          暂无可见的关联资料。
+                        </p>
+                        {canEdit && persons.length > 0 ? (
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                            onClick={() => setAttachingId(e.id)}
+                          >
+                            {e.linkCount > 0
+                              ? "再挂到人物资料"
+                              : "挂到人物资料"}
+                          </button>
+                        ) : null}
+                      </div>
                     ) : (
                       <div
                         className="flex flex-wrap gap-2"

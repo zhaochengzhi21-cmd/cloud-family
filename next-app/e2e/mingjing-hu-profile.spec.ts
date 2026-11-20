@@ -3779,6 +3779,7 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
   );
   const personId = await seedPerson(page, familyId, sample.wenGuang, [
     { claimType: "BIRTH_DATE", text: "约明嘉靖年间" },
+    { claimType: "BIRTH_PLACE", text: "西递" },
   ]);
 
   await page.goto(`/alpha/families/${familyId}`);
@@ -3804,8 +3805,33 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
   await expect(attach.locator("select").nth(1)).not.toHaveValue("", {
     timeout: 60_000,
   });
+  const firstClaimId = await attach.locator("select").nth(1).inputValue();
   await attach.getByRole("button", { name: "确认挂接" }).click();
   await expect(row.getByText("已用于 1 条资料")).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await row.getByRole("button", { name: "再挂到人物资料" }).click();
+  const reattach = sourcesLib.getByRole("form", { name: "挂到人物资料" });
+  await reattach.locator("select").first().selectOption(personId);
+  await expect(reattach.locator("select").nth(1)).not.toHaveValue("", {
+    timeout: 60_000,
+  });
+  const claimSelect = reattach.locator("select").nth(1);
+  const claimOptions = claimSelect.locator("option");
+  const optionCount = await claimOptions.count();
+  let secondClaimId = "";
+  for (let i = 0; i < optionCount; i++) {
+    const value = await claimOptions.nth(i).getAttribute("value");
+    if (value && value !== firstClaimId) {
+      secondClaimId = value;
+      break;
+    }
+  }
+  expect(secondClaimId).toBeTruthy();
+  await claimSelect.selectOption(secondClaimId);
+  await reattach.getByRole("button", { name: "确认挂接" }).click();
+  await expect(row.getByText("已用于 2 条资料")).toBeVisible({
     timeout: 60_000,
   });
 });
