@@ -7299,7 +7299,12 @@ function PersonDrawer({
                   activeClaims.map((c) => c.claimType),
                   living
                 );
-                setLocalFlash(flashAfterClaimSave(followUp, savedType));
+                const base = flashAfterClaimSave(followUp, savedType);
+                setLocalFlash(
+                  !canReview
+                    ? `${base} 可在下方「复制本条链接」发给${REVIEWER_CONTACT}确认。`
+                    : base
+                );
                 await loadClaims();
                 if (followUp) {
                   setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
