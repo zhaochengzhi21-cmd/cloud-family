@@ -71,6 +71,8 @@ export type ActivityItem = {
   restorable?: boolean;
   /** MEMBER_JOINED after leave/remove (invite reinstated SUSPENDED → ACTIVE). */
   rejoined?: boolean;
+  /** Soft-removed membership still SUSPENDED — restore via restoreFamilyMember. */
+  membershipId?: string;
 };
 
 function actorUserId(ctx: AccessContext): string | null {
@@ -115,15 +117,27 @@ export async function getFamilyActivity(
   const evidenceIds = rows
     .filter((r) => r.eventType.startsWith("EVIDENCE_") && r.entityId)
     .map((r) => r.entityId as string);
+  const suspendedMembershipIds = rows
+    .filter((r) => r.eventType === "MEMBERSHIP_SUSPENDED" && r.entityId)
+    .map((r) => r.entityId as string);
 
-  const [claimRows, relRows, evidenceRows] = await Promise.all([
-    activityRepo.findClaimSubjects(database, familyId, claimIds),
-    activityRepo.findRelationshipEndpoints(database, familyId, relIds),
-    activityRepo.findEvidenceSummaries(database, familyId, evidenceIds),
-  ]);
+  const [claimRows, relRows, evidenceRows, suspendedMemberships] =
+    await Promise.all([
+      activityRepo.findClaimSubjects(database, familyId, claimIds),
+      activityRepo.findRelationshipEndpoints(database, familyId, relIds),
+      activityRepo.findEvidenceSummaries(database, familyId, evidenceIds),
+      activityRepo.findSuspendedMemberships(
+        database,
+        familyId,
+        suspendedMembershipIds
+      ),
+    ]);
   const claimById = new Map(claimRows.map((c) => [c.id, c]));
   const relById = new Map(relRows.map((r) => [r.id, r]));
   const evidenceById = new Map(evidenceRows.map((e) => [e.id, e]));
+  const suspendedMembershipById = new Map(
+    suspendedMemberships.map((m) => [m.id, m])
+  );
 
   const items: ActivityItem[] = [];
   for (const r of rows) {
@@ -141,10 +155,21 @@ export async function getFamilyActivity(
     switch (r.eventType) {
       case "FAMILY_CREATED":
       case "FAMILY_IDENTITY_UPDATED":
-      case "MEMBERSHIP_SUSPENDED":
       case "MEMBERSHIP_LEFT":
         items.push(base);
         break;
+      case "MEMBERSHIP_SUSPENDED": {
+        const mid = r.entityId ?? undefined;
+        const stillSuspended = mid
+          ? suspendedMembershipById.has(mid)
+          : false;
+        items.push({
+          ...base,
+          membershipId: mid,
+          restorable: stillSuspended,
+        });
+        break;
+      }
       case "MEMBER_JOINED": {
         const rejoined =
           r.metadataJson &&

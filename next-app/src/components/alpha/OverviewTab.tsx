@@ -162,6 +162,7 @@ export function OverviewTab({
   onRestorePerson,
   onRestoreRelationship,
   onRestoreEvidence,
+  onRestoreMember,
   onReopenClaim,
   onReload,
   onEvidenceRemoved,
@@ -206,6 +207,8 @@ export function OverviewTab({
   onRestoreRelationship?: (relationshipId: string) => void | Promise<void>;
   /** Undo soft-deleted evidence (OWNER/ADMIN). */
   onRestoreEvidence?: (evidenceId: string) => void | Promise<void>;
+  /** Undo soft-removed membership (OWNER/ADMIN). */
+  onRestoreMember?: (membershipId: string) => void | Promise<void>;
   /** Undo mistaken reject (OWNER/ADMIN). */
   onReopenClaim?: (
     personId: string,
@@ -1916,6 +1919,10 @@ export function OverviewTab({
             return Boolean(
               canReview && onReopenClaim && item.claimId && item.personId
             );
+          if (item.eventType === "MEMBERSHIP_SUSPENDED")
+            return Boolean(
+              canReview && onRestoreMember && item.membershipId
+            );
           return false;
         });
         if (restorable.length === 0) return null;
@@ -1942,7 +1949,9 @@ export function OverviewTab({
                         ? `资料来源${item.evidenceType ? `（${EVIDENCE_TYPE_UI[item.evidenceType] ?? item.evidenceType}）` : ""}`
                         : item.eventType === "CLAIM_REJECTED"
                           ? `不采用的${CLAIM_TYPE_UI[item.claimType ?? ""]?.label ?? "资料"}`
-                          : "一条记录";
+                          : item.eventType === "MEMBERSHIP_SUSPENDED"
+                            ? "一位被移除的参与家人"
+                            : "一条记录";
                 return (
                   <li
                     key={`restorable-${item.id}`}
@@ -1980,6 +1989,11 @@ export function OverviewTab({
                           item.personId
                         ) {
                           void onReopenClaim?.(item.personId, item.claimId);
+                        } else if (
+                          item.eventType === "MEMBERSHIP_SUSPENDED" &&
+                          item.membershipId
+                        ) {
+                          void onRestoreMember?.(item.membershipId);
                         }
                       }}
                     >
@@ -2488,6 +2502,23 @@ export function OverviewTab({
                       canReview ? (
                         <>
                           {" "}
+                          {item.eventType === "MEMBERSHIP_SUSPENDED" &&
+                          item.restorable &&
+                          item.membershipId &&
+                          onRestoreMember ? (
+                            <>
+                              <button
+                                type="button"
+                                className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                                onClick={() =>
+                                  void onRestoreMember(item.membershipId!)
+                                }
+                              >
+                                恢复
+                              </button>
+                              {" · "}
+                            </>
+                          ) : null}
                           <button
                             type="button"
                             className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"

@@ -113,3 +113,26 @@ export async function findEvidenceSummaries(
       )
     );
 }
+
+/** Soft-removed members still SUSPENDED — feed can offer restore. */
+export async function findSuspendedMemberships(
+  db: DbOrTx,
+  familyId: string,
+  membershipIds: string[]
+) {
+  if (membershipIds.length === 0) return [];
+  return db
+    .select({
+      id: familyMemberships.id,
+      role: familyMemberships.role,
+      status: familyMemberships.status,
+    })
+    .from(familyMemberships)
+    .where(
+      and(
+        eq(familyMemberships.familyId, familyId),
+        eq(familyMemberships.status, "SUSPENDED"),
+        inArray(familyMemberships.id, membershipIds)
+      )
+    );
+}
