@@ -2792,6 +2792,9 @@ function RecordsTab({
   >("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [rejectedOpen, setRejectedOpen] = useState(false);
+  const [claimFocusMiss, setClaimFocusMiss] = useState(false);
+  /** Which personId the current `claims` array belongs to (avoids stale miss). */
+  const [claimsPersonId, setClaimsPersonId] = useState("");
   const topRef = useRef<HTMLDivElement>(null);
   const personReady = useRef(false);
 
@@ -2808,15 +2811,19 @@ function RecordsTab({
   const loadClaims = useCallback(async () => {
     if (!personId) {
       setClaims([]);
+      setClaimsPersonId("");
       return;
     }
     setLoading(true);
+    const requested = personId;
     try {
-      const res = await v1api.listPersonClaims(familyId, personId);
+      const res = await v1api.listPersonClaims(familyId, requested);
       setClaims(res.claims);
+      setClaimsPersonId(requested);
     } catch (e) {
       if (onAuthError(e)) return;
       setError(userMessageForApiError(e));
+      setClaimsPersonId("");
     } finally {
       setLoading(false);
     }
@@ -2916,16 +2923,26 @@ function RecordsTab({
     if (recordsFocus.statusFilter) {
       pendingStatusFilter.current = recordsFocus.statusFilter;
     }
+    if (persons.length === 0) return;
     if (persons.some((p) => p.id === recordsFocus.personId)) {
       setPersonId(recordsFocus.personId);
+      return;
     }
-  }, [recordsFocus, persons]);
+    setClaimFocusMiss(true);
+    onRecordsFocusConsumed();
+  }, [recordsFocus, persons, onRecordsFocusConsumed]);
 
   useEffect(() => {
     if (!recordsFocus || loading) return;
     if (personId !== recordsFocus.personId) return;
+    if (claimsPersonId !== personId) return;
     const focused = claims.find((c) => c.id === recordsFocus.claimId);
-    if (!focused) return;
+    if (!focused) {
+      setClaimFocusMiss(true);
+      onRecordsFocusConsumed();
+      return;
+    }
+    setClaimFocusMiss(false);
     const claimId = recordsFocus.claimId;
     if (focused.status === "REJECTED") {
       setStatusFilter("ALL");
@@ -2957,6 +2974,7 @@ function RecordsTab({
     recordsFocus,
     onRecordsFocusConsumed,
     claims,
+    claimsPersonId,
     loading,
     personId,
   ]);
@@ -3055,6 +3073,32 @@ function RecordsTab({
       <p className="mb-4 text-sm leading-relaxed text-[color:var(--a-muted)]">
         关于这个家族，我们知道些什么，以及这些信息从哪里来。
       </p>
+      {claimFocusMiss ? (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+          role="status"
+        >
+          <p className="text-sm text-[color:var(--a-muted)]">
+            要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setClaimFocusMiss(false)}
+          >
+            知道了
+          </button>
+          {!canReview && onOpenParticipants ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={onOpenParticipants}
+            >
+              查看参与家人
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mb-4 flex flex-wrap items-end gap-2">
         <div className="min-w-[12rem] flex-1">
           <label htmlFor="records-person" className="alpha-label">
