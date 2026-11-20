@@ -26,7 +26,7 @@ const PRINCIPLES = [
   "Send X-Client-Agent (e.g. cursor, chatgpt) so drafts are attributable in audit — session user remains the actor.",
   "Only OWNER/ADMIN may confirm or reject; editors may propose but cannot accept.",
   "After proposing, poll this channel for recentDecisions — never invent acceptances.",
-  "Do not invent 资料来源. Prefer attaching real evidence, or leave unsourced for a human.",
+  "Do not invent 资料来源. Create real evidence first, then POST …/evidence/{id}/links to attach many claims.",
   "Speak product language only: 人物资料 / 资料来源 / 不同说法 — never expose model or Claim jargon to end users.",
   "Use claimTypes below for allowed types and value shapes; prefer the tasks list over inventing work.",
 ] as const;
@@ -195,7 +195,27 @@ function capabilitiesForRole(
         evidenceType: "GENEALOGY_PAGE|ORAL_HISTORY|DOCUMENT|…",
         title: "optional",
       },
-      policy: ["Link via POST …/claims/{claimId}/evidence"],
+      policy: [
+        "Link one claim: POST …/claims/{claimId}/evidence",
+        "Link many claims: POST …/evidence/{evidenceId}/links",
+      ],
+    },
+    {
+      id: "link_evidence_batch",
+      summary: "Attach one 资料来源 to up to 20 claims (OCR page)",
+      method: "POST",
+      path: `${base}/evidence/{evidenceId}/links`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        claimIds: "uuid[]",
+        relation: "SUPPORTS|CONTRADICTS|CONTEXT — default SUPPORTS",
+        onDuplicate: "reuse|error — default reuse",
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
+      policy: [
+        "Partial success — check results[].ok",
+        "Does not invent sources — evidenceId must already exist",
+      ],
     },
     {
       id: "accept_claim",

@@ -142,6 +142,15 @@ export const linkEvidenceBodySchema = z
   })
   .strict();
 
+/** One source → many claims (OCR page / import). */
+export const linkEvidenceBatchBodySchema = z
+  .object({
+    claimIds: z.array(uuid).min(1).max(20),
+    relation: z.enum(["SUPPORTS", "CONTRADICTS", "CONTEXT"]).optional(),
+    onDuplicate: z.enum(["error", "reuse"]).optional(),
+  })
+  .strict();
+
 export const emptyBodySchema = z.object({}).strict();
 
 export const familyIdParamSchema = uuid;

@@ -757,6 +757,46 @@ export const v1api = {
       { method: "POST", body }
     ),
 
+  linkEvidenceBatch: (
+    familyId: string,
+    evidenceId: string,
+    body: {
+      claimIds: string[];
+      relation?: "SUPPORTS" | "CONTRADICTS" | "CONTEXT";
+      onDuplicate?: "error" | "reuse";
+    },
+    opts?: { idempotencyKey?: string; clientAgent?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    if (opts?.clientAgent) headers["X-Client-Agent"] = opts.clientAgent;
+    return v1Fetch<{
+      evidenceId: string;
+      linked: number;
+      reused: number;
+      failed: number;
+      results: Array<
+        | {
+            index: number;
+            ok: true;
+            claimId: string;
+            evidenceId: string;
+            relation: string;
+            reused: boolean;
+          }
+        | { index: number; ok: false; claimId: string; code: string }
+      >;
+    }>(`/api/v1/families/${familyId}/evidence/${evidenceId}/links`, {
+      method: "POST",
+      body: {
+        claimIds: body.claimIds,
+        relation: body.relation ?? "SUPPORTS",
+        onDuplicate: body.onDuplicate ?? "reuse",
+      },
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
+
   reserveMedia: (
     familyId: string,
     body: {

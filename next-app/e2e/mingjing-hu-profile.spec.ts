@@ -609,6 +609,41 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
       (d) => d.decision === "ACCEPTED" && d.claimId === acceptId
     )
   ).toBe(true);
+  expect(
+    channel.capabilities.some((c) => c.id === "link_evidence_batch")
+  ).toBe(true);
+
+  const ev = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
+    method: "POST",
+    body: {
+      evidenceType: "GENEALOGY_PAGE",
+      title: "西递明经胡氏谱页摘录（测试）",
+      visibility: "FAMILY",
+    },
+  });
+  expect(ev.status, JSON.stringify(ev.body)).toBe(201);
+  const evidenceId = (ev.body as { evidence: { id: string } }).evidence.id;
+  const linkBatch = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/evidence/${evidenceId}/links`,
+    {
+      method: "POST",
+      body: {
+        claimIds,
+        relation: "SUPPORTS",
+        onDuplicate: "reuse",
+      },
+      headers: { "Idempotency-Key": `e2e-links-${Date.now()}` },
+    }
+  );
+  expect(linkBatch.status, JSON.stringify(linkBatch.body)).toBe(201);
+  const linkBody = linkBatch.body as {
+    linked: number;
+    reused: number;
+    failed: number;
+  };
+  expect(linkBody.linked).toBe(2);
+  expect(linkBody.failed).toBe(0);
 });
 
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({
