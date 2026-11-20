@@ -410,44 +410,50 @@ export function FamilyInvites({
           </ul>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <label className="min-w-0 flex-1">
-            <span className="alpha-label">加入后的权限</span>
-            <select
-              id="invite-role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as InviteRole)}
-              className="alpha-input !min-h-[40px] !text-sm"
+        {access.invitableRoles.length === 0 ? (
+          <p className="text-sm text-[color:var(--a-muted)]">
+            当前账号不能生成新的邀请。请向家族创建者确认权限。
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className="min-w-0 flex-1">
+              <span className="alpha-label">加入后的权限</span>
+              <select
+                id="invite-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value as InviteRole)}
+                className="alpha-input !min-h-[40px] !text-sm"
+              >
+                {access.invitableRoles.map((r) => (
+                  <option key={r} value={r}>
+                    {roleLabel(r)}（{ROLE_HINT[r]}）
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="min-w-0 flex-1">
+              <span className="alpha-label">对方邮箱（可选）</span>
+              <input
+                id="invite-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="例如：家人@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="alpha-input !min-h-[40px] !text-sm"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => void create()}
+              disabled={busy}
+              className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
             >
-              {access.invitableRoles.map((r) => (
-                <option key={r} value={r}>
-                  {roleLabel(r)}（{ROLE_HINT[r]}）
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="min-w-0 flex-1">
-            <span className="alpha-label">对方邮箱（可选）</span>
-            <input
-              id="invite-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="例如：家人@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="alpha-input !min-h-[40px] !text-sm"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => void create()}
-            disabled={busy}
-            className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
-          >
-            {busy ? "生成中…" : email.trim() ? "生成并发送" : "生成邀请链接"}
-          </button>
-        </div>
+              {busy ? "生成中…" : email.trim() ? "生成并发送" : "生成邀请链接"}
+            </button>
+          </div>
+        )}
 
         {link ? (
           <div className="rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-3">
