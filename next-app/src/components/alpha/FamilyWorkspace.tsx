@@ -4401,6 +4401,25 @@ function RecordsTab({
                 onError={setError}
                 onFlash={(msg, undoClaimId) => {
                   setFlash(msg);
+                  if (
+                    undoClaimId &&
+                    personId &&
+                    (msg.includes("不采用") || msg.includes("不同说法"))
+                  ) {
+                    const qs = new URLSearchParams({
+                      tab: "records",
+                      person: personId,
+                      claim: undoClaimId,
+                    });
+                    setFlashCopyUrl(
+                      `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                    );
+                    if (!msg.includes("可复制链接")) {
+                      setFlash(`${msg}可复制链接发给家人核对。`);
+                    }
+                  } else if (!msg.includes("可复制链接")) {
+                    setFlashCopyUrl(null);
+                  }
                   setPendingUndo(
                     undoClaimId
                       ? {
@@ -4490,6 +4509,25 @@ function RecordsTab({
                     onError={setError}
                     onFlash={(msg, undoClaimId) => {
                       setFlash(msg);
+                      if (
+                        undoClaimId &&
+                        personId &&
+                        (msg.includes("不采用") || msg.includes("不同说法"))
+                      ) {
+                        const qs = new URLSearchParams({
+                          tab: "records",
+                          person: personId,
+                          claim: undoClaimId,
+                        });
+                        setFlashCopyUrl(
+                          `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                        );
+                        if (!msg.includes("可复制链接")) {
+                          setFlash(`${msg}可复制链接发给家人核对。`);
+                        }
+                      } else if (!msg.includes("可复制链接")) {
+                        setFlashCopyUrl(null);
+                      }
                       setPendingUndo(
                         undoClaimId
                           ? {
