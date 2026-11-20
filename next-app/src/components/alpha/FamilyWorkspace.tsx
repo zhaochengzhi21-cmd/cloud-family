@@ -525,6 +525,12 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const fromUrl = new URLSearchParams(window.location.search).get(
+        "evidence"
+      );
+      if (fromUrl) {
+        sessionStorage.setItem(`alpha-evidence-focus:${familyId}`, fromUrl);
+      }
       const id = sessionStorage.getItem(`alpha-evidence-focus:${familyId}`);
       if (!id) return;
       sessionStorage.removeItem(`alpha-evidence-focus:${familyId}`);

@@ -469,7 +469,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                     [{n}] {label}
                   </span>
                   <Link
-                    href={`/alpha/families/${familyId}?tab=overview`}
+                    href={evidenceWorkspaceHref(familyId, source!.id)}
                     className="alpha-print-hide font-semibold text-[color:var(--a-ink)] underline-offset-2 hover:underline"
                     onClick={() => focusEvidenceInWorkspace(familyId, source!.id)}
                   >
@@ -492,6 +492,10 @@ function focusEvidenceInWorkspace(familyId: string, evidenceId: string) {
   } catch {
     /* private mode */
   }
+}
+
+function evidenceWorkspaceHref(familyId: string, evidenceId: string) {
+  return `/alpha/families/${familyId}?tab=overview&evidence=${encodeURIComponent(evidenceId)}`;
 }
 
 function PrintPersonLink({
@@ -532,7 +536,7 @@ function PrintCiteMark({
         [{n}]
       </sup>
       <Link
-        href={`/alpha/families/${familyId}?tab=overview`}
+        href={evidenceWorkspaceHref(familyId, evidenceId)}
         aria-label={`查看来源 ${n}`}
         className="alpha-print-hide ml-0.5 align-super text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
         onClick={() => focusEvidenceInWorkspace(familyId, evidenceId)}

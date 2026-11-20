@@ -426,7 +426,9 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref); // overview
+    router.push(
+      `${workspaceHref}?tab=overview&evidence=${encodeURIComponent(evidenceId)}`
+    );
   }
 
   async function removeKin(relationshipId: string, name: string) {
