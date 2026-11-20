@@ -94,6 +94,16 @@ async function main() {
     console.log(
       "Set VERCEL_TOKEN then re-run. Gates will not flip without --apply."
     );
+    console.log("Local checklist (production env to open Closed Alpha):");
+    for (const w of WANT) {
+      console.log(`  WANT ${w.key}=${w.value}`);
+    }
+    for (const f of FORBID) {
+      console.log(`  FORBID unset or not live: ${f}`);
+    }
+    console.log(
+      "After env is set: npm run alpha:ready-accept  (and redeploy if needed)"
+    );
     if (APPLY) process.exit(2);
     console.log("RESULT DRY_RUN_BLOCKED_NO_TOKEN");
     return;
