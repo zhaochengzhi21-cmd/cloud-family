@@ -3607,6 +3607,36 @@ test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：世系未连接分支可点人名添加关系", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·世系分支（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  await seedPerson(page, familyId, sample.guanSan, []);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "世系" }).click();
+  const branchBox = page.getByRole("region", { name: "尚未连接的家族分支" });
+  await expect(branchBox).toBeVisible({ timeout: 60_000 });
+  await expect(branchBox).toContainText("2 个尚未连接");
+  await branchBox
+    .getByRole("button", { name: sample.guanSan.preferredName })
+    .or(branchBox.getByRole("button", { name: sample.wenGuang.preferredName }))
+    .first()
+    .click();
+  await expect(
+    page.getByRole("dialog").getByText(/为「.+」添加/)
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：人物页可移除错误的父母关系", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

@@ -974,6 +974,11 @@ export function FamilyWorkspace({
               setRelFocusPersonId(null);
               setShowAddRel(true);
             }}
+            onAddKin={(personId, role) => {
+              setRelFocusPersonId(personId);
+              setKinRole(role);
+              setShowAddKin(true);
+            }}
             onGoMembers={() => setTab("members")}
             onOpen={(id) => setSelectedPersonId(id)}
             personMap={personMap}
@@ -1459,6 +1464,7 @@ function LineageTab({
   canEdit,
   focusPersonId,
   onAddRel,
+  onAddKin,
   onGoMembers,
   onOpen,
   personMap,
@@ -1472,6 +1478,7 @@ function LineageTab({
   canEdit: boolean;
   focusPersonId?: string | null;
   onAddRel: () => void;
+  onAddKin: (personId: string, role: KinRole) => void;
   onGoMembers: () => void;
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
@@ -1672,6 +1679,57 @@ function LineageTab({
     allGens.length > 0 && allGens.every((g) => collapsed.has(g));
   const highlightId = jumpId ?? focusPersonId;
 
+  const branchReps = useMemo(() => {
+    if (componentCount <= 1) return [] as GraphPerson[];
+    const sorted = persons
+      .slice()
+      .sort((a, b) =>
+        a.preferredName.localeCompare(b.preferredName, "zh-CN")
+      );
+    const adj = new Map<string, string[]>();
+    for (const p of sorted) adj.set(p.id, []);
+    for (const r of relationships) {
+      adj.get(r.fromPersonId)?.push(r.toPersonId);
+      adj.get(r.toPersonId)?.push(r.fromPersonId);
+    }
+    const seen = new Set<string>();
+    const comps: GraphPerson[][] = [];
+    for (const p of sorted) {
+      if (seen.has(p.id)) continue;
+      const queue = [p];
+      seen.add(p.id);
+      const comp: GraphPerson[] = [];
+      while (queue.length) {
+        const cur = queue.pop()!;
+        comp.push(cur);
+        for (const nid of adj.get(cur.id) ?? []) {
+          if (seen.has(nid)) continue;
+          seen.add(nid);
+          const np = sorted.find((x) => x.id === nid);
+          if (np) queue.push(np);
+        }
+      }
+      comps.push(comp);
+    }
+    if (comps.length <= 1) return [];
+    comps.sort(
+      (a, b) =>
+        b.length - a.length ||
+        a[0].preferredName.localeCompare(b[0].preferredName, "zh-CN")
+    );
+    return comps
+      .slice(1)
+      .map(
+        (c) =>
+          c
+            .slice()
+            .sort((a, b) =>
+              a.preferredName.localeCompare(b.preferredName, "zh-CN")
+            )[0]
+      )
+      .slice(0, 6);
+  }, [componentCount, persons, relationships]);
+
   return (
     <div>
       {canEdit ? (
@@ -1685,9 +1743,46 @@ function LineageTab({
       ) : null}
 
       {componentCount > 1 ? (
-        <p className="mb-3 text-sm text-[color:var(--a-muted)]">
-          当前档案中有 {componentCount} 个尚未连接的家族分支。
-        </p>
+        <div
+          className="mb-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+          role="region"
+          aria-label="尚未连接的家族分支"
+        >
+          <p className="text-sm text-[color:var(--a-muted)]">
+            {canEdit
+              ? `档案里有 ${componentCount} 个尚未连接的家族分支。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。`
+              : `档案里有 ${componentCount} 个尚未连接的家族分支。可先打开较小分支里的人物页；有编辑权限的家人补上关系后，会并入主支。`}
+          </p>
+          {branchReps.length > 0 ? (
+            <div
+              className="mt-2 flex flex-wrap gap-2"
+              role="group"
+              aria-label={canEdit ? "连接分支" : "查看分支"}
+            >
+              {branchReps.map((p) =>
+                canEdit ? (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="alpha-chip !min-h-[32px] font-semibold"
+                    onClick={() => onAddKin(p.id, "parent")}
+                  >
+                    {p.preferredName}
+                  </button>
+                ) : (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className="alpha-chip !min-h-[32px] font-semibold"
+                    onClick={() => onOpen(p.id)}
+                  >
+                    {p.preferredName}
+                  </button>
+                )
+              )}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {persons.length > 200 ? (
