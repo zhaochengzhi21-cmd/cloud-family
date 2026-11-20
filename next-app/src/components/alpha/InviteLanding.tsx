@@ -96,13 +96,57 @@ export function InviteLanding({ token }: { token: string }) {
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
               请确认链接完整，或向家人要一条新的邀请链接。
             </p>
+            <Link
+              href="/alpha/families"
+              className="alpha-btn alpha-btn-primary mt-6 inline-flex"
+            >
+              查看我的家族
+            </Link>
           </>
         ) : null}
 
         {view.kind === "error" ? (
-          <p role="alert" className="text-[color:var(--a-danger)]">
-            {view.message}
-          </p>
+          <>
+            <p role="alert" className="text-[color:var(--a-danger)]">
+              {view.message}
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-primary inline-flex"
+                onClick={() => {
+                  setView({ kind: "loading" });
+                  void v1api
+                    .previewInvite(token)
+                    .then((r) => setView({ kind: "preview", invite: r.invite }))
+                    .catch((e) => {
+                      if (e instanceof V1ApiError && e.status === 401) {
+                        router.replace(
+                          `/alpha/login?next=${encodeURIComponent(`/alpha/invite/${token}`)}`
+                        );
+                        return;
+                      }
+                      if (e instanceof V1ApiError && e.status === 404) {
+                        setView({ kind: "invalid" });
+                        return;
+                      }
+                      setView({
+                        kind: "error",
+                        message: userMessageForApiError(e),
+                      });
+                    });
+                }}
+              >
+                重试
+              </button>
+              <Link
+                href="/alpha/families"
+                className="alpha-btn alpha-btn-secondary inline-flex"
+              >
+                查看我的家族
+              </Link>
+            </div>
+          </>
         ) : null}
 
         {view.kind === "preview" && view.invite.status === "UNAVAILABLE" ? (
@@ -113,6 +157,12 @@ export function InviteLanding({ token }: { token: string }) {
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
               它可能已被使用、被撤销或已过期。请向家人要一条新的邀请链接。
             </p>
+            <Link
+              href="/alpha/families"
+              className="alpha-btn alpha-btn-primary mt-6 inline-flex"
+            >
+              查看我的家族
+            </Link>
           </>
         ) : null}
 
