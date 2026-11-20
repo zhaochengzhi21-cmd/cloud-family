@@ -773,6 +773,7 @@ export function PersonProfile({
             sources={sources}
             familyId={familyId}
             canEdit={canEdit}
+            canReview={canReview}
             onFill={openRecords}
             onAddSource={openEvidence}
             onFocusClaim={openRecordsFocus}
@@ -808,6 +809,7 @@ export function PersonProfile({
               sources={sources}
               familyId={familyId}
               canEdit={canEdit}
+              canReview={canReview}
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
@@ -832,6 +834,7 @@ export function PersonProfile({
               sources={sources}
               familyId={familyId}
               canEdit={canEdit}
+              canReview={canReview}
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
@@ -856,6 +859,7 @@ export function PersonProfile({
               sources={sources}
               familyId={familyId}
               canEdit={canEdit}
+              canReview={canReview}
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
@@ -880,6 +884,7 @@ export function PersonProfile({
               sources={sources}
               familyId={familyId}
               canEdit={canEdit}
+              canReview={canReview}
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
@@ -911,6 +916,7 @@ export function PersonProfile({
               sources={sources}
               familyId={familyId}
               canEdit={canEdit}
+              canReview={canReview}
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
@@ -1024,6 +1030,7 @@ export function PersonProfile({
                       sources={sources}
                       familyId={familyId}
                       canEdit={canEdit}
+                      canReview={canReview}
                       onAddSource={openEvidence}
                       onFocusClaim={openRecordsFocus}
                       onProposeAlternate={openRecords}
@@ -1096,9 +1103,7 @@ export function PersonProfile({
                     }`}
                     onClick={() => openRecordsFocus(c.id, c.status)}
                   >
-                    {CLAIM_STATUS_LABEL[
-                      c.status as keyof typeof CLAIM_STATUS_LABEL
-                    ] ?? c.status}
+                    {pendingStatusLabel(c.status, canReview)}
                   </button>
                 ) : null}
               </li>
@@ -1341,6 +1346,7 @@ function TimelineEvent({
   sources,
   familyId,
   canEdit = false,
+  canReview = false,
   onFill,
   onAddSource,
   onFocusClaim,
@@ -1352,6 +1358,7 @@ function TimelineEvent({
   sources: SourcesByClaim;
   familyId: string;
   canEdit?: boolean;
+  canReview?: boolean;
   onFill?: (claimType: string) => void;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
@@ -1385,6 +1392,7 @@ function TimelineEvent({
                   sources={sources}
                   familyId={familyId}
                   canEdit={canEdit}
+                  canReview={canReview}
                   onAddSource={onAddSource}
                   onFocusClaim={onFocusClaim}
                   onProposeAlternate={onProposeAlternate}
@@ -1831,11 +1839,25 @@ function PhotoWall({
   );
 }
 
+function pendingStatusLabel(status: string, canReview: boolean): string {
+  if (canReview) {
+    return (
+      CLAIM_STATUS_LABEL[status as keyof typeof CLAIM_STATUS_LABEL] ?? status
+    );
+  }
+  if (status === "CONFLICTED") return "需管理员选用";
+  if (status === "PROPOSED") return "待管理员确认";
+  return (
+    CLAIM_STATUS_LABEL[status as keyof typeof CLAIM_STATUS_LABEL] ?? status
+  );
+}
+
 function ClaimValues({
   claims,
   sources,
   familyId,
   canEdit = false,
+  canReview = false,
   onAddSource,
   onFocusClaim,
   onProposeAlternate,
@@ -1845,6 +1867,7 @@ function ClaimValues({
   sources: SourcesByClaim;
   familyId: string;
   canEdit?: boolean;
+  canReview?: boolean;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
   onProposeAlternate?: (claimType: string) => void;
@@ -1872,11 +1895,11 @@ function ClaimValues({
             className="alpha-print-hide text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
             onClick={() => onFocusClaim(differTarget.id, differTarget.status)}
           >
-            存在不同说法
+            {canReview ? "存在不同说法" : "存在不同说法（需管理员选用）"}
           </button>
         ) : (
           <p className="text-xs font-semibold text-[color:var(--a-brand)]">
-            存在不同说法
+            {canReview ? "存在不同说法" : "存在不同说法（需管理员选用）"}
           </p>
         )
       ) : null}
@@ -1897,9 +1920,7 @@ function ClaimValues({
                   }`}
                   onClick={() => onFocusClaim(c.id, c.status)}
                 >
-                  {CLAIM_STATUS_LABEL[
-                    c.status as keyof typeof CLAIM_STATUS_LABEL
-                  ] ?? c.status}
+                  {pendingStatusLabel(c.status, canReview)}
                 </button>
               ) : (
                 <span
@@ -1909,9 +1930,7 @@ function ClaimValues({
                       : "alpha-chip-proposed"
                   }`}
                 >
-                  {CLAIM_STATUS_LABEL[
-                    c.status as keyof typeof CLAIM_STATUS_LABEL
-                  ] ?? c.status}
+                  {pendingStatusLabel(c.status, canReview)}
                 </span>
               )
             ) : null}

@@ -4289,6 +4289,51 @@ test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseU
   ).toHaveCount(0);
 });
 
+test("明经胡氏：编辑者人物页待确认 chip 需管理员", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·编辑者人物待确认（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "OCCUPATION",
+      value: { text: "万载知县（人物页编辑者）" },
+      originType: "MANUAL",
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+
+  const editorId = await insertFakeUser();
+  await insertMembership(familyId, editorId, "EDITOR");
+  await loginAs(page, editorId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  const life = page.getByRole("region", { name: "档案" });
+  await expect(
+    life.getByRole("button", { name: "待管理员确认", exact: true })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    life.getByRole("button", { name: "待确认", exact: true })
+  ).toHaveCount(0);
+});
+
 test("明经胡氏：编辑者概览待确认显示需管理员", async ({
   page,
   baseURL,
