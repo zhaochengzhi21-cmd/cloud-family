@@ -3543,3 +3543,29 @@ test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseU
     page.getByRole("heading", { level: 1, name: sample.guanSan.preferredName })
   ).toBeVisible({ timeout: 60_000 });
 });
+
+test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·库收录（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(sourcesLib).toBeVisible({ timeout: 60_000 });
+  await sourcesLib.getByRole("button", { name: "收录来源" }).click();
+  const form = sourcesLib.getByRole("form", { name: "收录资料来源" });
+  await form.locator("#lib-ev-type").selectOption("GENEALOGY_PAGE");
+  await form.getByLabel("来源标题（可选）").fill("库收录谱页（测试）");
+  await form.getByRole("button", { name: "保存到资料来源库" }).click();
+  await expect(
+    sourcesLib.getByRole("list", { name: "资料来源列表" })
+  ).toContainText("库收录谱页（测试）", { timeout: 60_000 });
+  await expect(sourcesLib.getByText("已用于 0 条资料")).toBeVisible();
+});

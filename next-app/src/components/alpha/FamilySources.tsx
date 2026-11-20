@@ -1,13 +1,52 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import { upload } from "@vercel/blob/client";
 import { CLAIM_TYPE_UI, EVIDENCE_TYPE_UI } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
+import { MEDIA_MAX_BYTES } from "@/v1/domain/media/types";
 
 type Item = Awaited<ReturnType<typeof v1api.listEvidence>>["evidence"][number];
 type EvidenceLink = Awaited<
   ReturnType<typeof v1api.listEvidenceLinks>
 >["links"][number];
+
+const ALLOWED_EXT = [
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".webp",
+  ".pdf",
+  ".mp3",
+  ".m4a",
+  ".wav",
+  ".mp4",
+  ".mov",
+];
+
+function mimeFromFile(file: File): string | null {
+  if (file.type && Object.keys(MEDIA_MAX_BYTES).includes(file.type)) {
+    return file.type;
+  }
+  const n = file.name.toLowerCase();
+  if (n.endsWith(".jpg") || n.endsWith(".jpeg")) return "image/jpeg";
+  if (n.endsWith(".png")) return "image/png";
+  if (n.endsWith(".webp")) return "image/webp";
+  if (n.endsWith(".pdf")) return "application/pdf";
+  if (n.endsWith(".mp3")) return "audio/mpeg";
+  if (n.endsWith(".m4a")) return "audio/mp4";
+  if (n.endsWith(".wav")) return "audio/wav";
+  if (n.endsWith(".mp4")) return "video/mp4";
+  if (n.endsWith(".mov")) return "video/quicktime";
+  return null;
+}
 
 function isAudio(mime: string | null, type: string) {
   return Boolean(mime?.startsWith("audio/")) || type === "ORAL_HISTORY";
@@ -21,8 +60,10 @@ export function FamilySources({
   familyId,
   onAuthError,
   onOpenRecords,
+  canEdit = false,
   canManage = false,
   onRemoved,
+  onCreated,
   focusEvidenceId = null,
   onFocusEvidenceConsumed,
   dataVersion = 0,
@@ -36,9 +77,12 @@ export function FamilySources({
       statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     }
   ) => void;
+  /** EDITOR+ — park a source in the library without attaching a claim. */
+  canEdit?: boolean;
   /** OWNER/ADMIN — soft-delete from the library. */
   canManage?: boolean;
   onRemoved?: (evidenceId: string, label: string) => void;
+  onCreated?: () => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
   /** Bumps when the workspace reloads so the library stays in sync. */
@@ -67,6 +111,7 @@ export function FamilySources({
     {}
   );
   const [linksLoadingId, setLinksLoadingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     setError("");
@@ -238,12 +283,37 @@ export function FamilySources({
         资料来源库
       </h2>
       <div className="alpha-panel px-4 py-4">
-        <p className="text-sm text-[color:var(--a-muted)]">
-          家族里已收录的出处。添加人物资料时可以选择「使用已有来源」，不必重复上传。
-        </p>
-        {items.length === 0 ? (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 text-sm text-[color:var(--a-muted)]">
+            家族里已收录的出处。可先在这里收录，添加人物资料时再选择「使用已有来源」。
+          </p>
+          {canEdit && !adding ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-primary !min-h-[40px] shrink-0 !px-3 !text-sm"
+              onClick={() => setAdding(true)}
+            >
+              收录来源
+            </button>
+          ) : null}
+        </div>
+        {adding && canEdit ? (
+          <LibraryAddSourceForm
+            familyId={familyId}
+            onAuthError={onAuthError}
+            onCancel={() => setAdding(false)}
+            onDone={async () => {
+              setAdding(false);
+              await load();
+              onCreated?.();
+            }}
+          />
+        ) : null}
+        {items.length === 0 && !adding ? (
           <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-            还没有资料来源。打开某位家人的资料，添加谱页、照片或口述出处后，会汇总到这里。
+            {canEdit
+              ? "还没有资料来源。点「收录来源」先放入谱页、照片或口述出处；之后挂到人物资料时不必重复上传。"
+              : "还没有资料来源。有编辑权限的家人收录后，会汇总到这里。"}
           </p>
         ) : null}
         {items.length > 0 ? (
@@ -537,5 +607,274 @@ export function FamilySources({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function LibraryAddSourceForm({
+  familyId,
+  onAuthError,
+  onCancel,
+  onDone,
+}: {
+  familyId: string;
+  onAuthError: (e: unknown) => boolean;
+  onCancel: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const [evidenceType, setEvidenceType] = useState("GENEALOGY_PAGE");
+  const [title, setTitle] = useState("");
+  const [sourceLocator, setSourceLocator] = useState("");
+  const [description, setDescription] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadState, setUploadState] = useState("");
+  const [uploadPct, setUploadPct] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const leaveWarn = useRef(false);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (leaveWarn.current) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setLocalError("");
+    leaveWarn.current = true;
+    let phase = "";
+    try {
+      let mediaObjectId: string | null = null;
+      if (file) {
+        const mime = mimeFromFile(file);
+        if (!mime) {
+          setLocalError("不支持的文件类型。请选择图片、PDF、音频或视频。");
+          return;
+        }
+        const max = MEDIA_MAX_BYTES[mime] ?? 0;
+        if (file.size > max) {
+          const mb = Math.round(max / (1024 * 1024));
+          setLocalError(
+            mime.startsWith("image/")
+              ? `图片最大 ${mb} MB。`
+              : mime === "application/pdf"
+                ? `PDF 最大 ${mb} MB。`
+                : `该类型文件最大 ${mb} MB。`
+          );
+          return;
+        }
+        phase = "准备上传";
+        setUploadState(phase);
+        setUploadPct(12);
+        const reserved = await v1api.reserveMedia(
+          familyId,
+          {
+            originalFilename: file.name,
+            mimeType: mime,
+            byteSize: file.size,
+          },
+          { idempotencyKey: crypto.randomUUID() }
+        );
+        phase = "正在上传文件…";
+        setUploadState(phase);
+        setUploadPct(45);
+        const handleUploadUrl = reserved.upload.handleUploadUrl.startsWith(
+          "http"
+        )
+          ? reserved.upload.handleUploadUrl
+          : `${window.location.origin}${reserved.upload.handleUploadUrl}`;
+        await upload(reserved.upload.pathname, file, {
+          access: "private",
+          handleUploadUrl,
+          clientPayload: JSON.stringify({ mediaId: reserved.media.id }),
+          contentType: mime,
+          multipart: reserved.upload.multipartRecommended,
+        });
+        phase = "正在确认文件…";
+        setUploadState(phase);
+        setUploadPct(72);
+        const deadline = Date.now() + 60_000;
+        while (Date.now() < deadline) {
+          const st = await v1api.mediaStatus(familyId, reserved.media.id);
+          if (st.status === "ACTIVE") {
+            mediaObjectId = reserved.media.id;
+            setUploadState("上传完成");
+            setUploadPct(100);
+            break;
+          }
+          if (st.status === "FAILED") {
+            throw new Error("upload failed");
+          }
+          if (st.status === "PENDING_UPLOAD") {
+            try {
+              await v1api.mediaFinalizeLocal(familyId, reserved.media.id);
+            } catch {
+              /* keep polling */
+            }
+          }
+          await new Promise((r) => setTimeout(r, 400));
+        }
+        if (!mediaObjectId) {
+          setUploadState("上传超时");
+          setLocalError("上传超时，请稍后重试。");
+          return;
+        }
+      }
+
+      if (file) {
+        setUploadState("正在保存来源…");
+        setUploadPct(92);
+      }
+      await v1api.createEvidence(
+        familyId,
+        {
+          evidenceType,
+          title: title.trim() || null,
+          description: description.trim() || null,
+          sourceLocator: sourceLocator.trim() || null,
+          mediaObjectId,
+        },
+        { idempotencyKey: crypto.randomUUID() }
+      );
+      setUploadState("");
+      setUploadPct(0);
+      await onDone();
+    } catch (err) {
+      if (onAuthError(err)) return;
+      setUploadState(phase ? "上传失败" : "");
+      setLocalError(
+        phase
+          ? "上传或保存失败，请检查文件后重试。"
+          : userMessageForApiError(err)
+      );
+    } finally {
+      leaveWarn.current = false;
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="mt-3 space-y-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface-strong)] p-3"
+      aria-label="收录资料来源"
+    >
+      {localError ? (
+        <p className="alpha-alert alpha-alert-error" role="alert">
+          {localError}
+        </p>
+      ) : null}
+      <div>
+        <label htmlFor="lib-ev-type" className="alpha-label">
+          来源类型
+        </label>
+        <select
+          id="lib-ev-type"
+          value={evidenceType}
+          onChange={(e) => setEvidenceType(e.target.value)}
+          className="alpha-input"
+        >
+          {Object.entries(EVIDENCE_TYPE_UI).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor="lib-ev-title" className="alpha-label">
+          来源标题（可选）
+        </label>
+        <input
+          id="lib-ev-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="alpha-input"
+        />
+      </div>
+      <div>
+        <label htmlFor="lib-ev-loc" className="alpha-label">
+          出处位置（可选）
+        </label>
+        <input
+          id="lib-ev-loc"
+          value={sourceLocator}
+          onChange={(e) => setSourceLocator(e.target.value)}
+          placeholder="例如：第17页"
+          className="alpha-input"
+        />
+      </div>
+      <div>
+        <label htmlFor="lib-ev-desc" className="alpha-label">
+          来源说明（可选）
+        </label>
+        <textarea
+          id="lib-ev-desc"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={2}
+          className="alpha-input !min-h-[4.5rem] py-2"
+        />
+      </div>
+      <div>
+        <label htmlFor="lib-ev-file" className="alpha-label">
+          附件（可选）
+        </label>
+        <input
+          id="lib-ev-file"
+          type="file"
+          accept={ALLOWED_EXT.join(",")}
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            setLocalError("");
+          }}
+          className="block w-full text-sm text-[color:var(--a-muted)]"
+        />
+        <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+          支持 JPG/PNG/WEBP/PDF 与常见音视频。仅家族成员可见。
+        </p>
+        {file ? (
+          <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+            已选择：{file.name}
+          </p>
+        ) : null}
+        {uploadState ? (
+          <div className="mt-2" role="status" aria-live="polite">
+            <div className="h-1.5 overflow-hidden rounded-full bg-[color:var(--a-brand-soft)]">
+              <div
+                className="h-full bg-[color:var(--a-brand)] transition-[width]"
+                style={{ width: `${uploadPct}%` }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+              {uploadState}
+            </p>
+          </div>
+        ) : null}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="alpha-btn alpha-btn-secondary flex-1 !min-h-[44px]"
+        >
+          取消
+        </button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
+        >
+          {busy ? "保存中…" : "保存到资料来源库"}
+        </button>
+      </div>
+    </form>
   );
 }

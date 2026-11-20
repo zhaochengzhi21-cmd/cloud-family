@@ -1508,9 +1508,14 @@ export function OverviewTab({
           familyId={familyId}
           onAuthError={onAuthError}
           onOpenRecords={onOpenRecords}
+          canEdit={canEdit}
           canManage={canReview}
           onRemoved={(evidenceId, label) => {
             onEvidenceRemoved?.(evidenceId, label);
+            void load();
+            void onReload?.();
+          }}
+          onCreated={() => {
             void load();
             void onReload?.();
           }}
