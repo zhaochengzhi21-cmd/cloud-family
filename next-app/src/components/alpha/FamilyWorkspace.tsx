@@ -7703,6 +7703,7 @@ function PersonDrawer({
   useEffect(() => {
     setLocalFlash("");
     setLocalUndoClaimId(null);
+    setLocalFlashCopyUrl(null);
   }, [person.id]);
 
   useEffect(() => {
@@ -7712,6 +7713,26 @@ function PersonDrawer({
   }, [localFlash, localUndoClaimId]);
 
   function flashLocal(msg: string, undoClaimId?: string) {
+    if (
+      undoClaimId &&
+      (msg.includes("不采用") || msg.includes("不同说法"))
+    ) {
+      const qs = new URLSearchParams({
+        tab: "records",
+        person: person.id,
+        claim: undoClaimId,
+      });
+      setLocalFlashCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+      );
+      setLocalFlash(
+        msg.includes("可复制链接")
+          ? msg
+          : `${msg}可复制链接发给家人核对。`
+      );
+      setLocalUndoClaimId(undoClaimId);
+      return;
+    }
     if (!msg.includes("可复制链接")) setLocalFlashCopyUrl(null);
     setLocalFlash(msg);
     setLocalUndoClaimId(undoClaimId ?? null);
