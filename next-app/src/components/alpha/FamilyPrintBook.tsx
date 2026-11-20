@@ -338,6 +338,9 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             onClick={() => {
               try {
                 sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+                if (canEdit) {
+                  sessionStorage.setItem(`alpha-add-rel:${familyId}`, "1");
+                }
               } catch {
                 /* private mode */
               }

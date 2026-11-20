@@ -2306,6 +2306,9 @@ test("明经胡氏：有成员无关系时打印版提示建立关系", async ({
   await expect(page.getByRole("tab", { selected: true })).toHaveText("世系", {
     timeout: 60_000,
   });
+  await expect(
+    page.getByRole("dialog", { name: "添加家庭关系" })
+  ).toBeVisible({ timeout: 20_000 });
 });
 
 test("明经胡氏：只读成员打印无关系时不催促建立", async ({

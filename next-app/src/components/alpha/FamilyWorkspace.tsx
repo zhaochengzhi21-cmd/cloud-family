@@ -356,6 +356,18 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const flag = sessionStorage.getItem(`alpha-add-rel:${familyId}`);
+      if (!flag) return;
+      sessionStorage.removeItem(`alpha-add-rel:${familyId}`);
+      setShowAddRel(true);
+      setTab("lineage");
+    } catch {
+      /* private mode */
+    }
+  }, [familyId]);
+
+  useEffect(() => {
+    try {
       const raw = sessionStorage.getItem(`alpha-person-basics:${familyId}`);
       if (!raw) return;
       sessionStorage.removeItem(`alpha-person-basics:${familyId}`);
