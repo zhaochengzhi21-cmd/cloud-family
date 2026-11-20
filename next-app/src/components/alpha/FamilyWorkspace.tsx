@@ -617,6 +617,7 @@ export function FamilyWorkspace({
   const [shareClaim, setShareClaim] = useState<{
     personId: string;
     claimId: string;
+    statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
   } | null>(null);
   /** Records-tab subject mirrored into ?person= (not the member drawer). */
   const [recordsUrlPerson, setRecordsUrlPerson] = useState<string | null>(null);
@@ -775,6 +776,7 @@ export function FamilyWorkspace({
         setShareClaim({
           personId,
           claimId: resolved.focusClaimId,
+          statusFilter: resolved.statusFilter,
         });
         if (resolved.openEvidence) {
           setEvidenceSeed({
@@ -816,6 +818,11 @@ export function FamilyWorkspace({
     if (tab === "records" && shareClaim) {
       params.set("claim", shareClaim.claimId);
       params.set("person", shareClaim.personId);
+      if (shareClaim.statusFilter) {
+        params.set("claimStatus", shareClaim.statusFilter);
+      } else {
+        params.delete("claimStatus");
+      }
       params.delete("claimType");
     } else if (
       pendingClaim &&
@@ -1683,8 +1690,8 @@ export function FamilyWorkspace({
             recordsFocus={recordsFocus}
             onRecordsFocusConsumed={() => setRecordsFocus(null)}
             onRecordsPersonChange={setRecordsUrlPerson}
-            onShareClaim={(personId, claimId) =>
-              setShareClaim({ personId, claimId })
+            onShareClaim={(personId, claimId, statusFilter) =>
+              setShareClaim({ personId, claimId, statusFilter })
             }
             onOpenSourcesLibrary={(evidenceId) => {
               setSourcesFocusEvidenceId(evidenceId);
@@ -3084,7 +3091,11 @@ function RecordsTab({
   } | null;
   onRecordsFocusConsumed: () => void;
   onRecordsPersonChange?: (personId: string | null) => void;
-  onShareClaim?: (personId: string, claimId: string) => void;
+  onShareClaim?: (
+    personId: string,
+    claimId: string,
+    statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL"
+  ) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
@@ -3544,8 +3555,8 @@ function RecordsTab({
               selectedPerson?.livingStatus
             );
             setFlash(flashAfterClaimSave(followUp, savedType));
-            setStatusFilter("ALL");
-            onShareClaim?.(personId, claimId);
+            setStatusFilter("PROPOSED");
+            onShareClaim?.(personId, claimId, "PROPOSED");
             await loadClaims();
             if (followUp) {
               setLocalSeed({ claimType: followUp, nonce: Date.now() });
