@@ -581,7 +581,7 @@ async function runCoreJourney(
 
   // Person page — life timeline, photo wall, kin links, back to records
   await page.getByRole("button", { name: "打开此人" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "查看人物页" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "查看人物资料" }).click();
   await expect(page).toHaveURL(new RegExp(`/people/${yi.id}$`));
   await expect(page.getByRole("heading", { level: 1, name: "赵乙" })).toBeVisible({
     timeout: 60_000,
@@ -1070,7 +1070,7 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
       await storyAccept.click();
       await expect(page.getByText("已确认这条资料")).toBeVisible();
     }
-    await mDrawer.getByRole("button", { name: "查看人物页" }).click();
+    await mDrawer.getByRole("button", { name: "查看人物资料" }).click();
     await expect(page).toHaveURL(new RegExp(`/people/${bingId}$`));
     const stories = page.getByRole("region", { name: "故事与口述" });
     await expect(stories).toContainText("银杏有三百年", { timeout: 60_000 });

@@ -3444,7 +3444,7 @@ test("明经胡氏：只读成员概览下一步用浏览文案", async ({
   await expect(connectStep).toContainText("还有 2 位成员未连入世系", {
     timeout: 60_000,
   });
-  await expect(connectStep).toContainText("可先打开人物页了解他们");
+  await expect(connectStep).toContainText("可先打开人物资料了解他们");
   await expect(connectStep).not.toContainText("点人名可为 TA 添加父母");
   await connectStep
     .getByRole("button", { name: `查看${sample.wenGuang.preferredName}` })
@@ -3496,7 +3496,7 @@ test("明经胡氏：只读成员概览缺出生信息可打开人物", async ({
     .getByRole("listitem")
     .filter({ hasText: "还没有出生信息" });
   await expect(birthStep).toBeVisible({ timeout: 60_000 });
-  await expect(birthStep).toContainText("可先打开人物页了解");
+  await expect(birthStep).toContainText("可先打开人物资料了解");
   await birthStep
     .getByRole("button", { name: `查看${sample.yuanXi.preferredName}` })
     .click();
@@ -4296,7 +4296,7 @@ test("明经胡氏：编辑者抽屉不可移除成员", async ({ page, baseURL 
     drawer.getByRole("button", { name: "移除这位成员" })
   ).toHaveCount(0);
   await expect(
-    drawer.getByRole("button", { name: "查看人物页" })
+    drawer.getByRole("button", { name: "查看人物资料" })
   ).toBeVisible();
 });
 
