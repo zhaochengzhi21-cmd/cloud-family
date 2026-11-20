@@ -3258,6 +3258,11 @@ function RecordsTab({
   const [rejectedOpen, setRejectedOpen] = useState(false);
   const [claimFocusMiss, setClaimFocusMiss] = useState(false);
   const [claimSeedBlocked, setClaimSeedBlocked] = useState(false);
+  /** When VIEWER hits ?openEvidence= / claim seed — keep a forwardable handoff URL. */
+  const [seedBlockedHandoffUrl, setSeedBlockedHandoffUrl] = useState<
+    string | null
+  >(null);
+  const [seedBlockedCopyFlash, setSeedBlockedCopyFlash] = useState("");
   /** Which personId the current `claims` array belongs to (avoids stale miss). */
   const [claimsPersonId, setClaimsPersonId] = useState("");
   const topRef = useRef<HTMLDivElement>(null);
@@ -3356,6 +3361,15 @@ function RecordsTab({
     if (!claimSeed) return;
     if (!canEdit) {
       setClaimSeedBlocked(true);
+      const qs = new URLSearchParams({
+        tab: "records",
+        person: claimSeed.personId,
+        claimType: claimSeed.claimType,
+      });
+      setSeedBlockedHandoffUrl(
+        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+      );
+      setSeedBlockedCopyFlash("");
       onClaimSeedConsumed();
       return;
     }
@@ -3366,12 +3380,26 @@ function RecordsTab({
         nonce: claimSeed.nonce,
       });
     }
-  }, [claimSeed, persons, canEdit, onClaimSeedConsumed]);
+  }, [claimSeed, persons, canEdit, onClaimSeedConsumed, familyId]);
 
   useEffect(() => {
     if (!evidenceSeed) return;
     if (!canEdit) {
       setClaimSeedBlocked(true);
+      const qs = new URLSearchParams({
+        tab: "records",
+        person: evidenceSeed.personId,
+        claim: evidenceSeed.claimId,
+        claimStatus: "ALL",
+        openEvidence: "1",
+      });
+      if (evidenceSeed.evidenceType) {
+        qs.set("evidenceType", evidenceSeed.evidenceType);
+      }
+      setSeedBlockedHandoffUrl(
+        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+      );
+      setSeedBlockedCopyFlash("");
       onEvidenceSeedConsumed();
       return;
     }
@@ -3381,7 +3409,7 @@ function RecordsTab({
       setOpenEvidenceType(evidenceSeed.evidenceType ?? null);
       onEvidenceSeedConsumed();
     }
-  }, [evidenceSeed, persons, canEdit, onEvidenceSeedConsumed]);
+  }, [evidenceSeed, persons, canEdit, onEvidenceSeedConsumed, familyId]);
 
   useEffect(() => {
     if (!openEvidenceClaimId || loading) return;
@@ -3563,12 +3591,36 @@ function RecordsTab({
           role="status"
         >
           <p className="text-sm text-[color:var(--a-muted)]">
-            当前为只读，无法在此补充人物资料或挂接来源。可联系有编辑权限的家人，或查看参与家人。
+            当前为只读，无法在此补充人物资料或挂接来源。可复制链接发给有编辑权限的家人，或查看参与家人。
           </p>
+          {seedBlockedHandoffUrl ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = seedBlockedHandoffUrl;
+                void navigator.clipboard.writeText(url).then(
+                  () => setSeedBlockedCopyFlash("已复制链接，可发给家人处理"),
+                  () => setSeedBlockedCopyFlash("请手动复制地址栏链接")
+                );
+              }}
+            >
+              复制链接发给家人
+            </button>
+          ) : null}
+          {seedBlockedCopyFlash ? (
+            <span className="text-sm text-[color:var(--a-muted)]" role="status">
+              {seedBlockedCopyFlash}
+            </span>
+          ) : null}
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            onClick={() => setClaimSeedBlocked(false)}
+            onClick={() => {
+              setClaimSeedBlocked(false);
+              setSeedBlockedHandoffUrl(null);
+              setSeedBlockedCopyFlash("");
+            }}
           >
             知道了
           </button>
@@ -4900,7 +4952,7 @@ function ClaimCard({
             >
               复制本条链接
             </button>
-            {canEdit && unsourcedAccepted ? (
+            {unsourcedAccepted ? (
               <button
                 type="button"
                 className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -7621,11 +7673,23 @@ function PersonDrawer({
                   living
                 );
                 const base = flashAfterClaimSave(followUp, savedType);
-                setLocalFlash(
-                  !canReview
-                    ? `${base} 可在下方「复制本条链接」发给${REVIEWER_CONTACT}确认。`
-                    : base
-                );
+                if (!canReview) {
+                  const qs = new URLSearchParams({
+                    tab: "records",
+                    person: person.id,
+                    claim: claimId,
+                    claimStatus: "PROPOSED",
+                  });
+                  setLocalFlashCopyUrl(
+                    `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                  );
+                  setLocalFlash(
+                    `${base} 可复制链接发给${REVIEWER_CONTACT}确认。`
+                  );
+                } else {
+                  setLocalFlashCopyUrl(null);
+                  setLocalFlash(base);
+                }
                 await loadClaims();
                 if (followUp) {
                   setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
