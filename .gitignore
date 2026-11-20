@@ -42,7 +42,9 @@ next-env.d.ts
 *.bundle
 push-retry.log
 alpha-ui-*.png
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # agent / local scratch
 e2e-*.log
