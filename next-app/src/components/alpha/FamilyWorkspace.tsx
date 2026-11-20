@@ -1183,11 +1183,11 @@ export function FamilyWorkspace({
               type="button"
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
               onClick={() => {
-                const url = `${window.location.origin}/alpha/families/${familyId}`;
+                const url = window.location.href;
                 void (async () => {
                   try {
                     await navigator.clipboard.writeText(url);
-                    setFlash("已复制家族档案链接");
+                    setFlash("已复制当前页面链接");
                     setFlashParticipantsCta(false);
                   } catch {
                     setFlash("请手动复制地址栏链接");
@@ -1196,7 +1196,7 @@ export function FamilyWorkspace({
                 })();
               }}
             >
-              复制档案链接
+              复制本页链接
             </button>
             {canReview ? (
               <button
