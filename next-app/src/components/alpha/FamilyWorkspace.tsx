@@ -4568,17 +4568,60 @@ function RecordsTab({
         <div className="py-8 text-center">
           <p className="text-sm text-[color:var(--a-muted)]">
             没有符合当前筛选的资料
+            {statusFilter === "PROPOSED" && rejected.length > 0
+              ? "。不采用的记录在下方，可展开查看。"
+              : statusFilter === "PROPOSED" && !canReview
+                ? `。若需确认，可复制链接发给${REVIEWER_CONTACT}。`
+                : ""}
           </p>
-          <button
-            type="button"
-            className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
-            onClick={() => {
-              setStatusFilter("ALL");
-              setTypeFilter("ALL");
-            }}
-          >
-            查看全部
-          </button>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+              onClick={() => {
+                setStatusFilter("ALL");
+                setTypeFilter("ALL");
+              }}
+            >
+              查看全部
+            </button>
+            {statusFilter === "PROPOSED" && rejected.length > 0 ? (
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  setStatusFilter("ALL");
+                  setTypeFilter("ALL");
+                  setRejectedOpen(true);
+                }}
+              >
+                查看不采用的记录
+              </button>
+            ) : null}
+            {statusFilter === "PROPOSED" && !canReview && personId ? (
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "records",
+                    person: personId,
+                    claimStatus: "PROPOSED",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () =>
+                      setFlash(
+                        `已复制链接，可发给${REVIEWER_CONTACT}确认`
+                      ),
+                    () => setFlash("请手动复制地址栏链接")
+                  );
+                }}
+              >
+                复制待确认链接
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
