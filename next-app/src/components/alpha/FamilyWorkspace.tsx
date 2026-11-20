@@ -827,12 +827,25 @@ export function FamilyWorkspace({
               type="button"
               className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
               onClick={() => {
+                try {
+                  sessionStorage.setItem(
+                    `alpha-overview-scroll:${familyId}`,
+                    "overview-participants"
+                  );
+                } catch {
+                  /* private mode */
+                }
                 setTab("overview");
-                requestAnimationFrame(() => {
-                  document
-                    .getElementById("overview-participants")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                });
+                let tries = 0;
+                const tick = () => {
+                  const el = document.getElementById("overview-participants");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    return;
+                  }
+                  if (tries++ < 20) window.setTimeout(tick, 100);
+                };
+                window.setTimeout(tick, 50);
               }}
             >
               查看参与家人
@@ -845,12 +858,25 @@ export function FamilyWorkspace({
               type="button"
               className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
               onClick={() => {
+                try {
+                  sessionStorage.setItem(
+                    `alpha-overview-scroll:${familyId}`,
+                    "overview-participants"
+                  );
+                } catch {
+                  /* private mode */
+                }
                 setTab("overview");
-                requestAnimationFrame(() => {
-                  document
-                    .getElementById("overview-participants")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                });
+                let tries = 0;
+                const tick = () => {
+                  const el = document.getElementById("overview-participants");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    return;
+                  }
+                  if (tries++ < 20) window.setTimeout(tick, 100);
+                };
+                window.setTimeout(tick, 50);
               }}
             >
               查看参与家人
