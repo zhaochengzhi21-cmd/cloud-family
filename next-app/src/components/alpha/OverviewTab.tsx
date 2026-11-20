@@ -720,7 +720,7 @@ export function OverviewTab({
     browsePeople: !canEdit,
   });
   const viewerReadHint =
-    "可先打开人物资料了解；有编辑权限的家人补充后，这里会更新。";
+    "可先打开人物资料了解；有编辑权限的家人补充后，这里会更新。也可在下方「参与家人」找到可编辑的账号。";
 
   if (missingSpouse.length > 0) {
     steps.push({
