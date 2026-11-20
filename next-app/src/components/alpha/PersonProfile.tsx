@@ -625,6 +625,34 @@ export function PersonProfile({
           >
             返回家族档案
           </Link>
+          {error === ERROR_COPY.forbidden ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+              onClick={() => {
+                const qs = new URLSearchParams({
+                  tab: "overview",
+                  scroll: "participants",
+                });
+                const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopyPageFlash("已复制参与家人链接");
+                    window.setTimeout(() => setCopyPageFlash(""), 2500);
+                  },
+                  () => {
+                    setCopyPageFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setCopyPageFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {copyPageFlash.includes("参与家人") ||
+              copyPageFlash.startsWith("请手动")
+                ? copyPageFlash
+                : "复制参与家人链接"}
+            </button>
+          ) : null}
           {error === ERROR_COPY.notFound || error === ERROR_COPY.forbidden ? (
             <Link
               href="/alpha/families"
@@ -800,6 +828,34 @@ export function PersonProfile({
           >
             重试
           </button>
+          {error === ERROR_COPY.forbidden ? (
+            <button
+              type="button"
+              className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const qs = new URLSearchParams({
+                  tab: "overview",
+                  scroll: "participants",
+                });
+                const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopyPageFlash("已复制参与家人链接");
+                    window.setTimeout(() => setCopyPageFlash(""), 2500);
+                  },
+                  () => {
+                    setCopyPageFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setCopyPageFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {copyPageFlash.includes("参与家人") ||
+              copyPageFlash.startsWith("请手动")
+                ? copyPageFlash
+                : "复制参与家人链接"}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
