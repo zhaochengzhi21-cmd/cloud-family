@@ -1264,7 +1264,12 @@ function LibraryAttachForm({
             {claims.map((c) => (
               <option key={c.id} value={c.id}>
                 {(CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType) +
-                  (c.value?.text ? ` · ${c.value.text}` : "")}
+                  (c.value?.text ? ` · ${c.value.text}` : "") +
+                  (c.status === "CONFLICTED"
+                    ? " · 存在不同说法"
+                    : c.status === "PROPOSED"
+                      ? " · 待确认"
+                      : "")}
               </option>
             ))}
           </select>
