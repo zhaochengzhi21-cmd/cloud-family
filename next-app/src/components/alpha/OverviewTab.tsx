@@ -1513,7 +1513,14 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需{REVIEWER_CONTACT}重新打开
+                        · 需{REVIEWER_CONTACT}重新打开 ·{" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={scrollToParticipants}
+                        >
+                          查看参与家人
+                        </button>
                       </span>
                     ) : null}
                     {(item.eventType === "EVIDENCE_CREATED" ||
@@ -1552,7 +1559,14 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需{REVIEWER_CONTACT}恢复
+                        · 需{REVIEWER_CONTACT}恢复 ·{" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={scrollToParticipants}
+                        >
+                          查看参与家人
+                        </button>
                       </span>
                     ) : null}
                     {(item.eventType === "RELATIONSHIP_CREATED" ||
@@ -1593,7 +1607,14 @@ export function OverviewTab({
                       !canEdit ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需有编辑权限的家人恢复
+                        · 需有编辑权限的家人恢复 ·{" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={scrollToParticipants}
+                        >
+                          查看参与家人
+                        </button>
                       </span>
                     ) : null}
                     {item.eventType === "PERSON_DELETED" &&
@@ -1616,7 +1637,14 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需{REVIEWER_CONTACT}恢复
+                        · 需{REVIEWER_CONTACT}恢复 ·{" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={scrollToParticipants}
+                        >
+                          查看参与家人
+                        </button>
                       </span>
                     ) : null}
                   </p>
