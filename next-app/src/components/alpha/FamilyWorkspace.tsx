@@ -3127,13 +3127,18 @@ function RecordsTab({
 
   useEffect(() => {
     if (!evidenceSeed) return;
+    if (!canEdit) {
+      setClaimSeedBlocked(true);
+      onEvidenceSeedConsumed();
+      return;
+    }
     if (persons.some((p) => p.id === evidenceSeed.personId)) {
       setPersonId(evidenceSeed.personId);
       setOpenEvidenceClaimId(evidenceSeed.claimId);
       setOpenEvidenceType(evidenceSeed.evidenceType ?? null);
       onEvidenceSeedConsumed();
     }
-  }, [evidenceSeed, persons, onEvidenceSeedConsumed]);
+  }, [evidenceSeed, persons, canEdit, onEvidenceSeedConsumed]);
 
   useEffect(() => {
     if (!openEvidenceClaimId || loading) return;
@@ -3306,7 +3311,7 @@ function RecordsTab({
           role="status"
         >
           <p className="text-sm text-[color:var(--a-muted)]">
-            当前为只读，无法在此补充人物资料。可联系有编辑权限的家人，或查看参与家人。
+            当前为只读，无法在此补充人物资料或挂接来源。可联系有编辑权限的家人，或查看参与家人。
           </p>
           <button
             type="button"
