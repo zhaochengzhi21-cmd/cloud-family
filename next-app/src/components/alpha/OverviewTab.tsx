@@ -228,11 +228,12 @@ export function OverviewTab({
     kind: "accept" | "reject";
     claimIds: string[];
   }>(null);
-  /** After batch accept — jump/copy 补来源 for the first succeeded claim. */
+  /** After batch accept/reject — jump/copy deep link for the first succeeded claim. */
   const [batchEvidenceHandoff, setBatchEvidenceHandoff] = useState<null | {
     personId: string;
     claimId: string;
     url: string;
+    kind: "evidence" | "reject";
   }>(null);
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
   const [activityCopyFlash, setActivityCopyFlash] = useState("");
@@ -711,12 +712,42 @@ export function OverviewTab({
               personId: firstAccepted.personId,
               claimId: firstAccepted.claimId,
               url,
+              kind: "evidence",
             });
             setBatchFlash(
               r.failed > 0
                 ? `已确认 ${r.succeeded} 条待确认资料，${r.failed} 条未成功。接着可补来源；可复制链接发给家人一起补。误操作可点恢复。${more}`
                 : `已确认 ${r.succeeded} 条待确认资料。接着可补来源；可复制链接发给家人一起补。误操作可点恢复。${more}`
             );
+          } else if (action === "reject") {
+            const firstRejected = succeededIds
+              .map((id) => pendingById.get(id))
+              .find((c): c is NonNullable<typeof c> => Boolean(c));
+            if (firstRejected) {
+              const qs = new URLSearchParams({
+                tab: "records",
+                person: firstRejected.personId,
+                claim: firstRejected.claimId,
+              });
+              const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+              setBatchEvidenceHandoff({
+                personId: firstRejected.personId,
+                claimId: firstRejected.claimId,
+                url,
+                kind: "reject",
+              });
+              setBatchFlash(
+                r.failed > 0
+                  ? `已不采用 ${r.succeeded} 条待确认资料，${r.failed} 条未成功。误操作可点恢复。可复制链接发给家人核对。${more}`
+                  : `已不采用 ${r.succeeded} 条待确认资料。误操作可点恢复。可复制链接发给家人核对。${more}`
+              );
+            } else {
+              setBatchFlash(
+                r.failed > 0
+                  ? `已${verb} ${r.succeeded} 条待确认资料，${r.failed} 条未成功。误操作可点恢复。${more}`
+                  : `已${verb} ${r.succeeded} 条待确认资料。误操作可点恢复。${more}`
+              );
+            }
           } else {
             setBatchFlash(
               r.failed > 0
@@ -1572,29 +1603,51 @@ export function OverviewTab({
           role="status"
         >
           <p className="min-w-0 flex-1">{batchFlash}</p>
-          {batchEvidenceHandoff && batchFlash.includes("补来源") ? (
+          {batchEvidenceHandoff &&
+          (batchEvidenceHandoff.kind === "evidence" ||
+            batchEvidenceHandoff.kind === "reject") &&
+          batchFlash.includes("可复制链接") ? (
             <>
-              <button
-                type="button"
-                className="shrink-0 font-semibold underline-offset-2 hover:underline"
-                onClick={() => {
-                  const h = batchEvidenceHandoff;
-                  onOpenRecords(h.personId, {
-                    focusClaimId: h.claimId,
-                    statusFilter: "ALL",
-                    openEvidence: true,
-                  });
-                }}
-              >
-                去补来源
-              </button>
+              {batchEvidenceHandoff.kind === "evidence" ? (
+                <button
+                  type="button"
+                  className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                  onClick={() => {
+                    const h = batchEvidenceHandoff;
+                    onOpenRecords(h.personId, {
+                      focusClaimId: h.claimId,
+                      statusFilter: "ALL",
+                      openEvidence: true,
+                    });
+                  }}
+                >
+                  去补来源
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                  onClick={() => {
+                    const h = batchEvidenceHandoff;
+                    onOpenRecords(h.personId, {
+                      focusClaimId: h.claimId,
+                    });
+                  }}
+                >
+                  打开这条资料
+                </button>
+              )}
               <button
                 type="button"
                 className="shrink-0 font-semibold underline-offset-2 hover:underline"
                 onClick={() => {
                   const url = batchEvidenceHandoff.url;
+                  const okMsg =
+                    batchEvidenceHandoff.kind === "evidence"
+                      ? "已复制补来源链接，可发给家人一起补"
+                      : "已复制不采用资料的链接，可发给家人核对";
                   void navigator.clipboard.writeText(url).then(
-                    () => setBatchFlash("已复制补来源链接，可发给家人一起补"),
+                    () => setBatchFlash(okMsg),
                     () => setBatchFlash("请手动复制地址栏链接")
                   );
                 }}
