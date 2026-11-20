@@ -171,7 +171,14 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     // Footnote numbers follow reading order so the list at the end reads naturally.
     const sourceNo = new Map<string, number>();
     const generations = order.map((g) => {
-      const people = (groups.get(g) ?? []).slice().sort(byName);
+      const people = (groups.get(g) ?? []).slice().sort((a, b) => {
+        const ra = orderOf(a);
+        const rb = orderOf(b);
+        if (ra != null && rb != null && ra !== rb) return ra - rb;
+        if (ra != null && rb == null) return -1;
+        if (ra == null && rb != null) return 1;
+        return byName(a, b);
+      });
       for (const p of people) {
         for (const t of [...FACT_ORDER, "STORY"] as const) {
           for (const f of shownFacts(p.facts, t)) {

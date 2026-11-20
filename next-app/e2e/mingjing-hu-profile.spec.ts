@@ -2094,6 +2094,55 @@ test("明经胡氏：无成员时打印版家谱为空态", async ({ page, baseU
   ).toHaveCount(0);
 });
 
+test("明经胡氏：打印版同代按排行排序", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印排行（测试）",
+    sample.surname
+  );
+
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, []);
+  const thirdId = await seedPerson(page, familyId, sample.yuanXi, [
+    { claimType: "BIRTH_ORDER", text: "三" },
+  ]);
+  const eldestId = await seedPerson(
+    page,
+    familyId,
+    {
+      preferredName: "胡元锟",
+      gender: "MALE",
+      livingStatus: "DECEASED",
+    },
+    [{ claimType: "BIRTH_ORDER", text: "长" }]
+  );
+  for (const child of [thirdId, eldestId]) {
+    const rel = await apiJson(
+      page,
+      `/api/v1/families/${familyId}/relationships`,
+      {
+        method: "POST",
+        body: {
+          fromPersonId: fatherId,
+          toPersonId: child,
+          relationshipType: "BIOLOGICAL_PARENT",
+        },
+      }
+    );
+    expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+  }
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  const gen2 = page.getByRole("region", { name: "第二代" });
+  await expect(gen2).toBeVisible({ timeout: 60_000 });
+  const headings = gen2.locator("h3");
+  await expect(headings).toHaveCount(2);
+  await expect(headings.nth(0)).toContainText("胡元锟");
+  await expect(headings.nth(1)).toContainText("胡元熙");
+});
+
 test("明经胡氏：有成员无关系时打印版提示建立关系", async ({
   page,
   baseURL,
