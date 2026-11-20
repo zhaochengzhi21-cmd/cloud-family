@@ -3910,7 +3910,7 @@ function ClaimCard({
                   {l.evidence.sourceDateText
                     ? ` · ${l.evidence.sourceDateText}`
                     : ""}
-                  {l.evidence.description || l.evidence.sourceDateText ? (
+                  {l.evidence.description ? (
                     <button
                       type="button"
                       className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
