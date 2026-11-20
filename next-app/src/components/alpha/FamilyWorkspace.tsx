@@ -2990,6 +2990,7 @@ function RecordsTab({
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [rejectedOpen, setRejectedOpen] = useState(false);
   const [claimFocusMiss, setClaimFocusMiss] = useState(false);
+  const [claimSeedBlocked, setClaimSeedBlocked] = useState(false);
   /** Which personId the current `claims` array belongs to (avoids stale miss). */
   const [claimsPersonId, setClaimsPersonId] = useState("");
   const topRef = useRef<HTMLDivElement>(null);
@@ -3087,7 +3088,7 @@ function RecordsTab({
   useEffect(() => {
     if (!claimSeed) return;
     if (!canEdit) {
-      setClaimFocusMiss(true);
+      setClaimSeedBlocked(true);
       onClaimSeedConsumed();
       return;
     }
@@ -3275,15 +3276,39 @@ function RecordsTab({
       <p className="mb-4 text-sm leading-relaxed text-[color:var(--a-muted)]">
         关于这个家族，我们知道些什么，以及这些信息从哪里来。
       </p>
+      {claimSeedBlocked ? (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+          role="status"
+        >
+          <p className="text-sm text-[color:var(--a-muted)]">
+            当前为只读，无法在此补充人物资料。可联系有编辑权限的家人，或查看参与家人。
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setClaimSeedBlocked(false)}
+          >
+            知道了
+          </button>
+          {!canReview && onOpenParticipants ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={onOpenParticipants}
+            >
+              查看参与家人
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {claimFocusMiss ? (
         <div
           className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
           role="status"
         >
           <p className="text-sm text-[color:var(--a-muted)]">
-            {canEdit
-              ? "要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。"
-              : "当前为只读，无法在此补充人物资料。可联系有编辑权限的家人，或查看参与家人。"}
+            要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。
           </p>
           <button
             type="button"
