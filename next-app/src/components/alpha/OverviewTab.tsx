@@ -236,6 +236,7 @@ export function OverviewTab({
   }>(null);
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
   const [activityCopyFlash, setActivityCopyFlash] = useState("");
+  const [pendingHandoffFlash, setPendingHandoffFlash] = useState("");
 
   useEffect(() => {
     if (!externalFocusEvidenceId) return;
@@ -1461,6 +1462,31 @@ export function OverviewTab({
           {smartPendingIds.length > 0 && !canReview ? (
             <p className="mb-2 text-sm text-[color:var(--a-muted)]">
               其中有智能整理或导入写入的资料，需{REVIEWER_CONTACT}确认后才会成为正式记载。
+              <button
+                type="button"
+                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "overview",
+                    scroll: "pending",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setPendingHandoffFlash(
+                        `已复制链接，可发给${REVIEWER_CONTACT}确认`
+                      );
+                      window.setTimeout(() => setPendingHandoffFlash(""), 2500);
+                    },
+                    () => {
+                      setPendingHandoffFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setPendingHandoffFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {pendingHandoffFlash || "复制待确认链接发给家人"}
+              </button>
               <button
                 type="button"
                 className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
