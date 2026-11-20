@@ -56,6 +56,21 @@ function isPhoto(mime: string | null, type: string) {
   return Boolean(mime?.startsWith("image/")) || type === "PHOTO";
 }
 
+type LibraryFilter = "ALL" | "AUDIO" | "PHOTO" | "DOC";
+
+function seedTypeForFilter(filter: LibraryFilter): string {
+  if (filter === "PHOTO") return "PHOTO";
+  if (filter === "AUDIO") return "ORAL_HISTORY";
+  if (filter === "DOC") return "GENEALOGY_PAGE";
+  return "GENEALOGY_PAGE";
+}
+
+const FILTER_ADD_LABEL: Record<Exclude<LibraryFilter, "ALL">, string> = {
+  PHOTO: "收录照片",
+  AUDIO: "收录口述 / 录音",
+  DOC: "收录谱页 / 文书",
+};
+
 export function FamilySources({
   familyId,
   persons = [],
@@ -94,9 +109,8 @@ export function FamilySources({
   dataVersion?: number;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
-  const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO" | "DOC">(
-    "ALL"
-  );
+  const [filter, setFilter] = useState<LibraryFilter>("ALL");
+  const [addSeedType, setAddSeedType] = useState("GENEALOGY_PAGE");
   const [error, setError] = useState("");
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removingBusy, setRemovingBusy] = useState(false);
@@ -301,7 +315,10 @@ export function FamilySources({
             <button
               type="button"
               className="alpha-btn alpha-btn-primary !min-h-[40px] shrink-0 !px-3 !text-sm"
-              onClick={() => setAdding(true)}
+              onClick={() => {
+                setAddSeedType(seedTypeForFilter(filter));
+                setAdding(true);
+              }}
             >
               收录来源
             </button>
@@ -309,7 +326,9 @@ export function FamilySources({
         </div>
         {adding && canEdit ? (
           <LibraryAddSourceForm
+            key={addSeedType}
             familyId={familyId}
+            initialEvidenceType={addSeedType}
             onAuthError={onAuthError}
             onCancel={() => setAdding(false)}
             onDone={async () => {
@@ -428,6 +447,18 @@ export function FamilySources({
             <p className="text-sm text-[color:var(--a-muted)]">
               这一类还没有来源。
             </p>
+            {filter !== "ALL" && canEdit && !adding ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  setAddSeedType(seedTypeForFilter(filter));
+                  setAdding(true);
+                }}
+              >
+                {FILTER_ADD_LABEL[filter]}
+              </button>
+            ) : null}
             {filter !== "ALL" ? (
               <button
                 type="button"
@@ -729,16 +760,18 @@ export function FamilySources({
 
 function LibraryAddSourceForm({
   familyId,
+  initialEvidenceType = "GENEALOGY_PAGE",
   onAuthError,
   onCancel,
   onDone,
 }: {
   familyId: string;
+  initialEvidenceType?: string;
   onAuthError: (e: unknown) => boolean;
   onCancel: () => void;
   onDone: () => Promise<void>;
 }) {
-  const [evidenceType, setEvidenceType] = useState("GENEALOGY_PAGE");
+  const [evidenceType, setEvidenceType] = useState(initialEvidenceType);
   const [title, setTitle] = useState("");
   const [sourceLocator, setSourceLocator] = useState("");
   const [description, setDescription] = useState("");

@@ -3809,3 +3809,43 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
     timeout: 60_000,
   });
 });
+
+test("明经胡氏：资料来源库空筛选可收录对应类型", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·空筛选收录（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  const parked = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
+    method: "POST",
+    body: {
+      evidenceType: "GENEALOGY_PAGE",
+      title: "已有谱页（测试）",
+    },
+  });
+  expect(parked.status, JSON.stringify(parked.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(sourcesLib).toBeVisible({ timeout: 60_000 });
+  await expect(
+    sourcesLib.getByRole("list", { name: "资料来源列表" })
+  ).toContainText("已有谱页（测试）", { timeout: 60_000 });
+
+  await sourcesLib.getByRole("button", { name: "照片", exact: true }).click();
+  await expect(sourcesLib.getByText("这一类还没有来源。")).toBeVisible();
+  await sourcesLib.getByRole("button", { name: "收录照片" }).click();
+  const form = sourcesLib.getByRole("form", { name: "收录资料来源" });
+  await expect(form.locator("#lib-ev-type")).toHaveValue("PHOTO");
+  await expect(
+    sourcesLib.getByRole("button", { name: "查看全部" })
+  ).toBeVisible();
+});
