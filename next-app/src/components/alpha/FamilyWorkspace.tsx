@@ -376,6 +376,11 @@ export function FamilyWorkspace({
     claimType: string;
     nonce: number;
   } | null>(null);
+  /** VIEWER opened ?claimType= — keep shareable param after seed is consumed. */
+  const [shareClaimTypeHandoff, setShareClaimTypeHandoff] = useState<{
+    personId: string;
+    claimType: string;
+  } | null>(null);
   const [evidenceSeed, setEvidenceSeed] = useState<{
     personId: string;
     claimId: string;
@@ -394,6 +399,7 @@ export function FamilyWorkspace({
           claimType,
           nonce: Date.now(),
         });
+        setShareClaimTypeHandoff({ personId: person, claimType });
         setRecordsUrlPerson(person);
         setTab("records");
         return;
@@ -990,6 +996,11 @@ export function FamilyWorkspace({
       }
       if (claimSeed?.claimType && claimSeed.personId === recordsPerson) {
         params.set("claimType", claimSeed.claimType);
+      } else if (
+        shareClaimTypeHandoff &&
+        shareClaimTypeHandoff.personId === recordsPerson
+      ) {
+        params.set("claimType", shareClaimTypeHandoff.claimType);
       } else {
         params.delete("claimType");
       }
@@ -1065,6 +1076,7 @@ export function FamilyWorkspace({
     lineageUrlPerson,
     drawerBasicsFocus,
     claimSeed,
+    shareClaimTypeHandoff,
     showAddKin,
     showAddPerson,
     showAddRel,
@@ -1891,7 +1903,10 @@ export function FamilyWorkspace({
             canReview={canReview}
             role={role}
             claimSeed={claimSeed}
-            onClaimSeedConsumed={() => setClaimSeed(null)}
+            onClaimSeedConsumed={() => {
+              setClaimSeed(null);
+            }}
+            onClaimSeedOpened={() => setShareClaimTypeHandoff(null)}
             evidenceSeed={evidenceSeed}
             onEvidenceSeedConsumed={() => setEvidenceSeed(null)}
             recordsFocus={recordsFocus}
@@ -3493,6 +3508,7 @@ function RecordsTab({
   role,
   claimSeed,
   onClaimSeedConsumed,
+  onClaimSeedOpened,
   evidenceSeed,
   onEvidenceSeedConsumed,
   recordsFocus,
@@ -3521,6 +3537,7 @@ function RecordsTab({
   role: Role;
   claimSeed: { personId: string; claimType: string; nonce: number } | null;
   onClaimSeedConsumed: () => void;
+  onClaimSeedOpened?: () => void;
   evidenceSeed: {
     personId: string;
     claimId: string;
@@ -3724,8 +3741,16 @@ function RecordsTab({
         claimType: claimSeed.claimType,
         nonce: claimSeed.nonce,
       });
+      onClaimSeedOpened?.();
     }
-  }, [claimSeed, persons, canEdit, onClaimSeedConsumed, familyId]);
+  }, [
+    claimSeed,
+    persons,
+    canEdit,
+    onClaimSeedConsumed,
+    onClaimSeedOpened,
+    familyId,
+  ]);
 
   useEffect(() => {
     if (!evidenceSeed) return;
