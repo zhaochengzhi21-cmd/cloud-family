@@ -2126,6 +2126,7 @@ function BackupSection({
   const [lastKind, setLastKind] = useState<"json" | "ged">("json");
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
+  const [printCopyFlash, setPrintCopyFlash] = useState("");
 
   async function download(kind: "json" | "ged") {
     setBusy(kind);
@@ -2196,6 +2197,25 @@ function BackupSection({
           >
             打印版家谱
           </Link>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            onClick={() => {
+              const url = `${window.location.origin}/alpha/families/${familyId}/print`;
+              void navigator.clipboard.writeText(url).then(
+                () => {
+                  setPrintCopyFlash("已复制打印版链接");
+                  window.setTimeout(() => setPrintCopyFlash(""), 2500);
+                },
+                () => {
+                  setPrintCopyFlash("请手动复制地址栏链接");
+                  window.setTimeout(() => setPrintCopyFlash(""), 2500);
+                }
+              );
+            }}
+          >
+            {printCopyFlash || "复制打印版链接"}
+          </button>
         </div>
         {message ? (
           <div
