@@ -3496,6 +3496,18 @@ function RecordsTab({
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              setClaimFocusMiss(false);
+              setStatusFilter("ALL");
+              setTypeFilter("ALL");
+              setRejectedOpen(true);
+            }}
+          >
+            查看全部资料
+          </button>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-muted)] underline-offset-2 hover:underline"
             onClick={() => setClaimFocusMiss(false)}
           >
             知道了
