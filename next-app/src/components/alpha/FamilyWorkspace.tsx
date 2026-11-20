@@ -724,6 +724,7 @@ export function FamilyWorkspace({
           <MembersTab
             persons={persons}
             generationByPerson={generationByPerson}
+            showGenerations={relationships.length > 0}
             canEdit={canEdit}
             onAdd={() => setShowAddPerson(true)}
             onOpen={(id) => setSelectedPersonId(id)}
@@ -890,7 +891,11 @@ export function FamilyWorkspace({
           familyId={familyId}
           person={personMap.get(selectedPersonId)!}
           persons={persons}
-          generation={generationByPerson[selectedPersonId]}
+          generation={
+            relationships.length > 0
+              ? generationByPerson[selectedPersonId]
+              : undefined
+          }
           generationByPerson={generationByPerson}
           relationships={relationships}
           personMap={personMap}
@@ -961,12 +966,14 @@ export function FamilyWorkspace({
 function MembersTab({
   persons,
   generationByPerson,
+  showGenerations,
   canEdit,
   onAdd,
   onOpen,
 }: {
   persons: GraphPerson[];
   generationByPerson: Record<string, number>;
+  showGenerations: boolean;
   canEdit: boolean;
   onAdd: () => void;
   onOpen: (id: string) => void;
@@ -1136,7 +1143,7 @@ function MembersTab({
                   </p>
                   <p className="text-sm text-[color:var(--a-muted)]">
                     {[
-                      generationByPerson[p.id]
+                      showGenerations && generationByPerson[p.id]
                         ? generationLabel(generationByPerson[p.id])
                         : null,
                       LIVING_STATUS_LABEL[
@@ -5127,7 +5134,9 @@ function PersonDrawer({
             </ul>
           ) : (
             <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-              暂无关系。建立父母/配偶关系后，世系页会按代展示。
+              {canEdit
+                ? "暂无关系。建立父母/配偶关系后，世系页会按代展示。"
+                : "暂无关系。有编辑权限的家人补充后，会显示在这里。"}
             </p>
           )}
           {canEdit ? (
@@ -5169,13 +5178,15 @@ function PersonDrawer({
                 {relRows.length ? "再添加一条关系" : "选用已有成员建立关系"}
               </button>
             ) : null}
-            <button
-              type="button"
-              className="text-sm font-semibold text-[color:var(--a-brand)]"
-              onClick={onShowInLineage}
-            >
-              在世系中查看
-            </button>
+            {relRows.length > 0 ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)]"
+                onClick={onShowInLineage}
+              >
+                在世系中查看
+              </button>
+            ) : null}
             <button
               type="button"
               className="text-sm font-semibold text-[color:var(--a-brand)]"

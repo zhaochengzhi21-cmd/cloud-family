@@ -1812,12 +1812,17 @@ test("明经胡氏：人物抽屉来源库按钮直达概览来源库", async ({
   );
 
   await page.goto(`/alpha/families/${familyId}`);
-  await page.getByRole("tab", { name: "世系" }).click();
-  await page.getByRole("button", { name: new RegExp(sample.wenGuang.preferredName) }).click();
+  await page.getByRole("tab", { name: "成员" }).click();
+  await page
+    .getByRole("button", { name: new RegExp(sample.wenGuang.preferredName) })
+    .click();
   const drawer = page.getByRole("dialog");
   await expect(
     drawer.getByRole("heading", { name: sample.wenGuang.preferredName })
   ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    drawer.getByRole("button", { name: "在世系中查看" })
+  ).toHaveCount(0);
   const birthCard = drawer
     .locator("[data-claim-id]")
     .filter({ hasText: "约明嘉靖年间" });
@@ -2050,6 +2055,8 @@ test("明经胡氏：无关系时世系为空态，不伪造第一代", async ({
   await seedPerson(page, familyId, sample.guanSan, []);
 
   await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "成员" }).click();
+  await expect(page.getByText("第一代")).toHaveCount(0);
   await page.getByRole("tab", { name: "世系" }).click();
   await expect(
     page.getByText("添加家庭关系后，这里会按世代展示。")

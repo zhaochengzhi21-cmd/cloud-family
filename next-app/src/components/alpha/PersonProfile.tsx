@@ -408,7 +408,8 @@ export function PersonProfile({
     );
   }
 
-  const generation = generationByPerson[person.id];
+  const generation =
+    relationships.length > 0 ? generationByPerson[person.id] : undefined;
   const birthDate = pickShown(claims, "BIRTH_DATE");
   const birthPlace = pickShown(claims, "BIRTH_PLACE");
   const alias = pickShown(claims, "ALIAS");
