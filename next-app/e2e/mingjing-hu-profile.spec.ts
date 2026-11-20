@@ -3112,6 +3112,40 @@ test("明经胡氏：有成员无关系时打印版提示建立关系", async ({
   ).toBeVisible({ timeout: 20_000 });
 });
 
+test("明经胡氏：唯一成员打印无关系时去添加成员", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印单人无关系（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "西递明经胡氏·打印单人无关系（测试）",
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByText("只有一位成员，还无法连成世代")
+  ).toBeVisible();
+  await page.getByRole("link", { name: "去添加成员" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("成员", {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole("dialog").or(page.getByLabel("姓名 / 常用称呼"))
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：只读成员打印无关系时不催促建立", async ({
   page,
   browser,

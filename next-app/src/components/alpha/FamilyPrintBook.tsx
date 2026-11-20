@@ -363,16 +363,23 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         <div className="alpha-print-hide mb-8 text-center">
           <p className="text-sm text-[color:var(--a-muted)]">
             {canEdit
-              ? "尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。"
+              ? book.persons.length < 2
+                ? "只有一位成员，还无法连成世代。先再添加一位家人，再回来建立父母或配偶关系。"
+                : "尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。"
               : "尚未连成世代。有编辑权限的家人补上父母或配偶后，这里会按世代排版。"}
           </p>
           <Link
             href={`/alpha/families/${familyId}`}
             onClick={() => {
               try {
-                sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
-                if (canEdit) {
-                  sessionStorage.setItem(`alpha-add-rel:${familyId}`, "1");
+                if (canEdit && book.persons.length < 2) {
+                  sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
+                  sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
+                } else {
+                  sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+                  if (canEdit) {
+                    sessionStorage.setItem(`alpha-add-rel:${familyId}`, "1");
+                  }
                 }
               } catch {
                 /* private mode */
@@ -380,7 +387,11 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             }}
             className="alpha-btn alpha-btn-secondary mt-4 inline-flex !min-h-[40px] !text-sm"
           >
-            {canEdit ? "去建立关系" : "去世系查看"}
+            {canEdit
+              ? book.persons.length < 2
+                ? "去添加成员"
+                : "去建立关系"
+              : "去世系查看"}
           </Link>
         </div>
       ) : null}
