@@ -18,6 +18,31 @@ function roleLabel(role: string | null): string {
   return (role && ROLE_LABEL[role as keyof typeof ROLE_LABEL]) || "成员";
 }
 
+function AlreadyMemberCopyButton({ familyId }: { familyId: string }) {
+  const [flash, setFlash] = useState("");
+  return (
+    <button
+      type="button"
+      className="alpha-btn alpha-btn-secondary inline-flex"
+      onClick={() => {
+        const url = `${window.location.origin}/alpha/families/${familyId}`;
+        void navigator.clipboard.writeText(url).then(
+          () => {
+            setFlash("已复制家族链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          },
+          () => {
+            setFlash("请手动复制地址栏链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          }
+        );
+      }}
+    >
+      {flash || "复制家族链接"}
+    </button>
+  );
+}
+
 export function InviteLanding({ token }: { token: string }) {
   const router = useRouter();
   const [view, setView] = useState<View>({ kind: "loading" });
@@ -177,13 +202,21 @@ export function InviteLanding({ token }: { token: string }) {
             </h1>
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
               当前权限：{roleLabel(view.invite.role)}
+              。可复制家族链接发给其他家人，或直接打开档案。
             </p>
-            <Link
-              href={`/alpha/families/${view.invite.familyId}`}
-              className="alpha-btn alpha-btn-primary mt-6 inline-flex"
-            >
-              打开家族档案
-            </Link>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Link
+                href={`/alpha/families/${view.invite.familyId}`}
+                className="alpha-btn alpha-btn-primary inline-flex"
+              >
+                打开家族档案
+              </Link>
+              {view.invite.familyId ? (
+                <AlreadyMemberCopyButton
+                  familyId={view.invite.familyId}
+                />
+              ) : null}
+            </div>
           </>
         ) : null}
 
