@@ -233,6 +233,8 @@ export function FamilyWorkspace({
   const [flash, setFlash] = useState("");
   /** Optional CTA next to flash (e.g. deep-link person miss → 参与家人). */
   const [flashParticipantsCta, setFlashParticipantsCta] = useState(false);
+  /** Optional copy URL offered next to flash (e.g. after EDITOR saves a claim). */
+  const [flashCopyUrl, setFlashCopyUrl] = useState<string | null>(null);
   const [pendingUndo, setPendingUndo] = useState<null | {
     kind: "person" | "relationship" | "evidence" | "evidence-link" | "claim";
     id: string;
@@ -1062,6 +1064,7 @@ export function FamilyWorkspace({
     const t = window.setTimeout(() => {
       setFlash("");
       setFlashParticipantsCta(false);
+      setFlashCopyUrl(null);
     }, 8000);
     return () => window.clearTimeout(t);
   }, [flash, pendingUndo]);
@@ -1327,6 +1330,24 @@ export function FamilyWorkspace({
                 查看参与家人
               </button>
             ) : null}
+            {flashCopyUrl && flash.includes("可复制链接") ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = flashCopyUrl;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setFlash("已复制链接，可发给创建者或管理员确认");
+                      setFlashCopyUrl(null);
+                    },
+                    () => setFlash("请手动复制地址栏链接")
+                  );
+                }}
+              >
+                复制链接
+              </button>
+            ) : null}
             {pendingUndo ? (
               <button
                 type="button"
@@ -1406,6 +1427,7 @@ export function FamilyWorkspace({
               onClick={() => {
                 setFlash("");
                 setFlashParticipantsCta(false);
+                setFlashCopyUrl(null);
                 setPendingUndo(null);
               }}
               aria-label="关闭提示"
@@ -1767,6 +1789,7 @@ export function FamilyWorkspace({
                   }
             }
             setFlash={setFlash}
+            setFlashCopyUrl={setFlashCopyUrl}
             setPendingUndo={(undo) => setPendingUndo(undo)}
             setError={setError}
             onEvidenceRemoved={(evidenceId, label) => {
@@ -3095,6 +3118,7 @@ function RecordsTab({
   onGoMembers,
   onOpenParticipants,
   setFlash,
+  setFlashCopyUrl,
   setPendingUndo,
   setError,
   onEvidenceRemoved,
@@ -3135,6 +3159,7 @@ function RecordsTab({
   onGoMembers: () => void;
   onOpenParticipants?: () => void;
   setFlash: (s: string) => void;
+  setFlashCopyUrl: (url: string | null) => void;
   setPendingUndo: (
     undo: null | {
       kind: "claim";
@@ -3600,11 +3625,23 @@ function RecordsTab({
               selectedPerson?.livingStatus
             );
             const base = flashAfterClaimSave(followUp, savedType);
-            setFlash(
-              !canReview
-                ? `${base} 当前链接已可发给${REVIEWER_CONTACT}确认。`
-                : base
-            );
+            if (!canReview) {
+              const qs = new URLSearchParams({
+                tab: "records",
+                person: personId,
+                claim: claimId,
+                claimStatus: "PROPOSED",
+              });
+              setFlashCopyUrl(
+                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+              );
+              setFlash(
+                `${base} 可复制链接发给${REVIEWER_CONTACT}确认。`
+              );
+            } else {
+              setFlashCopyUrl(null);
+              setFlash(base);
+            }
             setStatusFilter("PROPOSED");
             onShareClaim?.(personId, claimId, "PROPOSED");
             await loadClaims();
@@ -3728,6 +3765,7 @@ function RecordsTab({
             {showChooser ? (
               <ConflictChooser
                 familyId={familyId}
+                personId={personId}
                 claims={conflicted}
                 canReview={canReview}
                 canEdit={canEdit}
@@ -4393,6 +4431,7 @@ function AddClaimForm({
 
 function ConflictChooser({
   familyId,
+  personId,
   claims,
   canReview,
   canEdit,
@@ -4404,6 +4443,7 @@ function ConflictChooser({
   onOpenParticipants,
 }: {
   familyId: string;
+  personId: string;
   claims: ClaimRow[];
   canReview: boolean;
   canEdit: boolean;
@@ -4415,6 +4455,26 @@ function ConflictChooser({
   onOpenParticipants?: () => void;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [copyFlashId, setCopyFlashId] = useState<string | null>(null);
+
+  function copySayingLink(claimId: string) {
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: personId,
+      claim: claimId,
+      claimStatus: "CONFLICTED",
+    });
+    const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+    void navigator.clipboard.writeText(url).then(
+      () => {
+        setCopyFlashId(claimId);
+        window.setTimeout(() => {
+          setCopyFlashId((id) => (id === claimId ? null : id));
+        }, 2500);
+      },
+      () => onFlash("请手动复制地址栏链接")
+    );
+  }
 
   async function prefer(claim: ClaimRow) {
     if (!canReview || busyId) return;
@@ -4471,7 +4531,7 @@ function ConflictChooser({
       <p className="mt-1 text-sm text-[color:var(--a-muted)]">
         {canReview
           ? "请选用一种说法作为正式记载，或标记不采用。"
-          : `目前资料中记录不一致，需${REVIEWER_CONTACT}选用一种说法。`}
+          : `目前资料中记录不一致，需${REVIEWER_CONTACT}选用一种说法。可复制某一说法的链接发给对方。`}
       </p>
       {!canReview && onOpenParticipants ? (
         <button
@@ -4508,26 +4568,35 @@ function ConflictChooser({
                   讲述：{c.value.narrator}
                 </p>
               ) : null}
-              {canReview ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={Boolean(busyId)}
-                    className="alpha-btn alpha-btn-primary !min-h-[36px] !px-3 !text-xs disabled:opacity-60"
-                    onClick={() => void prefer(c)}
-                  >
-                    {busyId === c.id ? "处理中…" : "采用这条"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={Boolean(busyId)}
-                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs disabled:opacity-60"
-                    onClick={() => void reject(c)}
-                  >
-                    不采用
-                  </button>
-                </div>
-              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                  onClick={() => copySayingLink(c.id)}
+                >
+                  {copyFlashId === c.id ? "已复制链接" : "复制本条链接"}
+                </button>
+                {canReview ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={Boolean(busyId)}
+                      className="alpha-btn alpha-btn-primary !min-h-[36px] !px-3 !text-xs disabled:opacity-60"
+                      onClick={() => void prefer(c)}
+                    >
+                      {busyId === c.id ? "处理中…" : "采用这条"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={Boolean(busyId)}
+                      className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs disabled:opacity-60"
+                      onClick={() => void reject(c)}
+                    >
+                      不采用
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </li>
           );
         })}
@@ -7390,6 +7459,7 @@ function PersonDrawer({
                 {showChooser ? (
                   <ConflictChooser
                     familyId={familyId}
+                    personId={person.id}
                     claims={conflicted}
                     canReview={canReview}
                     canEdit={canEdit}

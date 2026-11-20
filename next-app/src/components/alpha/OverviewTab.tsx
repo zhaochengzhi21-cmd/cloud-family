@@ -1278,6 +1278,27 @@ export function OverviewTab({
               </button>
             </p>
           ) : null}
+          {overview.pendingTotal > overview.pending.length ? (
+            <p className="mb-2 text-sm text-[color:var(--a-muted)]">
+              列表优先显示前 {overview.pending.length} 条；处理完后点刷新可看到其余{" "}
+              {overview.pendingTotal - overview.pending.length} 条。也可先到资料页按人继续处理。
+              <button
+                type="button"
+                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const first = overview.pending[0];
+                  if (!first) return;
+                  onOpenRecords(first.personId, {
+                    focusClaimId: first.claimId,
+                    statusFilter:
+                      first.status === "CONFLICTED" ? "CONFLICTED" : "PROPOSED",
+                  });
+                }}
+              >
+                去资料页
+              </button>
+            </p>
+          ) : null}
           <ul className="space-y-2">
             {overview.pending.map((c) => {
               const name = personName.get(c.personId) ?? "成员";
@@ -1292,7 +1313,10 @@ export function OverviewTab({
                     ]
                   : null;
               return (
-                <li key={c.claimId}>
+                <li
+                  key={c.claimId}
+                  className="flex flex-wrap items-stretch gap-2"
+                >
                   <button
                     type="button"
                     onClick={() =>
@@ -1302,7 +1326,7 @@ export function OverviewTab({
                           c.status === "CONFLICTED" ? "CONFLICTED" : "PROPOSED",
                       })
                     }
-                    className="alpha-panel alpha-panel-interactive flex w-full min-h-[56px] items-center justify-between gap-3 px-4 py-2 text-left"
+                    className="alpha-panel alpha-panel-interactive flex min-h-[56px] min-w-0 flex-1 items-center justify-between gap-3 px-4 py-2 text-left"
                   >
                     <div className="min-w-0">
                       <p className="font-semibold text-[color:var(--a-ink)]">
@@ -1339,6 +1363,24 @@ export function OverviewTab({
                           : "查看"}
                       </span>
                     </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[56px] !px-3 !text-xs"
+                    onClick={() => {
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: c.personId,
+                        claim: c.claimId,
+                        claimStatus:
+                          c.status === "CONFLICTED" ? "CONFLICTED" : "PROPOSED",
+                      });
+                      const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url);
+                    }}
+                    aria-label={`复制「${name}」待确认资料链接`}
+                  >
+                    复制链接
                   </button>
                 </li>
               );
