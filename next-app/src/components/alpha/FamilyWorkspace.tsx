@@ -3289,6 +3289,7 @@ function ClaimCard({
   const [removingEvidenceShared, setRemovingEvidenceShared] = useState(0);
   const [removingBusy, setRemovingBusy] = useState(false);
   const [evidenceDetailId, setEvidenceDetailId] = useState<string | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -3362,8 +3363,11 @@ function ClaimCard({
           <div className="flex gap-2">
             <button
               type="button"
+              disabled={reviewBusy}
               className="alpha-btn alpha-btn-primary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
+                if (reviewBusy) return;
+                setReviewBusy(true);
                 try {
                   await v1api.acceptClaim(familyId, claim.id, {
                     idempotencyKey: crypto.randomUUID(),
@@ -3388,6 +3392,8 @@ function ClaimCard({
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
+                } finally {
+                  setReviewBusy(false);
                 }
               }}
             >
@@ -3395,8 +3401,11 @@ function ClaimCard({
             </button>
             <button
               type="button"
+              disabled={reviewBusy}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
+                if (reviewBusy) return;
+                setReviewBusy(true);
                 try {
                   await v1api.rejectClaim(familyId, claim.id, {
                     idempotencyKey: crypto.randomUUID(),
@@ -3406,6 +3415,8 @@ function ClaimCard({
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
+                } finally {
+                  setReviewBusy(false);
                 }
               }}
             >
@@ -3417,8 +3428,11 @@ function ClaimCard({
           <div className="flex gap-2">
             <button
               type="button"
+              disabled={reviewBusy}
               className="alpha-btn alpha-btn-primary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
+                if (reviewBusy) return;
+                setReviewBusy(true);
                 try {
                   await v1api.preferClaim(familyId, claim.id, {
                     idempotencyKey: crypto.randomUUID(),
@@ -3443,6 +3457,8 @@ function ClaimCard({
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
+                } finally {
+                  setReviewBusy(false);
                 }
               }}
             >
@@ -3450,8 +3466,11 @@ function ClaimCard({
             </button>
             <button
               type="button"
+              disabled={reviewBusy}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
+                if (reviewBusy) return;
+                setReviewBusy(true);
                 try {
                   await v1api.rejectClaim(familyId, claim.id, {
                     idempotencyKey: crypto.randomUUID(),
@@ -3461,12 +3480,39 @@ function ClaimCard({
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
+                } finally {
+                  setReviewBusy(false);
                 }
               }}
             >
               不采用
             </button>
           </div>
+        ) : null}
+        {canReview && claim.status === "ACCEPTED" ? (
+          <button
+            type="button"
+            disabled={reviewBusy}
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+            onClick={async () => {
+              if (reviewBusy) return;
+              setReviewBusy(true);
+              try {
+                await v1api.rejectClaim(familyId, claim.id, {
+                  idempotencyKey: crypto.randomUUID(),
+                });
+                onFlash("已标记为不采用");
+                await onChanged();
+              } catch (e) {
+                if (onAuthError(e)) return;
+                onError(userMessageForApiError(e));
+              } finally {
+                setReviewBusy(false);
+              }
+            }}
+          >
+            不采用
+          </button>
         ) : null}
       </div>
 

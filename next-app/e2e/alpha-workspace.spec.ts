@@ -511,6 +511,31 @@ async function runCoreJourney(
   await page.getByText("查看不采用的记录").click();
   await expect(page.getByText("民国十四年")).toBeVisible();
 
+  // Mistaken confirm: ACCEPTED → 不采用 → 恢复待确认
+  const acceptedBirth = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "民国十三年" })
+    .filter({ hasText: "已确认" });
+  await acceptedBirth.getByRole("button", { name: "不采用" }).click();
+  await expect(page.getByText("已标记为不采用")).toBeVisible({
+    timeout: 60_000,
+  });
+  await page.getByText("查看不采用的记录").click();
+  const rejectedBirth = page
+    .getByRole("listitem")
+    .filter({ hasText: "民国十三年" })
+    .filter({ hasText: "不采用" });
+  await rejectedBirth.getByRole("button", { name: "恢复待确认" }).click();
+  await expect(
+    page.getByText("已重新打开这条资料，可再次确认或不采用")
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page
+      .locator("[data-claim-id]")
+      .filter({ hasText: "民国十三年" })
+      .getByRole("button", { name: "确认这条资料" })
+  ).toBeVisible();
+
   // Flow 10 — media evidence
   await page.getByRole("button", { name: "添加资料来源" }).first().click();
   await page.locator("#ev-type").selectOption("PHOTO");
