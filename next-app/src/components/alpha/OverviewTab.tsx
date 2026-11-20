@@ -1831,10 +1831,12 @@ function ParticipantsRoster({
     Awaited<ReturnType<typeof v1api.listFamilyMembers>>["members"] | null
   >(null);
   const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setError("");
+    setMembers(null);
     v1api
       .listFamilyMembers(familyId)
       .then((r) => {
@@ -1855,7 +1857,7 @@ function ParticipantsRoster({
     return () => {
       cancelled = true;
     };
-  }, [familyId, onAuthError]);
+  }, [familyId, onAuthError, attempt]);
 
   const reviewers = (members ?? []).filter(
     (m) => m.role === "OWNER" || m.role === "ADMIN"
@@ -1878,9 +1880,18 @@ function ParticipantsRoster({
           确认资料、恢复已移除记录或生成邀请，需由{REVIEWER_CONTACT}操作。需要帮助时可联系下方账号。
         </p>
         {error ? (
-          <p className="alpha-alert alpha-alert-error" role="alert">
-            {error}
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="alpha-alert alpha-alert-error min-w-0" role="alert">
+              {error}
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => setAttempt((n) => n + 1)}
+            >
+              重试
+            </button>
+          </div>
         ) : null}
         {members === null ? (
           <p className="text-sm text-[color:var(--a-muted)]" role="status">
