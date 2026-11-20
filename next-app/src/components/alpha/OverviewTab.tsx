@@ -1001,7 +1001,6 @@ export function OverviewTab({
     openEvidenceClaimId?: string;
     scrollPending?: boolean;
   }): Step["secondaryAction"] => {
-    if (canEdit && !opts.scrollPending) return undefined;
     if (opts.scrollPending) {
       return {
         label: nextStepCopyFlash || "复制待确认链接",
