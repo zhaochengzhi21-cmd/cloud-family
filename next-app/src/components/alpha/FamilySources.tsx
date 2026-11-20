@@ -808,6 +808,7 @@ function LibraryAddSourceForm({
   const [evidenceType, setEvidenceType] = useState(initialEvidenceType);
   const [title, setTitle] = useState("");
   const [sourceLocator, setSourceLocator] = useState("");
+  const [sourceDateText, setSourceDateText] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState("");
@@ -922,6 +923,7 @@ function LibraryAddSourceForm({
           title: title.trim() || null,
           description: description.trim() || null,
           sourceLocator: sourceLocator.trim() || null,
+          sourceDateText: sourceDateText.trim() || null,
           mediaObjectId,
         },
         { idempotencyKey: crypto.randomUUID() }
@@ -991,6 +993,18 @@ function LibraryAddSourceForm({
           value={sourceLocator}
           onChange={(e) => setSourceLocator(e.target.value)}
           placeholder="例如：第17页"
+          className="alpha-input"
+        />
+      </div>
+      <div>
+        <label htmlFor="lib-ev-date" className="alpha-label">
+          年代 / 日期（可选）
+        </label>
+        <input
+          id="lib-ev-date"
+          value={sourceDateText}
+          onChange={(e) => setSourceDateText(e.target.value)}
+          placeholder="例如：明嘉靖三十四年"
           className="alpha-input"
         />
       </div>

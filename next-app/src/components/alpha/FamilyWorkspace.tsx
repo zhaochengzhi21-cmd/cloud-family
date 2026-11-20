@@ -4212,6 +4212,7 @@ function AddEvidenceForm({
   const [evidenceType, setEvidenceType] = useState(defaultEvidenceType);
   const [title, setTitle] = useState("");
   const [sourceLocator, setSourceLocator] = useState("");
+  const [sourceDateText, setSourceDateText] = useState("");
   const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState("");
@@ -4377,6 +4378,7 @@ function AddEvidenceForm({
           title: title.trim() || null,
           description: description.trim() || null,
           sourceLocator: sourceLocator.trim() || null,
+          sourceDateText: sourceDateText.trim() || null,
           mediaObjectId,
         },
         { idempotencyKey: crypto.randomUUID() }
@@ -4551,6 +4553,18 @@ function AddEvidenceForm({
             value={sourceLocator}
             onChange={(e) => setSourceLocator(e.target.value)}
             placeholder="例如：第17页"
+            className="alpha-input"
+          />
+        </div>
+        <div>
+          <label htmlFor="ev-date" className="alpha-label">
+            年代 / 日期（可选）
+          </label>
+          <input
+            id="ev-date"
+            value={sourceDateText}
+            onChange={(e) => setSourceDateText(e.target.value)}
+            placeholder="例如：明嘉靖三十四年"
             className="alpha-input"
           />
         </div>

@@ -3885,6 +3885,7 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
   const form = sourcesLib.getByRole("form", { name: "收录资料来源" });
   await form.locator("#lib-ev-type").selectOption("GENEALOGY_PAGE");
   await form.getByLabel("来源标题（可选）").fill("库收录谱页（测试）");
+  await form.getByLabel("年代 / 日期（可选）").fill("清嘉庆年间");
   await form.getByRole("button", { name: "保存到资料来源库" }).click();
   await expect(
     sourcesLib.getByRole("list", { name: "资料来源列表" })
@@ -3894,6 +3895,8 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
   const row = sourcesLib
     .locator("[data-evidence-id]")
     .filter({ hasText: "库收录谱页（测试）" });
+  await row.getByRole("button", { name: "详情" }).click();
+  await expect(row.getByText("年代 / 日期：清嘉庆年间")).toBeVisible();
   await row.getByRole("button", { name: "挂到人物资料" }).click();
   const attach = sourcesLib.getByRole("form", { name: "挂到人物资料" });
   await attach.locator("select").first().selectOption(personId);
