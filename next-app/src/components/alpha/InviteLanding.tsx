@@ -103,12 +103,6 @@ export function InviteLanding({ token }: { token: string }) {
               >
                 查看我的家族
               </Link>
-              <Link
-                href="/alpha/login?showInvite=1"
-                className="alpha-btn alpha-btn-secondary inline-flex"
-              >
-                去登录页填写邀请码
-              </Link>
             </div>
           </>
         ) : null}
@@ -171,12 +165,6 @@ export function InviteLanding({ token }: { token: string }) {
                 className="alpha-btn alpha-btn-primary inline-flex"
               >
                 查看我的家族
-              </Link>
-              <Link
-                href="/alpha/login?showInvite=1"
-                className="alpha-btn alpha-btn-secondary inline-flex"
-              >
-                去登录页填写邀请码
               </Link>
             </div>
           </>

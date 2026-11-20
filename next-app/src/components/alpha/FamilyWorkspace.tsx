@@ -2450,6 +2450,7 @@ function LineageTab({
 
   const [query, setQuery] = useState("");
   const [branchRoot, setBranchRoot] = useState<string | null>(null);
+  const [focusMiss, setFocusMiss] = useState(false);
   const [collapsed, setCollapsed] = useState<Set<number>>(() => {
     if (persons.length <= LINEAGE_FOLD_THRESHOLD) return new Set();
     const gens = new Set(Object.values(generationByPerson));
@@ -2517,6 +2518,14 @@ function LineageTab({
   const matchIds = useMemo(() => new Set(matches.map((p) => p.id)), [matches]);
 
   function jumpTo(id: string) {
+    // Clear branch filter when the target is outside the current scope.
+    if (
+      branchRoot &&
+      personMap.has(id) &&
+      !scopedPersons.some((p) => p.id === id)
+    ) {
+      setBranchRoot(null);
+    }
     const g = generationByPerson[id] ?? 1;
     setCollapsed((prev) => {
       if (!prev.has(g)) return prev;
@@ -2608,14 +2617,17 @@ function LineageTab({
 
   useEffect(() => {
     if (!focusPersonId) return;
-    const el = document.querySelector(
-      `[data-lineage-person="${focusPersonId}"]`
-    );
-    if (el instanceof HTMLElement) {
-      scrollIntoViewSafe(el, { block: "center" });
-      el.focus();
+    if (persons.length === 0) return;
+    if (!persons.some((p) => p.id === focusPersonId)) {
+      setFocusMiss(true);
+      return;
     }
-  }, [focusPersonId, byGen]);
+    setFocusMiss(false);
+    jumpTo(focusPersonId);
+    // jumpTo reads latest branch/collapse state; re-run when the graph
+    // finishes loading so a deep-link focus is not a silent no-op.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional focus handoff
+  }, [focusPersonId, persons, byGen]);
 
   useEffect(() => {
     if (!jumpId) return;
@@ -2692,6 +2704,24 @@ function LineageTab({
         >
           {persons.length < 2 ? "去添加成员" : "+ 添加家庭关系"}
         </button>
+      ) : null}
+
+      {focusMiss ? (
+        <div
+          className="mb-3 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+          role="status"
+        >
+          <p className="text-sm text-[color:var(--a-muted)]">
+            要定位的家人已不在世系名单中，可能刚被移除。
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setFocusMiss(false)}
+          >
+            知道了
+          </button>
+        </div>
       ) : null}
 
       {componentCount > 1 ? (
