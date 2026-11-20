@@ -3907,3 +3907,36 @@ test("明经胡氏：空库使用已有来源可去新建", async ({ page, baseU
     birthCard.getByRole("button", { name: "新建来源", pressed: true })
   ).toBeVisible();
 });
+
+test("明经胡氏：唯一成员添加亲属提示新建", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·唯一成员加亲（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await page
+    .getByRole("group", { name: "为这位家人添加亲人" })
+    .getByRole("button", { name: "添加父母" })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  const dialog = page.getByRole("dialog", { name: /添加父母/ });
+  await expect(dialog).toBeVisible({ timeout: 60_000 });
+  await expect(dialog.getByRole("button", { name: "选用已有" })).toBeDisabled();
+  await expect(
+    dialog.getByText("还没有其他成员可选用，请先用「新建成员」添加。")
+  ).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "新建成员" })).toBeEnabled();
+  await expect(dialog.locator("#kin-name")).toBeVisible();
+});

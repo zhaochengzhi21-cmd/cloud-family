@@ -5043,6 +5043,12 @@ function AddKinModal({
 
   const canUseExisting = others.length > 0;
 
+  useEffect(() => {
+    if (!canUseExisting && source === "existing") {
+      setSource("new");
+    }
+  }, [canUseExisting, source]);
+
   return (
     <ModalShell
       title={`为「${focusName}」添加${roleLabel}`}
@@ -5082,32 +5088,44 @@ function AddKinModal({
           ))}
         </div>
 
-        <div
-          className="flex gap-2"
-          role="group"
-          aria-label="添加方式"
-        >
-          <button
-            type="button"
-            className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
-              source === "new" ? "alpha-btn-primary" : "alpha-btn-secondary"
-            }`}
-            onClick={() => setSource("new")}
+        <div className="space-y-2">
+          <div
+            className="flex gap-2"
+            role="group"
+            aria-label="添加方式"
           >
-            新建成员
-          </button>
-          <button
-            type="button"
-            className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
-              source === "existing"
-                ? "alpha-btn-primary"
-                : "alpha-btn-secondary"
-            }`}
-            disabled={!canUseExisting}
-            onClick={() => canUseExisting && setSource("existing")}
-          >
-            选用已有
-          </button>
+            <button
+              type="button"
+              className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
+                source === "new" ? "alpha-btn-primary" : "alpha-btn-secondary"
+              }`}
+              onClick={() => setSource("new")}
+            >
+              新建成员
+            </button>
+            <button
+              type="button"
+              className={`alpha-btn flex-1 !min-h-[40px] !text-sm ${
+                source === "existing"
+                  ? "alpha-btn-primary"
+                  : "alpha-btn-secondary"
+              }`}
+              disabled={!canUseExisting}
+              title={
+                canUseExisting
+                  ? undefined
+                  : "还没有其他成员可选用，请先新建"
+              }
+              onClick={() => canUseExisting && setSource("existing")}
+            >
+              选用已有
+            </button>
+          </div>
+          {!canUseExisting ? (
+            <p className="text-sm text-[color:var(--a-muted)]">
+              还没有其他成员可选用，请先用「新建成员」添加。
+            </p>
+          ) : null}
         </div>
 
         {source === "new" ? (
