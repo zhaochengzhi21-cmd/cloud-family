@@ -1854,6 +1854,7 @@ function RecordsTab({
     "ALL" | "PROPOSED" | "ACCEPTED" | "CONFLICTED"
   >("ALL");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [rejectedOpen, setRejectedOpen] = useState(false);
   const topRef = useRef<HTMLDivElement>(null);
   const personReady = useRef(false);
 
@@ -1984,9 +1985,13 @@ function RecordsTab({
   useEffect(() => {
     if (!recordsFocus || loading) return;
     if (personId !== recordsFocus.personId) return;
-    if (!claims.some((c) => c.id === recordsFocus.claimId)) return;
+    const focused = claims.find((c) => c.id === recordsFocus.claimId);
+    if (!focused) return;
     const claimId = recordsFocus.claimId;
-    if (recordsFocus.statusFilter) {
+    if (focused.status === "REJECTED") {
+      setStatusFilter("ALL");
+      setRejectedOpen(true);
+    } else if (recordsFocus.statusFilter) {
       setStatusFilter(recordsFocus.statusFilter);
     }
     onRecordsFocusConsumed();
@@ -1999,7 +2004,7 @@ function RecordsTab({
           el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
         }, 2400);
       }
-    }, 50);
+    }, 80);
     return () => window.clearTimeout(t);
   }, [
     recordsFocus,
@@ -2314,13 +2319,22 @@ function RecordsTab({
       })}
 
       {rejected.length > 0 ? (
-        <details className="mt-4 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3">
+        <details
+          data-rejected-claims
+          open={rejectedOpen}
+          onToggle={(e) => setRejectedOpen(e.currentTarget.open)}
+          className="mt-4 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3"
+        >
           <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
             查看不采用的记录（{rejected.length}）
           </summary>
           <ul className="mt-2 space-y-2 text-sm text-[color:var(--a-muted)]">
             {rejected.map((c) => (
-              <li key={c.id}>
+              <li
+                key={c.id}
+                data-claim-id={c.id}
+                className="rounded-lg px-1 py-0.5"
+              >
                 {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
                 {c.value?.text ?? "—"}（不采用）
               </li>
@@ -2885,8 +2899,23 @@ function ClaimCard({
               onClick={async () => {
                 try {
                   await v1api.preferClaim(familyId, claim.id);
-                  onFlash("已采用这条说法");
+                  let unsourced = true;
+                  try {
+                    const b = await v1api.getClaim(familyId, claim.id);
+                    setBundle(b);
+                    unsourced = !(b.evidenceLinks?.length > 0);
+                  } catch {
+                    /* treat as unsourced if refresh fails */
+                  }
+                  onFlash(
+                    unsourced && canEdit
+                      ? "已采用这条说法。接着可以补上谱页或其他来源。"
+                      : "已采用这条说法"
+                  );
                   await onChanged();
+                  if (unsourced && canEdit) {
+                    onOpenEvidenceAfterAccept?.(claim.id);
+                  }
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
@@ -5200,13 +5229,20 @@ function PersonDrawer({
             );
           })}
           {rejectedClaims.length > 0 ? (
-            <details className="mt-2 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3">
+            <details
+              data-rejected-claims
+              className="mt-2 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3"
+            >
               <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
                 查看不采用的记录（{rejectedClaims.length}）
               </summary>
               <ul className="mt-2 space-y-2 text-sm text-[color:var(--a-muted)]">
                 {rejectedClaims.map((c) => (
-                  <li key={c.id}>
+                  <li
+                    key={c.id}
+                    data-claim-id={c.id}
+                    className="rounded-lg px-1 py-0.5"
+                  >
                     {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
                     {c.value?.text ?? "—"}（不采用）
                   </li>

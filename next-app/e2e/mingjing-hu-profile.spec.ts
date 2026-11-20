@@ -1790,3 +1790,125 @@ test("明经胡氏：来源库已用于可直达关联资料卡片", async ({
     page.locator(`[data-claim-id="${claimId}"]`).getByText("约明嘉靖年间")
   ).toBeVisible();
 });
+
+test("明经胡氏：动态不采用查看展开对应记录", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·不采用查看（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "OCCUPATION",
+      value: { text: "万载知县，后升胶州刺史" },
+      originType: "MANUAL",
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const claimId = (created.body as { claim: { id: string } }).claim.id;
+  const rejected = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}/reject`,
+    { method: "POST", body: {} }
+  );
+  expect(rejected.status, JSON.stringify(rejected.body)).toBe(200);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await expect(feed).toBeVisible({ timeout: 60_000 });
+  await expect(feed).toContainText("不采用");
+  await feed
+    .locator("li")
+    .filter({ hasText: "不采用" })
+    .getByRole("button", { name: "查看" })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator("#records-person")).toHaveValue(personId);
+  const rejectedPanel = page.locator("[data-rejected-claims]");
+  await expect(rejectedPanel).toBeVisible({ timeout: 20_000 });
+  await expect
+    .poll(async () => rejectedPanel.evaluate((el) => (el as HTMLDetailsElement).open))
+    .toBe(true);
+  await expect(page.locator(`[data-claim-id="${claimId}"]`)).toBeVisible();
+  await expect(
+    page.locator(`[data-claim-id="${claimId}"]`).getByText("万载知县，后升胶州刺史")
+  ).toBeVisible();
+});
+
+test("明经胡氏：采用不同说法后无来源则打开来源表单", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·采用后来源（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const first = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "BIRTH_DATE",
+      value: { text: "约明嘉靖三十四年" },
+      originType: "MANUAL",
+    },
+  });
+  expect(first.status, JSON.stringify(first.body)).toBe(201);
+  const firstId = (first.body as { claim: { id: string } }).claim.id;
+  const second = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "BIRTH_DATE",
+      value: { text: "约明嘉靖三十五年" },
+      originType: "MANUAL",
+    },
+  });
+  expect(second.status, JSON.stringify(second.body)).toBe(201);
+  const secondId = (second.body as { claim: { id: string } }).claim.id;
+
+  for (const id of [firstId, secondId]) {
+    const accepted = await apiJson(
+      page,
+      `/api/v1/families/${familyId}/claims/${id}/accept`,
+      { method: "POST", body: {} }
+    );
+    expect(accepted.status, JSON.stringify(accepted.body)).toBe(200);
+  }
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const card = page.locator(`[data-claim-id="${firstId}"]`);
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await expect(card.getByRole("button", { name: "采用这条" })).toBeVisible({
+    timeout: 60_000,
+  });
+  await card.getByRole("button", { name: "采用这条" }).click();
+  await expect(
+    page.getByText("已采用这条说法。接着可以补上谱页或其他来源。")
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    page.locator(`[data-claim-id="${firstId}"]`).getByRole("button", {
+      name: "保存来源",
+    })
+  ).toBeVisible({ timeout: 20_000 });
+});
