@@ -1274,6 +1274,19 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     await expect(
       inviteBox.getByRole("list", { name: "尚未使用的邀请" }).getByRole("listitem")
     ).toHaveCount(1);
+    await expect(
+      inviteBox
+        .getByRole("list", { name: "尚未使用的邀请" })
+        .getByRole("button", { name: "复制链接" })
+    ).toBeVisible();
+    await page.reload();
+    await page.getByRole("tab", { name: "概览" }).click();
+    const inviteBoxAfterReload = page.getByRole("region", { name: "邀请家人" });
+    await expect(
+      inviteBoxAfterReload
+        .getByRole("list", { name: "尚未使用的邀请" })
+        .getByRole("button", { name: "复制链接" })
+    ).toBeVisible({ timeout: 60_000 });
 
     const anonCtx = await browser.newContext({ baseURL });
     const anonPage = await anonCtx.newPage();

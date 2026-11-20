@@ -22,6 +22,38 @@ function expiryLabel(iso: string, now = new Date()): string {
   return days <= 1 ? "今天内有效" : `${days} 天内有效`;
 }
 
+function inviteLinkStorageKey(familyId: string, inviteId: string) {
+  return `alpha-invite-link:${familyId}:${inviteId}`;
+}
+
+function readStoredInviteUrl(familyId: string, inviteId: string): string | null {
+  try {
+    return sessionStorage.getItem(inviteLinkStorageKey(familyId, inviteId));
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredInviteUrl(
+  familyId: string,
+  inviteId: string,
+  url: string
+) {
+  try {
+    sessionStorage.setItem(inviteLinkStorageKey(familyId, inviteId), url);
+  } catch {
+    /* private mode */
+  }
+}
+
+function clearStoredInviteUrl(familyId: string, inviteId: string) {
+  try {
+    sessionStorage.removeItem(inviteLinkStorageKey(familyId, inviteId));
+  } catch {
+    /* private mode */
+  }
+}
+
 export function FamilyInvites({
   familyId,
   onAuthError,
@@ -36,6 +68,7 @@ export function FamilyInvites({
   const [role, setRole] = useState<InviteRole>("EDITOR");
   const [email, setEmail] = useState("");
   const [link, setLink] = useState<{ url: string; role: string } | null>(null);
+  const [storedUrls, setStoredUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
@@ -47,6 +80,12 @@ export function FamilyInvites({
       setRole((r) =>
         a.invitableRoles.includes(r) ? r : a.invitableRoles[0] ?? "VIEWER"
       );
+      const urls: Record<string, string> = {};
+      for (const inv of a.invites) {
+        const u = readStoredInviteUrl(familyId, inv.id);
+        if (u) urls[inv.id] = u;
+      }
+      setStoredUrls(urls);
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
@@ -69,8 +108,10 @@ export function FamilyInvites({
         role,
         trimmed ? { email: trimmed } : undefined
       );
+      const url = `${window.location.origin}/alpha/invite/${r.token}`;
+      writeStoredInviteUrl(familyId, r.invite.id, url);
       setLink({
-        url: `${window.location.origin}/alpha/invite/${r.token}`,
+        url,
         role: r.invite.role,
       });
       if (trimmed) {
@@ -93,10 +134,9 @@ export function FamilyInvites({
     }
   }
 
-  async function copy() {
-    if (!link) return;
+  async function copyUrl(url: string) {
     try {
-      await navigator.clipboard.writeText(link.url);
+      await navigator.clipboard.writeText(url);
       setFailed(false);
       setMessage("已复制邀请链接");
     } catch {
@@ -105,9 +145,18 @@ export function FamilyInvites({
     }
   }
 
+  async function copy() {
+    if (!link) return;
+    await copyUrl(link.url);
+  }
+
   async function revoke(inviteId: string) {
     try {
       await v1api.revokeFamilyInvite(familyId, inviteId);
+      clearStoredInviteUrl(familyId, inviteId);
+      if (link && storedUrls[inviteId] === link.url) {
+        setLink(null);
+      }
       setFailed(false);
       setMessage("已撤销邀请");
       await load();
@@ -370,7 +419,7 @@ export function FamilyInvites({
               </button>
             </div>
             <p className="mt-2 text-xs text-[color:var(--a-muted)]">
-              链接只显示这一次。对方需要已开通云族谱内测账号。
+              本页刷新后仍可在下方「尚未使用的邀请」里复制（仅本浏览器会话）。对方需要已开通云族谱内测账号。
             </p>
           </div>
         ) : null}
@@ -381,23 +430,41 @@ export function FamilyInvites({
               尚未使用的邀请
             </p>
             <ul className="divide-y divide-[color:var(--a-brand-line)] text-sm" aria-label="尚未使用的邀请">
-              {access.invites.map((i) => (
-                <li key={i.id} className="flex items-center justify-between gap-3 py-2">
-                  <span>
-                    {roleLabel(i.role)}
-                    <span className="ml-2 text-[color:var(--a-muted)]">
-                      {relativeTimeLabel(i.createdAt)}生成 · {expiryLabel(i.expiresAt)}
-                    </span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void revoke(i.id)}
-                    className="font-semibold text-[color:var(--a-danger)] underline-offset-2 hover:underline"
+              {access.invites.map((i) => {
+                const stored = storedUrls[i.id];
+                return (
+                  <li
+                    key={i.id}
+                    className="flex flex-wrap items-center justify-between gap-3 py-2"
                   >
-                    撤销
-                  </button>
-                </li>
-              ))}
+                    <span>
+                      {roleLabel(i.role)}
+                      <span className="ml-2 text-[color:var(--a-muted)]">
+                        {relativeTimeLabel(i.createdAt)}生成 ·{" "}
+                        {expiryLabel(i.expiresAt)}
+                      </span>
+                    </span>
+                    <span className="flex flex-wrap items-center gap-3">
+                      {stored ? (
+                        <button
+                          type="button"
+                          onClick={() => void copyUrl(stored)}
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        >
+                          复制链接
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void revoke(i.id)}
+                        className="font-semibold text-[color:var(--a-danger)] underline-offset-2 hover:underline"
+                      >
+                        撤销
+                      </button>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null}
