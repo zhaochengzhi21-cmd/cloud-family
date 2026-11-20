@@ -650,7 +650,11 @@ function BookEntry({
         </dl>
       ) : (
         <div className="mt-1">
-          <p className="text-sm text-[color:var(--a-muted)]">暂无更多记录</p>
+          <p className="text-sm text-[color:var(--a-muted)]">
+            {canEdit
+              ? "暂无更多记录"
+              : "暂无更多记录。有编辑权限的家人补充后，会出现在这里。"}
+          </p>
           {canEdit ? (
             <Link
               href={`/alpha/families/${familyId}/people/${person.id}`}

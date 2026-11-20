@@ -6500,7 +6500,7 @@ function PersonDrawer({
               <p className="text-sm text-[color:var(--a-muted)]">
                 {canEdit
                   ? "还没有人物资料，可以从出生信息等开始记录。"
-                  : "暂无人物资料。"}
+                  : "暂无人物资料。有编辑权限的家人补充后，会显示在这里。"}
               </p>
               {canEdit ? (
                 <ClaimStartCtas

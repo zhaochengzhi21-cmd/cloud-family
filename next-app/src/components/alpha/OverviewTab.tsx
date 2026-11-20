@@ -1562,6 +1562,13 @@ export function OverviewTab({
                           恢复
                         </button>
                       </>
+                    ) : item.eventType === "RELATIONSHIP_DELETED" &&
+                      item.restorable &&
+                      !canEdit ? (
+                      <span className="text-[color:var(--a-muted)]">
+                        {" "}
+                        · 需有编辑权限的家人恢复
+                      </span>
                     ) : null}
                     {item.eventType === "PERSON_DELETED" &&
                     item.restorable &&
