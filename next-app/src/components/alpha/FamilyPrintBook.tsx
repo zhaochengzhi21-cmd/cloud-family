@@ -356,14 +356,99 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         >
           ← {book.family.displayName || PRODUCT.family}
         </Link>
+        {personFocusMiss ? (
+          <div
+            className="alpha-print-hide mt-6 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+            role="status"
+          >
+            <p className="text-sm text-[color:var(--a-muted)]">
+              链接指向的成员已不在这份家谱中，可能刚被移除。
+              {canReview
+                ? "可点恢复这位家人后刷新打印版。"
+                : !canEdit
+                  ? `可复制链接发给${REVIEWER_CONTACT}核对。`
+                  : "可去成员名单核对，或复制链接发给家人。"}
+            </p>
+            {canReview && personFocusMissId ? (
+              <button
+                type="button"
+                disabled={personFocusRestoreBusy}
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-60"
+                onClick={() => {
+                  const id = personFocusMissId;
+                  setPersonFocusRestoreBusy(true);
+                  void (async () => {
+                    try {
+                      await v1api.restorePerson(familyId, id, {
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                      setPersonFocusMiss(false);
+                      setPersonFocusMissId(null);
+                      setAttempt((n) => n + 1);
+                    } catch (e) {
+                      if (handleAuthRedirect(e, router)) return;
+                      setError(userMessageForApiError(e));
+                    } finally {
+                      setPersonFocusRestoreBusy(false);
+                    }
+                  })();
+                }}
+              >
+                {personFocusRestoreBusy ? "恢复中…" : "恢复这位家人"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = !canEdit
+                  ? `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+                  : `${window.location.origin}/alpha/families/${familyId}?tab=members`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopyFlash("已复制链接");
+                    window.setTimeout(() => setCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {copyFlash === "已复制链接" || copyFlash.startsWith("请手动")
+                ? copyFlash
+                : "复制链接"}
+            </button>
+            {!canEdit ? (
+              <Link
+                href={`/alpha/families/${familyId}?scroll=participants`}
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              >
+                查看参与家人
+              </Link>
+            ) : (
+              <Link
+                href={`/alpha/families/${familyId}?tab=members`}
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              >
+                去成员名单
+              </Link>
+            )}
+          </div>
+        ) : null}
         <div className="alpha-panel mt-8 border-dashed px-4 py-12 text-center">
           <h1 className="alpha-font-display text-2xl font-bold text-[color:var(--a-ink)]">
             {book.family.displayName}
           </h1>
           <p className="mt-3 text-[color:var(--a-muted)]">
-            {canEdit
-              ? "还没有成员可排进家谱。先添加家人后再回来查看。"
-              : "还没有成员可排进家谱。有编辑权限的家人添加后，这里会出现。可复制添加链接发给对方。"}
+            {personFocusMiss
+              ? canReview
+                ? "名单里暂时没有可打印的成员。恢复上方链接中的家人后，打印版会重新出现。"
+                : "名单里暂时没有可打印的成员。可请有管理权限的家人恢复后回来查看。"
+              : canEdit
+                ? "还没有成员可排进家谱。先添加家人后再回来查看。"
+                : "还没有成员可排进家谱。有编辑权限的家人添加后，这里会出现。可复制添加链接发给对方。"}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <Link
