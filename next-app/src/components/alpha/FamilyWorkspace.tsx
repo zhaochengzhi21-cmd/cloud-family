@@ -231,6 +231,8 @@ export function FamilyWorkspace({
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
+  /** Optional CTA next to flash (e.g. deep-link person miss → 参与家人). */
+  const [flashParticipantsCta, setFlashParticipantsCta] = useState(false);
   const [pendingUndo, setPendingUndo] = useState<null | {
     kind: "person" | "relationship" | "evidence" | "evidence-link" | "claim";
     id: string;
@@ -239,6 +241,24 @@ export function FamilyWorkspace({
     evidenceId?: string;
     relation?: string;
   }>(null);
+
+  const openParticipantsFromFlash = useCallback(() => {
+    setFlash("");
+    setFlashParticipantsCta(false);
+    try {
+      sessionStorage.setItem(
+        `alpha-overview-scroll:${familyId}`,
+        "overview-participants"
+      );
+    } catch {
+      /* private mode */
+    }
+    setTab("overview");
+    window.setTimeout(() => {
+      const el = document.getElementById("overview-participants");
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+  }, [familyId]);
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [lineageFocusId, setLineageFocusId] = useState<string | null>(null);
@@ -962,8 +982,9 @@ export function FamilyWorkspace({
       ) {
         personMissAnnounced.current = person;
         setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人。"
+          "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可查看参与家人。"
         );
+        setFlashParticipantsCta(true);
         setRecordsUrlPerson(null);
       }
       return;
@@ -979,8 +1000,9 @@ export function FamilyWorkspace({
       ) {
         personMissAnnounced.current = person;
         setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人。"
+          "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可查看参与家人。"
         );
+        setFlashParticipantsCta(true);
         setLineageUrlPerson(null);
       }
       return;
@@ -995,8 +1017,9 @@ export function FamilyWorkspace({
       personMissAnnounced.current = person;
       setSelectedPersonId(null);
       setFlash(
-        "链接指向的成员已不在名单中，可能刚被移除。可在概览「参与家人」中联系有权限的家人。"
+        "链接指向的成员已不在名单中，可能刚被移除。可在概览「参与家人」中联系有编辑权限的家人。"
       );
+      setFlashParticipantsCta(true);
     }
     // Hydrate drawer from URL after graph load.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: hydrate on load
@@ -1004,7 +1027,10 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     if (!flash || pendingUndo) return;
-    const t = window.setTimeout(() => setFlash(""), 8000);
+    const t = window.setTimeout(() => {
+      setFlash("");
+      setFlashParticipantsCta(false);
+    }, 8000);
     return () => window.clearTimeout(t);
   }, [flash, pendingUndo]);
 
@@ -1233,6 +1259,15 @@ export function FamilyWorkspace({
         >
           <p className="min-w-0 flex-1">{flash}</p>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {flashParticipantsCta && flash.includes("不在名单") ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={openParticipantsFromFlash}
+              >
+                查看参与家人
+              </button>
+            ) : null}
             {pendingUndo ? (
               <button
                 type="button"
@@ -1241,6 +1276,7 @@ export function FamilyWorkspace({
                   const undo = pendingUndo;
                   setPendingUndo(null);
                   setFlash("");
+                  setFlashParticipantsCta(false);
                   void (async () => {
                     try {
                       if (undo.kind === "person") {
@@ -1310,6 +1346,7 @@ export function FamilyWorkspace({
               className="text-sm font-semibold text-[color:var(--a-ok)] underline-offset-2 hover:underline"
               onClick={() => {
                 setFlash("");
+                setFlashParticipantsCta(false);
                 setPendingUndo(null);
               }}
               aria-label="关闭提示"
