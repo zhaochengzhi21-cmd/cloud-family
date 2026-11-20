@@ -495,6 +495,11 @@ export function FamilyWorkspace({
     statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     nonce: number;
   } | null>(null);
+  /** Keep shareable ?claim= in the URL while the records tab is open. */
+  const [shareClaim, setShareClaim] = useState<{
+    personId: string;
+    claimId: string;
+  } | null>(null);
   const [sourcesFocusEvidenceId, setSourcesFocusEvidenceId] = useState<
     string | null
   >(null);
@@ -517,10 +522,47 @@ export function FamilyWorkspace({
           statusFilter: parsed.statusFilter,
           nonce: parsed.nonce ?? Date.now(),
         });
+        setShareClaim({
+          personId: parsed.personId,
+          claimId: parsed.claimId,
+        });
         setTab("records");
       }
     } catch {
       /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const claim = params.get("claim");
+      const person = params.get("person");
+      if (claim && person) {
+        const statusRaw = params.get("claimStatus");
+        const statusFilter =
+          statusRaw === "PROPOSED" ||
+          statusRaw === "CONFLICTED" ||
+          statusRaw === "ALL"
+            ? statusRaw
+            : undefined;
+        try {
+          sessionStorage.setItem(`alpha-records-person:${familyId}`, person);
+        } catch {
+          /* private mode */
+        }
+        setRecordsFocus({
+          personId: person,
+          claimId: claim,
+          statusFilter,
+          nonce: Date.now(),
+        });
+        setShareClaim({ personId: person, claimId: claim });
+        setTab("records");
+        return;
+      }
+    } catch {
+      /* ignore */
     }
   }, [familyId]);
 
@@ -545,13 +587,19 @@ export function FamilyWorkspace({
   useEffect(() => {
     let target = "";
     try {
-      target =
-        sessionStorage.getItem(`alpha-overview-scroll:${familyId}`) ?? "";
-      if (!target) return;
-      sessionStorage.removeItem(`alpha-overview-scroll:${familyId}`);
+      const fromUrl = new URLSearchParams(window.location.search).get("scroll");
+      if (fromUrl === "participants") {
+        target = "overview-participants";
+      } else {
+        target =
+          sessionStorage.getItem(`alpha-overview-scroll:${familyId}`) ?? "";
+        if (!target) return;
+        sessionStorage.removeItem(`alpha-overview-scroll:${familyId}`);
+      }
     } catch {
       return;
     }
+    if (!target) return;
     setTab("overview");
     let tries = 0;
     const tick = () => {
@@ -602,6 +650,10 @@ export function FamilyWorkspace({
           statusFilter: resolved.statusFilter,
           nonce: Date.now(),
         });
+        setShareClaim({
+          personId,
+          claimId: resolved.focusClaimId,
+        });
         if (resolved.openEvidence) {
           setEvidenceSeed({
             personId,
@@ -636,12 +688,45 @@ export function FamilyWorkspace({
       params.set("tab", tab);
       params.delete("evidence");
     }
-    if (selectedPersonId) params.set("person", selectedPersonId);
-    else params.delete("person");
+    const pendingClaim = searchParams.get("claim");
+    const pendingClaimPerson = searchParams.get("person");
+    const urlWantsRecords = searchParams.get("tab") === "records";
+    if (tab === "records" && shareClaim) {
+      params.set("claim", shareClaim.claimId);
+      params.set("person", shareClaim.personId);
+    } else if (
+      pendingClaim &&
+      pendingClaimPerson &&
+      (tab === "records" || (tab === "overview" && urlWantsRecords))
+    ) {
+      // Keep shareable ?claim= until tab/shareClaim catch up from hydrate.
+      params.set("tab", "records");
+      params.set("claim", pendingClaim);
+      params.set("person", pendingClaimPerson);
+    } else {
+      params.delete("claim");
+      params.delete("claimStatus");
+      if (selectedPersonId) params.set("person", selectedPersonId);
+      else params.delete("person");
+    }
+    if (tab !== "overview") params.delete("scroll");
     const next = params.toString();
     if (next === searchParams.toString()) return;
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [familyId, tab, selectedPersonId, pathname, router, searchParams]);
+  }, [
+    familyId,
+    tab,
+    selectedPersonId,
+    shareClaim,
+    pathname,
+    router,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    if (tab === "records") return;
+    setShareClaim((prev) => (prev ? null : prev));
+  }, [tab]);
 
   useEffect(() => {
     if (!tabReady.current) return;
@@ -651,7 +736,10 @@ export function FamilyWorkspace({
         ? (fromUrl as Tab)
         : "overview";
     setTab((prev) => (prev === desired ? prev : desired));
+    const claim = searchParams.get("claim");
     const person = searchParams.get("person");
+    // ?claim= owns person as the records subject — do not open the drawer.
+    if (claim && person) return;
     setSelectedPersonId((prev) => {
       if (!person) return prev ? null : prev;
       return prev === person ? prev : person;
@@ -660,8 +748,10 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     if (loading) return;
+    const claim = searchParams.get("claim");
     const person = searchParams.get("person");
     if (!person) return;
+    if (claim) return;
     if (persons.some((p) => p.id === person)) {
       setSelectedPersonId(person);
     } else {

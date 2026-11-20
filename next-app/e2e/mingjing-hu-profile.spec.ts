@@ -4484,6 +4484,68 @@ test("明经胡氏：编辑者概览待确认显示需管理员", async ({
   ).toHaveCount(0);
 });
 
+test("明经胡氏：工作区 URL claim 可直达资料卡片", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·URL claim（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "OCCUPATION", text: "万载知县，后升胶州刺史" },
+  ]);
+  const listed = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}/claims`
+  );
+  expect(listed.status).toBe(200);
+  const claims = (listed.body as { claims: { id: string; claimType: string }[] })
+    .claims;
+  const claim = claims.find((c) => c.claimType === "OCCUPATION");
+  expect(claim?.id).toBeTruthy();
+
+  await page.goto(
+    `/alpha/families/${familyId}?tab=records&person=${personId}&claim=${claim!.id}`
+  );
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator(`[data-claim-id="${claim!.id}"]`)).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page).toHaveURL(new RegExp(`claim=${claim!.id}`));
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("明经胡氏：工作区 URL scroll=participants 可直达参与家人", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·URL scroll participants（测试）",
+    sample.surname
+  );
+  const editorId = await insertFakeUser();
+  await insertMembership(familyId, editorId, "EDITOR");
+  await loginAs(page, editorId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}?scroll=participants`);
+  const section = page.locator("#overview-participants");
+  await expect(section).toBeVisible({ timeout: 60_000 });
+  await expect(
+    section.getByRole("heading", { name: "参与家人" })
+  ).toBeVisible();
+});
+
 test("明经胡氏：邀请链接丢失会话可重新生成", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

@@ -378,7 +378,13 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(`${workspaceHref}?tab=records`);
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: personId,
+      claim: claimId,
+    });
+    if (statusFilter) qs.set("claimStatus", statusFilter);
+    router.push(`${workspaceHref}?${qs.toString()}`);
   }
 
   function openAddKin(role: "child" | "parent" | "spouse") {
@@ -517,7 +523,7 @@ export function PersonProfile({
                 } catch {
                   /* private mode */
                 }
-                router.push(workspaceHref);
+                router.push(`${workspaceHref}?scroll=participants`);
               }}
             >
               去概览参与家人
