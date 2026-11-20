@@ -680,7 +680,11 @@ export function FamilyWorkspace({
           statusFilter,
           nonce: Date.now(),
         });
-        setShareClaim({ personId: person, claimId: claim });
+        setShareClaim({
+          personId: person,
+          claimId: claim,
+          statusFilter,
+        });
         setTab("records");
         return;
       }
