@@ -25,6 +25,7 @@ import {
   ROLE_LABEL,
   generationLabel,
   generationSongChars,
+  birthOrderRank,
   generationWordsByGeneration,
 } from "@/v1/ui/copy";
 import {
@@ -143,6 +144,60 @@ function useGenerationWords(
     };
   }, [familyId, enabled, version]);
   return words;
+}
+
+function useBirthOrders(
+  familyId: string,
+  enabled: boolean,
+  version: number = 0
+) {
+  const [orders, setOrders] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    v1api
+      .getBirthOrders(familyId)
+      .then((r) => {
+        if (!cancelled) setOrders(r.birthOrders);
+      })
+      .catch(() => {
+        /* hint only */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, enabled, version]);
+  return orders;
+}
+
+const PARENT_EDGE_TYPES = new Set([
+  "BIOLOGICAL_PARENT",
+  "ADOPTIVE_PARENT",
+  "STEP_PARENT",
+]);
+
+function siblingIdsForPerson(
+  personId: string,
+  relationships: GraphRel[]
+): string[] {
+  const parentIds = new Set<string>();
+  for (const r of relationships) {
+    if (PARENT_EDGE_TYPES.has(r.type) && r.toPersonId === personId) {
+      parentIds.add(r.fromPersonId);
+    }
+  }
+  if (parentIds.size === 0) return [];
+  const sibs = new Set<string>();
+  for (const r of relationships) {
+    if (
+      PARENT_EDGE_TYPES.has(r.type) &&
+      parentIds.has(r.fromPersonId) &&
+      r.toPersonId !== personId
+    ) {
+      sibs.add(r.toPersonId);
+    }
+  }
+  return [...sibs];
 }
 
 export function FamilyWorkspace({
@@ -1009,6 +1064,7 @@ export function FamilyWorkspace({
           <RecordsTab
             familyId={familyId}
             persons={persons}
+            relationships={relationships}
             generationByPerson={generationByPerson}
             canEdit={canEdit}
             canReview={canReview}
@@ -2249,6 +2305,7 @@ function ClaimStartCtas({
 function RecordsTab({
   familyId,
   persons,
+  relationships,
   generationByPerson,
   canEdit,
   canReview,
@@ -2270,6 +2327,7 @@ function RecordsTab({
 }: {
   familyId: string;
   persons: GraphPerson[];
+  relationships: GraphRel[];
   generationByPerson: Record<string, number>;
   canEdit: boolean;
   canReview: boolean;
@@ -2617,6 +2675,8 @@ function RecordsTab({
           canReview={canReview}
           compact
           generationByPerson={generationByPerson}
+          relationships={relationships}
+          persons={persons}
           seedClaimType={localSeed?.claimType ?? null}
           seedNonce={localSeed?.nonce ?? null}
           onSeedConsumed={() => {
@@ -2917,6 +2977,8 @@ function AddClaimForm({
   onAuthError,
   compact = false,
   generationByPerson,
+  relationships = [],
+  persons = [],
   seedClaimType = null,
   seedNonce = null,
   onSeedConsumed,
@@ -2934,6 +2996,8 @@ function AddClaimForm({
   compact?: boolean;
   /** Enables 字辈 suggestions from the same generation. */
   generationByPerson?: Record<string, number>;
+  relationships?: GraphRel[];
+  persons?: GraphPerson[];
   seedClaimType?: string | null;
   seedNonce?: number | null;
   onSeedConsumed?: () => void;
@@ -2949,7 +3013,9 @@ function AddClaimForm({
   const textRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
   const isStory = claimType === "STORY";
   const wantWords = Boolean(generationByPerson) && claimType === "GENERATION_WORD";
+  const wantOrders = claimType === "BIRTH_ORDER";
   const wordsByPerson = useGenerationWords(familyId, wantWords);
+  const birthOrders = useBirthOrders(familyId, wantOrders);
   const myGeneration = generationByPerson?.[personId];
   const peerWords = useMemo(() => {
     if (!wantWords || !generationByPerson || !myGeneration) return [];
@@ -2961,6 +3027,28 @@ function AddClaimForm({
       ).get(myGeneration) ?? []
     );
   }, [wantWords, wordsByPerson, generationByPerson, myGeneration, personId]);
+  const peerOrders = useMemo(() => {
+    if (!wantOrders) return [] as Array<{ order: string; name: string }>;
+    const nameById = new Map(persons.map((p) => [p.id, p.preferredName]));
+    return siblingIdsForPerson(personId, relationships)
+      .map((id) => {
+        const order = birthOrders[id];
+        const name = nameById.get(id);
+        if (!order || !name) return null;
+        return { order, name };
+      })
+      .filter((x): x is { order: string; name: string } => Boolean(x))
+      .sort(
+        (a, b) =>
+          (birthOrderRank(a.order) ?? 99) - (birthOrderRank(b.order) ?? 99) ||
+          a.name.localeCompare(b.name, "zh-CN")
+      );
+  }, [wantOrders, personId, relationships, persons, birthOrders]);
+  const orderQuickPicks = useMemo(() => {
+    if (!wantOrders) return [] as string[];
+    const used = new Set(peerOrders.map((p) => p.order.trim()));
+    return ["长", "次", "三", "四"].filter((o) => !used.has(o));
+  }, [wantOrders, peerOrders]);
   const songChars = useMemo(
     () => generationSongChars(generationSong),
     [generationSong]
@@ -3167,6 +3255,55 @@ function AddClaimForm({
                   <span className="ml-1 font-normal text-[color:var(--a-muted)]">
                     {w.count} 人
                   </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {peerOrders.length > 0 ? (
+            <div
+              className="mt-2 flex flex-wrap items-center gap-2 text-sm"
+              role="group"
+              aria-label="同辈已记排行"
+            >
+              <span className="text-[color:var(--a-muted)]">
+                同辈已记排行：
+              </span>
+              {peerOrders.slice(0, 6).map((p) => (
+                <button
+                  key={`${p.name}-${p.order}`}
+                  type="button"
+                  onClick={() => {
+                    setText(p.order);
+                    textRef.current?.focus();
+                  }}
+                  className="alpha-chip !min-h-[32px] font-semibold"
+                >
+                  {p.order}
+                  <span className="ml-1 font-normal text-[color:var(--a-muted)]">
+                    {p.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {wantOrders && orderQuickPicks.length > 0 ? (
+            <div
+              className="mt-2 flex flex-wrap items-center gap-2 text-sm"
+              role="group"
+              aria-label="常用排行"
+            >
+              <span className="text-[color:var(--a-muted)]">常用：</span>
+              {orderQuickPicks.map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  onClick={() => {
+                    setText(o);
+                    textRef.current?.focus();
+                  }}
+                  className="alpha-chip !min-h-[32px] font-semibold"
+                >
+                  {o}
                 </button>
               ))}
             </div>
@@ -5959,6 +6096,8 @@ function PersonDrawer({
               canReview={canReview}
               compact
               generationByPerson={generationByPerson}
+              relationships={relationships}
+              persons={persons}
               seedClaimType={drawerClaimSeed?.claimType ?? null}
               seedNonce={drawerClaimSeed?.nonce ?? null}
               onSeedConsumed={() => setDrawerClaimSeed(null)}
