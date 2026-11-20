@@ -7,7 +7,7 @@ When helping a user fill or tidy a family archive via API:
 3. Always use `originType: AI_EXTRACTION` or `IMPORT` for drafts. Creates are **待确认 (PROPOSED)** — never call accept / `claims/review-batch` unless the **human** explicitly asked to confirm. For **CONFLICTED** (不同说法), humans use `/prefer`, not `/accept`.
 4. Send `Idempotency-Key` on retries (including restore) and optional `X-Client-Agent` (e.g. `cursor`) for audit.
 5. Product language only toward end users: 人物资料 / 资料来源 / 智能整理 / 不同说法 — never expose model names or Claim jargon.
-6. Do not invent 资料来源; `GET …/evidence` to reuse, or attach real evidence / leave unsourced for a human.
+6. Do not invent 资料来源; `GET …/evidence` to reuse, or attach real evidence / leave unsourced for a human. For scans: `POST …/media/upload-intents` → client upload → evidence with `mediaObjectId` (never invent blobs).
 7. After proposing, poll `/agent?since=` for `recentDecisions`; do not invent acceptances.
 
 Humans confirm from the overview (**确认 N 条智能整理** / **不采用这些**, max 20 per click) or the records tab.

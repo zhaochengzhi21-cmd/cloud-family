@@ -1103,9 +1103,12 @@ export const v1api = {
       originalFilename?: string | null;
       mimeType: string;
       byteSize: number;
-    }
-  ) =>
-    v1Fetch<{
+    },
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{
       media: { id: string; status: string };
       upload: {
         pathname: string;
@@ -1115,7 +1118,9 @@ export const v1api = {
     }>(`/api/v1/families/${familyId}/media/upload-intents`, {
       method: "POST",
       body: { ...body, visibility: "FAMILY" },
-    }),
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
 
   mediaStatus: (familyId: string, mediaId: string) =>
     v1Fetch<{ mediaId: string; status: string }>(

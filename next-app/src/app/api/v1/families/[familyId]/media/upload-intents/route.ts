@@ -8,6 +8,7 @@ import {
   multipartRecommendedForSize,
   reserveMediaUpload,
 } from "@/v1/services/mediaService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -49,41 +50,52 @@ export async function POST(
   const parsed = reserveMediaBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
 
-  try {
-    const result = await reserveMediaUpload(
-      {
-        familyId: p.data.familyId,
-        actorContext: ctx.actorContext,
-        originalFilename: parsed.data.originalFilename,
-        mimeType: parsed.data.mimeType,
-        byteSize: parsed.data.byteSize,
-        visibility: parsed.data.visibility,
-      },
-      { db: ctx.db }
-    );
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "media.upload_intent",
+    body: parsed.data,
+    run: async () => {
+      try {
+        const result = await reserveMediaUpload(
+          {
+            familyId: p.data.familyId,
+            actorContext: ctx.actorContext,
+            originalFilename: parsed.data.originalFilename,
+            mimeType: parsed.data.mimeType,
+            byteSize: parsed.data.byteSize,
+            visibility: parsed.data.visibility,
+          },
+          { db: ctx.db }
+        );
 
-    return okJson(
-      {
-        media: mediaPendingDto({
-          mediaId: result.mediaId,
-          status: result.status,
-          mimeType: result.mimeType,
-          byteSize: result.byteSize,
-          visibility: result.visibility,
-        }),
-        upload: {
-          pathname: result.pathname,
-          handleUploadUrl: "/api/v1/media/client-upload",
-          multipartRecommended: multipartRecommendedForSize(result.byteSize),
-        },
-      },
-      201
-    );
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+        return okJson(
+          {
+            media: mediaPendingDto({
+              mediaId: result.mediaId,
+              status: result.status,
+              mimeType: result.mimeType,
+              byteSize: result.byteSize,
+              visibility: result.visibility,
+            }),
+            upload: {
+              pathname: result.pathname,
+              handleUploadUrl: "/api/v1/media/client-upload",
+              multipartRecommended: multipartRecommendedForSize(
+                result.byteSize
+              ),
+            },
+          },
+          201
+        );
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }

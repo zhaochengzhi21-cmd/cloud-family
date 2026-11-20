@@ -802,7 +802,9 @@ export function FamilyWorkspace({
             }}
             onReopenClaim={async (personId, claimId) => {
               try {
-                await v1api.reopenClaim(familyId, claimId);
+                await v1api.reopenClaim(familyId, claimId, {
+                  idempotencyKey: crypto.randomUUID(),
+                });
                 setFlash("已重新打开这条资料，可再次确认或不采用");
                 await load();
                 openRecordsFor(personId, {
@@ -2491,7 +2493,9 @@ function RecordsTab({
                     className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                     onClick={async () => {
                       try {
-                        await v1api.reopenClaim(familyId, c.id);
+                        await v1api.reopenClaim(familyId, c.id, {
+                          idempotencyKey: crypto.randomUUID(),
+                        });
                         setFlash("已重新打开这条资料，可再次确认或不采用");
                         setRejectedOpen(false);
                         setStatusFilter("PROPOSED");
@@ -3026,7 +3030,9 @@ function ClaimCard({
               className="alpha-btn alpha-btn-primary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
                 try {
-                  await v1api.acceptClaim(familyId, claim.id);
+                  await v1api.acceptClaim(familyId, claim.id, {
+                    idempotencyKey: crypto.randomUUID(),
+                  });
                   let unsourced = true;
                   try {
                     const b = await v1api.getClaim(familyId, claim.id);
@@ -3057,7 +3063,9 @@ function ClaimCard({
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
                 try {
-                  await v1api.rejectClaim(familyId, claim.id);
+                  await v1api.rejectClaim(familyId, claim.id, {
+                    idempotencyKey: crypto.randomUUID(),
+                  });
                   onFlash("已标记为不采用");
                   await onChanged();
                 } catch (e) {
@@ -3077,7 +3085,9 @@ function ClaimCard({
               className="alpha-btn alpha-btn-primary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
                 try {
-                  await v1api.preferClaim(familyId, claim.id);
+                  await v1api.preferClaim(familyId, claim.id, {
+                    idempotencyKey: crypto.randomUUID(),
+                  });
                   let unsourced = true;
                   try {
                     const b = await v1api.getClaim(familyId, claim.id);
@@ -3108,7 +3118,9 @@ function ClaimCard({
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
               onClick={async () => {
                 try {
-                  await v1api.rejectClaim(familyId, claim.id);
+                  await v1api.rejectClaim(familyId, claim.id, {
+                    idempotencyKey: crypto.randomUUID(),
+                  });
                   onFlash("已处理不同说法");
                   await onChanged();
                 } catch (e) {
@@ -3215,7 +3227,8 @@ function ClaimCard({
                         try {
                           await v1api.deleteEvidence(
                             familyId,
-                            l.evidence.id
+                            l.evidence.id,
+                            { idempotencyKey: crypto.randomUUID() }
                           );
                           onFlash("已移除资料来源");
                           setRemovingEvidenceId(null);
@@ -4818,6 +4831,7 @@ function PersonDrawer({
   const [localFlash, setLocalFlash] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
+  const [rejectedOpen, setRejectedOpen] = useState(false);
 
   useLockBodyScroll();
 
@@ -5241,7 +5255,11 @@ function PersonDrawer({
                             setRemovingRel(true);
                             setLocalError("");
                             try {
-                              await v1api.deleteRelationship(familyId, row.id);
+                              await v1api.deleteRelationship(
+                                familyId,
+                                row.id,
+                                { idempotencyKey: crypto.randomUUID() }
+                              );
                               setConfirmRelId(null);
                               setLocalFlash("已移除这条家庭关系");
                               await onChanged();
@@ -5426,6 +5444,8 @@ function PersonDrawer({
           {rejectedClaims.length > 0 ? (
             <details
               data-rejected-claims
+              open={rejectedOpen}
+              onToggle={(e) => setRejectedOpen(e.currentTarget.open)}
               className="mt-2 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3"
             >
               <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
@@ -5448,11 +5468,24 @@ function PersonDrawer({
                         className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                         onClick={async () => {
                           try {
-                            await v1api.reopenClaim(familyId, c.id);
+                            await v1api.reopenClaim(familyId, c.id, {
+                              idempotencyKey: crypto.randomUUID(),
+                            });
                             setLocalFlash(
                               "已重新打开这条资料，可再次确认或不采用"
                             );
+                            setRejectedOpen(false);
                             await loadClaims();
+                            requestAnimationFrame(() => {
+                              document
+                                .querySelector(
+                                  `[data-claim-id="${c.id}"]`
+                                )
+                                ?.scrollIntoView({
+                                  block: "nearest",
+                                  behavior: "smooth",
+                                });
+                            });
                           } catch (e) {
                             if (onAuth(e)) return;
                             const msg = userMessageForApiError(e);
@@ -5530,7 +5563,9 @@ function PersonDrawer({
                         setLocalError("");
                         const removedName = person.preferredName;
                         try {
-                          await v1api.deletePerson(familyId, person.id);
+                          await v1api.deletePerson(familyId, person.id, {
+                            idempotencyKey: crypto.randomUUID(),
+                          });
                           await onDeleted(removedName);
                         } catch (err) {
                           if (onAuth(err)) return;

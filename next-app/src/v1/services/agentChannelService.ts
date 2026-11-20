@@ -226,6 +226,24 @@ function capabilitiesForRole(
       ],
     },
     {
+      id: "create_media_upload_intent",
+      summary: "Reserve a media slot before attaching a scan/photo to 资料来源",
+      method: "POST",
+      path: `${base}/media/upload-intents`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        mimeType: "image/jpeg|image/png|application/pdf|…",
+        byteSize: "number",
+        originalFilename: "optional",
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
+      policy: [
+        "JSON intent only — never POST file bytes here",
+        "Client uploads via upload.handleUploadUrl, then create evidence with mediaObjectId",
+        "Do not invent blobs or storage keys",
+      ],
+    },
+    {
       id: "attach_evidence",
       summary: "Create a source and/or link it to a claim",
       method: "POST",
@@ -234,6 +252,7 @@ function capabilitiesForRole(
       bodyHints: {
         evidenceType: "GENEALOGY_PAGE|ORAL_HISTORY|DOCUMENT|…",
         title: "optional",
+        mediaObjectId: "optional — from upload-intents after client upload",
         "Idempotency-Key": "optional header — safe AI retry",
       },
       policy: [
