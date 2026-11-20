@@ -2032,3 +2032,55 @@ test("明经胡氏：采用不同说法后无来源则打开来源表单", async
     })
   ).toBeVisible({ timeout: 20_000 });
 });
+
+test("明经胡氏：无关系时世系为空态，不伪造第一代", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·世系空态（测试）",
+    sample.surname
+  );
+
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  await seedPerson(page, familyId, sample.guanSan, []);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "世系" }).click();
+  await expect(
+    page.getByText("添加家庭关系后，这里会按世代展示。")
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("heading", { name: /第一代/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "添加家庭关系", exact: true })
+  ).toBeVisible();
+});
+
+test("明经胡氏：无成员时打印版家谱为空态", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印空态（测试）",
+    sample.surname
+  );
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  await expect(
+    page.getByRole("heading", { name: "西递明经胡氏·打印空态（测试）" })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByText("还没有成员可排进家谱。先回到家族档案添加家人。")
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "返回家族档案" })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "打印或保存为 PDF" })
+  ).toHaveCount(0);
+});

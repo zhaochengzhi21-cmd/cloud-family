@@ -929,6 +929,10 @@ test.describe("CF-V1-UI-001 mobile 390", () => {
     await expect(page.getByText("已添加 2 位家族成员")).toBeVisible();
 
     await page.getByRole("tab", { name: "世系" }).click();
+    await expect(
+      page.getByText("添加家庭关系后，这里会按世代展示。")
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /第一代/ })).toHaveCount(0);
     await page.getByRole("button", { name: "+ 添加家庭关系" }).click();
     await page.locator("#rel-parent").selectOption({ label: "赵甲" });
     await page.locator("#rel-child").selectOption({ label: "赵乙" });

@@ -1398,21 +1398,6 @@ function LineageTab({
         </button>
       ) : null}
 
-      {persons.length >= 2 && relationships.length === 0 ? (
-        <div className="mb-3 rounded-xl bg-[color:var(--a-brand-soft)]/50 px-3 py-3 text-sm text-[color:var(--a-brand)]">
-          <p>已有成员，但还没有家庭关系。添加父母或配偶关系后，会按世代分层显示。</p>
-          {canEdit ? (
-            <button
-              type="button"
-              className="mt-2 font-semibold underline-offset-2 hover:underline"
-              onClick={onAddRel}
-            >
-              现在添加关系
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
       {componentCount > 1 ? (
         <p className="mb-3 text-sm text-[color:var(--a-muted)]">
           当前档案中有 {componentCount} 个尚未连接的家族分支。
@@ -1521,22 +1506,28 @@ function LineageTab({
         </div>
       ) : null}
 
-      {byGen.length === 0 ? (
+      {persons.length === 0 || relationships.length === 0 ? (
         <div className="alpha-panel border-dashed px-4 py-10 text-center">
           <p className="text-[color:var(--a-muted)]">
             {persons.length === 0
               ? "先添加家人，再回来建立关系、按世代查看。"
-              : "添加成员并建立关系后，这里会按世代展示。"}
+              : persons.length === 1
+                ? "再添加一位家人后，就能建立关系并按世代查看。"
+                : "添加家庭关系后，这里会按世代展示。"}
           </p>
           {canEdit ? (
             <button
               type="button"
               className="alpha-btn alpha-btn-primary mt-5"
-              onClick={persons.length === 0 ? onGoMembers : onAddRel}
+              onClick={persons.length < 2 ? onGoMembers : onAddRel}
             >
-              {persons.length === 0 ? "去添加成员" : "添加家庭关系"}
+              {persons.length < 2 ? "去添加成员" : "添加家庭关系"}
             </button>
-          ) : null}
+          ) : (
+            <p className="mt-3 text-sm text-[color:var(--a-muted)]">
+              有编辑权限的家人补充后，世系会出现在这里。
+            </p>
+          )}
         </div>
       ) : (
         <div className="alpha-lineage-rail space-y-2">
@@ -2102,15 +2093,19 @@ function RecordsTab({
           还没有可记录的成员
         </p>
         <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-          先在「成员」里添加家人，再回来写下我们知道的事。
+          {canEdit
+            ? "先在「成员」里添加家人，再回来写下我们知道的事。"
+            : "有编辑权限的家人添加成员后，这里才能记录资料。"}
         </p>
-        <button
-          type="button"
-          className="alpha-btn alpha-btn-primary mt-6"
-          onClick={onGoMembers}
-        >
-          去添加成员
-        </button>
+        {canEdit ? (
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-primary mt-6"
+            onClick={onGoMembers}
+          >
+            去添加成员
+          </button>
+        ) : null}
       </div>
     );
   }

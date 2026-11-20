@@ -245,6 +245,33 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     );
   }
 
+  if (book.persons.length === 0) {
+    return (
+      <div className="alpha-fade-in py-2">
+        <Link
+          href={`/alpha/families/${familyId}`}
+          className="alpha-print-hide text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+        >
+          ← {book.family.displayName || PRODUCT.family}
+        </Link>
+        <div className="alpha-panel mt-8 border-dashed px-4 py-12 text-center">
+          <h1 className="alpha-font-display text-2xl font-bold text-[color:var(--a-ink)]">
+            {book.family.displayName}
+          </h1>
+          <p className="mt-3 text-[color:var(--a-muted)]">
+            还没有成员可排进家谱。先回到家族档案添加家人。
+          </p>
+          <Link
+            href={`/alpha/families/${familyId}`}
+            className="alpha-btn alpha-btn-primary mt-6 inline-flex !min-h-[40px] !text-sm"
+          >
+            返回家族档案
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <article className="alpha-fade-in py-2">
       <div className="alpha-print-hide mb-6 flex flex-wrap items-center justify-between gap-3">
