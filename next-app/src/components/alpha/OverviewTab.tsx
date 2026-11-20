@@ -705,7 +705,7 @@ export function OverviewTab({
       browsePeople: !canEdit,
       action: canEdit
         ? { label: "添加家庭关系", onClick: onAddRel }
-        : undefined,
+        : { label: "查看参与家人", onClick: scrollToParticipants },
     });
   }
   const peopleChips = (
