@@ -22,11 +22,12 @@ import * as activityRepo from "@/v1/repositories/activityRepository";
 
 const PRINCIPLES = [
   "Agents may propose person facts with originType AI_EXTRACTION or IMPORT; creates are always 待确认 (PROPOSED).",
-  "Prefer POST …/claims/batch for multi-fact extraction; use Idempotency-Key on retries so duplicate posts replay safely.",
+  "Prefer POST …/agent/propose for a full page extract (people + edges + facts + source); or use the batch endpoints separately.",
+  "Use Idempotency-Key on retries so duplicate posts replay safely.",
   "Send X-Client-Agent (e.g. cursor, chatgpt) so drafts are attributable in audit — session user remains the actor.",
   "Only OWNER/ADMIN may confirm or reject; editors may propose but cannot accept.",
   "After proposing, poll this channel for recentDecisions — never invent acceptances.",
-  "Do not invent 资料来源. Create real evidence first, then POST …/evidence/{id}/links to attach many claims.",
+  "Do not invent 资料来源. Include evidence in /agent/propose or create then POST …/evidence/{id}/links.",
   "Speak product language only: 人物资料 / 资料来源 / 不同说法 — never expose model or Claim jargon to end users.",
   "Use claimTypes below for allowed types and value shapes; prefer the tasks list over inventing work.",
 ] as const;
@@ -151,6 +152,29 @@ function capabilitiesForRole(
       path: `${base}/graph`,
       roles: ["OWNER", "ADMIN", "EDITOR", "VIEWER"],
       policy: ["Privacy-filtered"],
+    },
+    {
+      id: "propose_package",
+      summary: "Propose a full extract: people, edges, facts, optional source",
+      method: "POST",
+      path: `${base}/agent/propose`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        originType: "AI_EXTRACTION|IMPORT — default AI_EXTRACTION",
+        persons: "optional[] with clientItemId for cross-refs",
+        relationships:
+          "optional[] — fromPersonId|fromClientItemId + to… + type",
+        claims:
+          "optional[] — subjectId|subjectClientItemId + claimType + value",
+        evidence: "optional — created FAMILY source, links to package claims",
+        "Idempotency-Key": "optional header — safe AI retry",
+        "X-Client-Agent": "optional — cursor|chatgpt|… for audit",
+      },
+      policy: [
+        "Claims always PROPOSED — never auto-accepted",
+        "clientItemId refs resolve within the same package",
+        "Partial success per section — inspect persons/relationships/claims",
+      ],
     },
     {
       id: "propose_claim",

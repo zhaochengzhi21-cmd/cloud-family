@@ -190,6 +190,108 @@ export const linkEvidenceBatchBodySchema = z
   })
   .strict();
 
+/** Composite OCR/page propose — persons + edges + claims + optional source. */
+export const agentProposeBodySchema = z
+  .object({
+    originType: z.enum(["AI_EXTRACTION", "IMPORT"]).optional(),
+    persons: z.array(createPersonBatchItemSchema).max(20).optional(),
+    relationships: z
+      .array(
+        z
+          .object({
+            fromPersonId: uuid.optional(),
+            toPersonId: uuid.optional(),
+            fromClientItemId: z.string().min(1).max(64).optional(),
+            toClientItemId: z.string().min(1).max(64).optional(),
+            relationshipType: z.enum([
+              "BIOLOGICAL_PARENT",
+              "ADOPTIVE_PARENT",
+              "STEP_PARENT",
+              "SPOUSE",
+            ]),
+            clientItemId: z.string().min(1).max(64).optional(),
+          })
+          .strict()
+          .superRefine((v, ctx) => {
+            if (!v.fromPersonId && !v.fromClientItemId) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "fromPersonId or fromClientItemId required",
+              });
+            }
+            if (!v.toPersonId && !v.toClientItemId) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "toPersonId or toClientItemId required",
+              });
+            }
+          })
+      )
+      .max(20)
+      .optional(),
+    claims: z
+      .array(
+        z
+          .object({
+            subjectId: uuid.optional(),
+            subjectClientItemId: z.string().min(1).max(64).optional(),
+            claimType: z.string().min(1).max(64),
+            value: z
+              .object({ text: z.string().min(1).max(8000) })
+              .passthrough(),
+            confidence: z.number().min(0).max(1).nullable().optional(),
+            clientItemId: z.string().min(1).max(64).optional(),
+          })
+          .strict()
+          .superRefine((v, ctx) => {
+            if (!v.subjectId && !v.subjectClientItemId) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "subjectId or subjectClientItemId required",
+              });
+            }
+          })
+      )
+      .max(20)
+      .optional(),
+    evidence: z
+      .object({
+        evidenceType: z.enum([
+          "GENEALOGY_PAGE",
+          "PHOTO",
+          "TOMBSTONE",
+          "ORAL_HISTORY",
+          "DOCUMENT",
+          "ARCHIVE",
+          "USER_TESTIMONY",
+          "OTHER",
+        ]),
+        title: z.string().max(200).nullable().optional(),
+        description: z.string().max(5000).nullable().optional(),
+        sourceLocator: z.string().max(500).nullable().optional(),
+        sourceDateText: z.string().max(200).nullable().optional(),
+        claimClientItemIds: z.array(z.string().min(1).max(64)).max(20).optional(),
+        claimIds: z.array(uuid).max(20).optional(),
+      })
+      .strict()
+      .nullable()
+      .optional(),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    const empty =
+      !(v.persons && v.persons.length) &&
+      !(v.relationships && v.relationships.length) &&
+      !(v.claims && v.claims.length) &&
+      !v.evidence;
+    if (empty) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "package must include persons, relationships, claims, or evidence",
+      });
+    }
+  });
+
 export const emptyBodySchema = z.object({}).strict();
 
 export const familyIdParamSchema = uuid;

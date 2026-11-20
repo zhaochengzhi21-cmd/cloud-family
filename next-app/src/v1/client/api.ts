@@ -659,6 +659,66 @@ export const v1api = {
     });
   },
 
+  proposeAgentPackage: (
+    familyId: string,
+    body: {
+      originType?: "AI_EXTRACTION" | "IMPORT";
+      persons?: Array<{
+        preferredName: string;
+        gender?: string;
+        livingStatus?: string;
+        clientItemId?: string;
+      }>;
+      relationships?: Array<{
+        fromPersonId?: string;
+        toPersonId?: string;
+        fromClientItemId?: string;
+        toClientItemId?: string;
+        relationshipType: string;
+        clientItemId?: string;
+      }>;
+      claims?: Array<{
+        subjectId?: string;
+        subjectClientItemId?: string;
+        claimType: string;
+        value: { text: string; narrator?: string | null };
+        confidence?: number | null;
+        clientItemId?: string;
+      }>;
+      evidence?: {
+        evidenceType: string;
+        title?: string | null;
+        description?: string | null;
+        sourceLocator?: string | null;
+        claimClientItemIds?: string[];
+        claimIds?: string[];
+      } | null;
+    },
+    opts?: { idempotencyKey?: string; clientAgent?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    if (opts?.clientAgent) headers["X-Client-Agent"] = opts.clientAgent;
+    return v1Fetch<{
+      personMap: Record<string, string>;
+      claimMap: Record<string, string>;
+      persons: { created: number; failed: number };
+      relationships: { created: number; reused: number; failed: number };
+      claims: { created: number; reused: number; failed: number };
+      evidence: {
+        evidenceId: string | null;
+        linked: number;
+        reused: number;
+        failed: number;
+      };
+      familyVersion: number | null;
+    }>(`/api/v1/families/${familyId}/agent/propose`, {
+      method: "POST",
+      body,
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
+
   getAgentChannel: (
     familyId: string,
     opts?: { limit?: number; since?: string }

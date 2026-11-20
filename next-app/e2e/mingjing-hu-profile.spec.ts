@@ -675,6 +675,9 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   expect(
     channel.capabilities.some((c) => c.id === "create_relationships_batch")
   ).toBe(true);
+  expect(channel.capabilities.some((c) => c.id === "propose_package")).toBe(
+    true
+  );
 
   const ev = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
     method: "POST",
@@ -721,6 +724,101 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
     }
   ).agent.recentDecisions;
   expect(futureDecisions).toEqual([]);
+});
+
+test("明经胡氏：agent/propose 整包提议进入待确认", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const ownerId = await insertFakeUser();
+  await loginAs(page, ownerId, baseURL!);
+  await page.goto(`${baseURL}/alpha/families`);
+
+  const fam = await apiJson(page, `/api/v1/families`, {
+    method: "POST",
+    body: {
+      displayName: "西递明经胡氏·整包提议（测试）",
+      surname: sample.surname,
+    },
+  });
+  expect(fam.status, JSON.stringify(fam.body)).toBe(201);
+  const familyId = (fam.body as { family: { id: string } }).family.id;
+
+  const proposed = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/agent/propose`,
+    {
+      method: "POST",
+      body: {
+        originType: "AI_EXTRACTION",
+        persons: [
+          {
+            preferredName: sample.wenGuang.preferredName,
+            gender: sample.wenGuang.gender,
+            livingStatus: sample.wenGuang.livingStatus,
+            clientItemId: "wg",
+          },
+          {
+            preferredName: "胡氏侧证（整包）",
+            gender: "UNKNOWN",
+            livingStatus: "DECEASED",
+            clientItemId: "side",
+          },
+        ],
+        relationships: [
+          {
+            fromClientItemId: "wg",
+            toClientItemId: "side",
+            relationshipType: "BIOLOGICAL_PARENT",
+            clientItemId: "edge-1",
+          },
+        ],
+        claims: [
+          {
+            subjectClientItemId: "wg",
+            claimType: "OCCUPATION",
+            value: { text: "万载知县，后升胶州刺史" },
+            confidence: 0.88,
+            clientItemId: "occ",
+          },
+        ],
+        evidence: {
+          evidenceType: "GENEALOGY_PAGE",
+          title: "整包谱页摘录（测试）",
+          claimClientItemIds: ["occ"],
+        },
+      },
+      headers: {
+        "Idempotency-Key": `e2e-propose-${Date.now()}`,
+        "X-Client-Agent": "cursor-e2e",
+      },
+    }
+  );
+  expect(proposed.status, JSON.stringify(proposed.body)).toBe(201);
+  const body = proposed.body as {
+    personMap: Record<string, string>;
+    claimMap: Record<string, string>;
+    persons: { created: number; failed: number };
+    relationships: { created: number; failed: number };
+    claims: {
+      created: number;
+      failed: number;
+      results: Array<{ ok: boolean; claim?: { status: string; originType: string } }>;
+    };
+    evidence: { evidenceId: string | null; linked: number; failed: number };
+  };
+  expect(body.persons.created).toBe(2);
+  expect(body.persons.failed).toBe(0);
+  expect(body.relationships.created).toBe(1);
+  expect(body.claims.created).toBe(1);
+  expect(body.claimMap.occ).toBeTruthy();
+  expect(body.claims.results[0]?.claim?.status).toBe("PROPOSED");
+  expect(body.claims.results[0]?.claim?.originType).toBe("AI_EXTRACTION");
+  expect(body.evidence.evidenceId).toBeTruthy();
+  expect(body.evidence.linked).toBe(1);
+  expect(body.evidence.failed).toBe(0);
 });
 
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({
