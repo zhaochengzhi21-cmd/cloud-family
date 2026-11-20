@@ -2084,3 +2084,36 @@ test("明经胡氏：无成员时打印版家谱为空态", async ({ page, baseU
     page.getByRole("button", { name: "打印或保存为 PDF" })
   ).toHaveCount(0);
 });
+
+test("明经胡氏：有成员无关系时打印版提示建立关系", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印无关系（测试）",
+    sample.surname
+  );
+
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  await seedPerson(page, familyId, sample.guanSan, []);
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "西递明经胡氏·打印无关系（测试）" })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByText(
+      "尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。"
+    )
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /第一代/ })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "成员" })).toBeVisible();
+  await expect(page.getByText(sample.wenGuang.preferredName)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "打印或保存为 PDF" })
+  ).toBeVisible();
+});

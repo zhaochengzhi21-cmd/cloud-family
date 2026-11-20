@@ -1010,7 +1010,9 @@ function MembersTab({
           还没有家族成员
         </p>
         <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-          先添加你熟悉的一两位家人即可，资料以后可以慢慢补。
+          {canEdit
+            ? "先添加你熟悉的一两位家人即可，资料以后可以慢慢补。"
+            : "有编辑权限的家人添加成员后，名单会出现在这里。"}
         </p>
         {canEdit ? (
           <button

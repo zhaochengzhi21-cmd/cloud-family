@@ -155,11 +155,14 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       });
     }
 
+    // No edges → engine still assigns every person gen 1; don't print that as「第一代」.
+    const unlinked = book.relationships.length === 0;
     const groups = new Map<number | null, BookPerson[]>();
     for (const p of book.persons) {
-      const list = groups.get(p.generation) ?? [];
+      const gen = unlinked ? null : p.generation;
+      const list = groups.get(gen) ?? [];
       list.push(p);
-      groups.set(p.generation, list);
+      groups.set(gen, list);
     }
     const order = [...groups.keys()].sort((a, b) =>
       a === null ? 1 : b === null ? -1 : a - b
@@ -301,6 +304,12 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         </p>
       </header>
 
+      {book.relationships.length === 0 ? (
+        <p className="alpha-print-hide mb-8 text-center text-sm text-[color:var(--a-muted)]">
+          尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。
+        </p>
+      ) : null}
+
       {layout.generations.map(({ generation, people }) => (
         <section
           key={generation ?? "unknown"}
@@ -311,7 +320,11 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             id={`book-gen-${generation ?? "unknown"}`}
             className="alpha-font-display mb-4 text-xl font-bold text-[color:var(--a-brand)]"
           >
-            {generation ? generationLabel(generation) : "代数未定"}
+            {generation
+              ? generationLabel(generation)
+              : book.relationships.length === 0
+                ? "成员"
+                : "代数未定"}
             {generation && layout.wordsByGen.get(generation)?.length ? (
               <span className="ml-3 text-base font-normal text-[color:var(--a-ink)]">
                 字辈
