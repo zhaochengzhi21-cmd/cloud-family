@@ -3943,7 +3943,11 @@ test("明经胡氏：打印版空条目可去补充资料", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
-test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseURL }) => {
+test("明经胡氏：资料来源库可直接收录来源", async ({
+  page,
+  baseURL,
+  context,
+}) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
   const familyId = await createFamily(
@@ -3975,6 +3979,15 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
   const row = sourcesLib
     .locator("[data-evidence-id]")
     .filter({ hasText: "库收录谱页（测试）" });
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await row.getByRole("button", { name: "复制本条链接" }).click();
+  await expect(row.getByRole("button", { name: "已复制链接" })).toBeVisible({
+    timeout: 10_000,
+  });
+  const evidenceId = await row.getAttribute("data-evidence-id");
+  expect(evidenceId).toBeTruthy();
+  const copiedEvidence = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copiedEvidence).toContain(`evidence=${evidenceId}`);
   await row.getByRole("button", { name: "详情" }).click();
   await expect(row.getByText("年代 / 日期：清嘉庆年间")).toBeVisible();
   await row.getByRole("button", { name: "挂到人物资料" }).click();
