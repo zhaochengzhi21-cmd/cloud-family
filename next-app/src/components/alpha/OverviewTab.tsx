@@ -221,9 +221,10 @@ export function OverviewTab({
   const [loadError, setLoadError] = useState("");
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchFlash, setBatchFlash] = useState("");
-  const [batchUndoClaimIds, setBatchUndoClaimIds] = useState<string[] | null>(
-    null
-  );
+  const [batchUndo, setBatchUndo] = useState<null | {
+    kind: "accept" | "reject";
+    claimIds: string[];
+  }>(null);
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -540,7 +541,7 @@ export function OverviewTab({
       if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
       setBatchBusy(true);
       setBatchFlash("");
-      setBatchUndoClaimIds(null);
+      setBatchUndo(null);
       setLoadError("");
       try {
         const claimIds = smartPendingIds.slice(0, 20);
@@ -556,16 +557,19 @@ export function OverviewTab({
             : "";
         const succeededIds = r.results
           .filter(
-            (row): row is { index: number; ok: true; claim: { id: string; status: string } } =>
-              row.ok
+            (row): row is {
+              index: number;
+              ok: true;
+              claim: { id: string; status: string };
+            } => row.ok
           )
           .map((row) => row.claim.id);
-        if (action === "reject" && succeededIds.length > 0) {
-          setBatchUndoClaimIds(succeededIds);
+        if (succeededIds.length > 0) {
+          setBatchUndo({ kind: action, claimIds: succeededIds });
           setBatchFlash(
             r.failed > 0
-              ? `已不采用 ${r.succeeded} 条智能整理，${r.failed} 条未成功。误标可点恢复。${more}`
-              : `已不采用 ${r.succeeded} 条智能整理。误标可点恢复。${more}`
+              ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功。误操作可点恢复。${more}`
+              : `已${verb} ${r.succeeded} 条智能整理。误操作可点恢复。${more}`
           );
         } else {
           setBatchFlash(
@@ -594,16 +598,21 @@ export function OverviewTab({
     ]
   );
 
-  const undoBatchReject = useCallback(async () => {
-    const ids = batchUndoClaimIds;
-    if (!ids?.length || batchBusy) return;
+  const undoBatchReview = useCallback(async () => {
+    const undo = batchUndo;
+    if (!undo?.claimIds.length || batchBusy) return;
     setBatchBusy(true);
-    setBatchUndoClaimIds(null);
+    setBatchUndo(null);
     setLoadError("");
     try {
       let ok = 0;
-      for (const claimId of ids) {
+      for (const claimId of undo.claimIds) {
         try {
+          if (undo.kind === "accept") {
+            await v1api.rejectClaim(familyId, claimId, {
+              idempotencyKey: crypto.randomUUID(),
+            });
+          }
           await v1api.reopenClaim(familyId, claimId, {
             idempotencyKey: crypto.randomUUID(),
           });
@@ -625,14 +634,7 @@ export function OverviewTab({
     } finally {
       setBatchBusy(false);
     }
-  }, [
-    batchBusy,
-    batchUndoClaimIds,
-    familyId,
-    load,
-    onAuthError,
-    onReload,
-  ]);
+  }, [batchBusy, batchUndo, familyId, load, onAuthError, onReload]);
 
   type Step = {
     key: string;
@@ -1166,12 +1168,12 @@ export function OverviewTab({
           role="status"
         >
           <p className="min-w-0 flex-1">{batchFlash}</p>
-          {batchUndoClaimIds?.length ? (
+          {batchUndo?.claimIds.length ? (
             <button
               type="button"
               disabled={batchBusy}
               className="shrink-0 font-semibold underline-offset-2 hover:underline disabled:opacity-60"
-              onClick={() => void undoBatchReject()}
+              onClick={() => void undoBatchReview()}
             >
               恢复
             </button>
@@ -1181,7 +1183,7 @@ export function OverviewTab({
             className="shrink-0 text-[color:var(--a-muted)] underline-offset-2 hover:underline"
             onClick={() => {
               setBatchFlash("");
-              setBatchUndoClaimIds(null);
+              setBatchUndo(null);
             }}
           >
             关闭
