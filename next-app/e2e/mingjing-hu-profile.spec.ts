@@ -1371,6 +1371,51 @@ test("明经胡氏：最近动态查看来源直达资料来源库", async ({
   ).toBeVisible({ timeout: 20_000 });
 });
 
+test("明经胡氏：人物页有亲人时可在世系中查看", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物页世系（测试）",
+    sample.surname
+  );
+
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, []);
+  const childId = await seedPerson(page, familyId, sample.yuanXi, []);
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}/people/${childId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.yuanXi.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "在世系中查看" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("世系", {
+    timeout: 60_000,
+  });
+  await expect(page.locator(`[data-lineage-person="${childId}"]`)).toBeFocused(
+    { timeout: 20_000 }
+  );
+
+  const soloId = await seedPerson(page, familyId, sample.wenGuang, []);
+  await page.goto(`/alpha/families/${familyId}/people/${soloId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "在世系中查看" })
+  ).toHaveCount(0);
+});
+
 test("明经胡氏：最近动态关系查看直达世系", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

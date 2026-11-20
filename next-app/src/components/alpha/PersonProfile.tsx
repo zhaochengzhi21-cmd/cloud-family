@@ -371,6 +371,16 @@ export function PersonProfile({
     router.push(workspaceHref);
   }
 
+  function openInLineage() {
+    try {
+      sessionStorage.setItem(`alpha-lineage-focus:${familyId}`, personId);
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+    } catch {
+      /* private mode */
+    }
+    router.push(workspaceHref);
+  }
+
   function openSourcesLibrary(evidenceId: string) {
     try {
       sessionStorage.setItem(
@@ -507,6 +517,19 @@ export function PersonProfile({
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
             >
               确认性别
+            </button>
+          ) : null}
+          {family.parents.length +
+            family.spouses.length +
+            family.siblings.length +
+            family.children.length >
+          0 ? (
+            <button
+              type="button"
+              onClick={openInLineage}
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            >
+              在世系中查看
             </button>
           ) : null}
           <button

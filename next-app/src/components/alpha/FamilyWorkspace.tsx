@@ -376,6 +376,18 @@ export function FamilyWorkspace({
     }
   }, [familyId]);
 
+  useEffect(() => {
+    try {
+      const id = sessionStorage.getItem(`alpha-lineage-focus:${familyId}`);
+      if (!id) return;
+      sessionStorage.removeItem(`alpha-lineage-focus:${familyId}`);
+      setLineageFocusId(id);
+      setTab("lineage");
+    } catch {
+      /* private mode */
+    }
+  }, [familyId]);
+
   const [recordsFocus, setRecordsFocus] = useState<{
     personId: string;
     claimId: string;
