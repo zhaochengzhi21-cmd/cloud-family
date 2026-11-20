@@ -935,6 +935,13 @@ export function FamilyWorkspace({
             setDrawerBasicsFocus(null);
             setSelectedPersonId(id);
           }}
+          onOpenSourcesLibrary={(evidenceId) => {
+            setSelectedPersonId(null);
+            setDrawerBasicsFocus(null);
+            setDrawerExternalSeed(null);
+            setSourcesFocusEvidenceId(evidenceId);
+            setTab("overview");
+          }}
           onDeleted={async (name) => {
             setSelectedPersonId(null);
             setDrawerExternalSeed(null);
@@ -4592,6 +4599,7 @@ function PersonDrawer({
   onRequestAddKin,
   onShowInLineage,
   onOpenPerson,
+  onOpenSourcesLibrary,
   onError,
   onAuth,
 }: {
@@ -4615,6 +4623,7 @@ function PersonDrawer({
   onRequestAddKin: (role: KinRole) => void;
   onShowInLineage: () => void;
   onOpenPerson: (id: string) => void;
+  onOpenSourcesLibrary?: (evidenceId: string) => void;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -5252,6 +5261,7 @@ function PersonDrawer({
                       onOpenEvidenceAfterAccept={(id) =>
                         setDrawerOpenEvidenceClaimId(id)
                       }
+                      onOpenSourcesLibrary={onOpenSourcesLibrary}
                       onAuthError={onAuth}
                       onChanged={loadClaims}
                       onError={(msg) => {
