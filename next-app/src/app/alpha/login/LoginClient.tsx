@@ -24,10 +24,14 @@ function safeNextPath(raw: string | null): string | null {
   return raw;
 }
 
-/** Accept raw invite tokens or pasted /alpha/invite/... links. */
-function normalizeInviteToken(raw: string): string {
+/**
+ * Family join links (`/alpha/invite/...`) are not Closed Alpha registration codes.
+ * Detect them so we can send the user to InviteLanding instead of stuffing the
+ * path token into the 内测邀请码 field.
+ */
+function familyInviteHref(raw: string): string | null {
   const trimmed = raw.trim();
-  if (!trimmed) return "";
+  if (!trimmed) return null;
   try {
     const asUrl = trimmed.includes("://")
       ? new URL(trimmed)
@@ -36,13 +40,20 @@ function normalizeInviteToken(raw: string): string {
         : null;
     if (asUrl) {
       const m = asUrl.pathname.match(/\/alpha\/invite\/([^/?#]+)/i);
-      if (m?.[1]) return decodeURIComponent(m[1]);
+      if (m?.[1]) return `/alpha/invite/${decodeURIComponent(m[1])}`;
     }
   } catch {
     /* fall through */
   }
   const inline = trimmed.match(/\/alpha\/invite\/([^/?#\s]+)/i);
-  if (inline?.[1]) return decodeURIComponent(inline[1]);
+  if (inline?.[1]) return `/alpha/invite/${decodeURIComponent(inline[1])}`;
+  return null;
+}
+
+/** Closed Alpha registration invite codes (bare tokens only). */
+function normalizeInviteToken(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed || familyInviteHref(trimmed)) return "";
   return trimmed;
 }
 
@@ -259,14 +270,20 @@ export default function AlphaLoginPage() {
                   autoComplete="off"
                   value={inviteToken}
                   onChange={(e) => setInviteToken(e.target.value)}
-                  onBlur={() =>
-                    setInviteToken((t) => normalizeInviteToken(t))
-                  }
+                  onBlur={() => {
+                    const href = familyInviteHref(inviteToken);
+                    if (href) {
+                      router.push(href);
+                      return;
+                    }
+                    setInviteToken((t) => normalizeInviteToken(t));
+                  }}
                   className="alpha-input"
-                  placeholder="粘贴邀请码或邀请链接"
+                  placeholder="粘贴内测邀请码"
                 />
                 <p className="mt-1 text-xs text-[color:var(--a-muted)]">
-                  也可直接粘贴家人发来的邀请链接，我们会自动识别。
+                  这是开通云族谱内测账号用的邀请码。若家人发来的是「加入家族」链接（含
+                  /alpha/invite/），请直接打开该链接，不要填在这里。
                 </p>
                 <div className="mt-2 flex flex-wrap gap-3">
                   <button
@@ -276,12 +293,18 @@ export default function AlphaLoginPage() {
                       void (async () => {
                         try {
                           const text = await navigator.clipboard.readText();
+                          const href = familyInviteHref(text);
+                          if (href) {
+                            setMessage("识别到家族邀请链接，正在打开…");
+                            router.push(href);
+                            return;
+                          }
                           const normalized = normalizeInviteToken(text);
                           if (normalized) {
                             setInviteToken(normalized);
                             setMessage("已从剪贴板填入邀请码");
                           } else {
-                            setMessage("剪贴板里没有识别到邀请码或链接");
+                            setMessage("剪贴板里没有识别到内测邀请码");
                           }
                         } catch {
                           setMessage("无法读取剪贴板，请手动粘贴");
