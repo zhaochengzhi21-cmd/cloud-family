@@ -195,7 +195,7 @@ async function main() {
         {
           preferredName: "谱烟测",
           gender: "UNKNOWN",
-          livingStatus: "UNKNOWN",
+          livingStatus: "DECEASED",
           clientItemId: "p1",
         },
       ],
@@ -271,6 +271,36 @@ async function main() {
       fail(
         "propose_idempotent",
         `s1=${propose1.status} s2=${propose2.status} replay=${replayed} claim=${!!claimIdFinal} body=${propose1.text.slice(0, 200)}`
+      );
+    }
+
+    const agentAfter = await readJson(
+      await agentRoute.GET(
+        makeReq("GET", `/api/v1/families/${familyId}/agent?limit=80`, {
+          cookie,
+        }),
+        { params: { familyId } }
+      )
+    );
+    const tasks = Array.isArray(asObj(asObj(agentAfter.body).agent).tasks)
+      ? (asObj(asObj(agentAfter.body).agent).tasks as Array<{
+          claimType?: string;
+          kind?: string;
+        }>)
+      : [];
+    const taskTypes = new Set(
+      tasks.filter((t) => t.kind === "PROPOSE_FACT").map((t) => t.claimType)
+    );
+    if (
+      agentAfter.status === 200 &&
+      taskTypes.has("DEATH_DATE") &&
+      taskTypes.has("STORY")
+    ) {
+      pass("propose_fact_hints", "DEATH_DATE+STORY");
+    } else {
+      fail(
+        "propose_fact_hints",
+        `status=${agentAfter.status} types=${[...taskTypes].join(",")}`
       );
     }
 
