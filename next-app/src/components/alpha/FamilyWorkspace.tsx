@@ -5438,13 +5438,19 @@ function ConflictChooser({
       } catch {
         /* treat as unsourced if refresh fails */
       }
-      onFlash(
-        unsourced && canEdit
-          ? "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
-          : "已采用这条说法"
-      );
+      if (unsourced && canEdit) {
+        onFlash(
+          "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
+        );
+        onOpenEvidenceAfterAccept?.(claim.id);
+      } else {
+        onFlash(
+          "已采用这条说法。可复制链接发给家人一起看。",
+          undefined,
+          { claimId: claim.id }
+        );
+      }
       await onChanged();
-      if (unsourced && canEdit) onOpenEvidenceAfterAccept?.(claim.id);
     } catch (e) {
       if (onAuthError(e)) return;
       onError(userMessageForApiError(e));
@@ -5780,15 +5786,19 @@ function ClaimCard({
                   } catch {
                     /* still treat as unsourced if refresh fails */
                   }
-                  onFlash(
-                    unsourced && canEdit
-                      ? "已确认这条资料。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
-                      : "已确认这条资料"
-                  );
-                  await onChanged();
                   if (unsourced && canEdit) {
+                    onFlash(
+                      "已确认这条资料。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
+                    );
                     onOpenEvidenceAfterAccept?.(claim.id);
+                  } else {
+                    onFlash(
+                      "已确认这条资料。可复制链接发给家人一起看。",
+                      undefined,
+                      { claimId: claim.id }
+                    );
                   }
+                  await onChanged();
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
@@ -5860,15 +5870,19 @@ function ClaimCard({
                   } catch {
                     /* treat as unsourced if refresh fails */
                   }
-                  onFlash(
-                    unsourced && canEdit
-                      ? "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
-                      : "已采用这条说法"
-                  );
-                  await onChanged();
                   if (unsourced && canEdit) {
+                    onFlash(
+                      "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
+                    );
                     onOpenEvidenceAfterAccept?.(claim.id);
+                  } else {
+                    onFlash(
+                      "已采用这条说法。可复制链接发给家人一起看。",
+                      undefined,
+                      { claimId: claim.id }
+                    );
                   }
+                  await onChanged();
                 } catch (e) {
                   if (onAuthError(e)) return;
                   onError(userMessageForApiError(e));
