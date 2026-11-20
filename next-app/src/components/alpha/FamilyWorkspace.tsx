@@ -1752,18 +1752,52 @@ export function FamilyWorkspace({
                       await v1api.restorePerson(familyId, id, {
                         idempotencyKey: crypto.randomUUID(),
                       });
-                      const qs = new URLSearchParams({
-                        tab: "members",
-                        person: id,
-                      });
+                      const urlTab = searchParams.get("tab");
+                      const urlClaim = searchParams.get("claim");
+                      const urlOpenEvidence =
+                        searchParams.get("openEvidence") === "1";
+                      const urlEvidenceType =
+                        searchParams.get("evidenceType") || undefined;
+                      const resumeRecords =
+                        urlTab === "records" || Boolean(urlClaim);
+                      const qs = new URLSearchParams(
+                        resumeRecords
+                          ? {
+                              tab: "records",
+                              person: id,
+                              ...(urlClaim ? { claim: urlClaim } : {}),
+                              ...(urlOpenEvidence || urlEvidenceType
+                                ? { openEvidence: "1" }
+                                : {}),
+                              ...(urlEvidenceType
+                                ? { evidenceType: urlEvidenceType }
+                                : {}),
+                            }
+                          : { tab: "members", person: id }
+                      );
                       setFlashCopyUrl(
                         `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
                       );
                       setFlash(
-                        "已恢复这位家人。可复制链接发给家人一起看。"
+                        resumeRecords
+                          ? "已恢复这位家人。可继续查看资料；可复制链接发给家人一起看。"
+                          : "已恢复这位家人。可复制链接发给家人一起看。"
                       );
                       await load();
-                      setSelectedPersonId(id);
+                      if (resumeRecords) {
+                        setTab("records");
+                        setRecordsUrlPerson(id);
+                        try {
+                          sessionStorage.setItem(
+                            `alpha-records-person:${familyId}`,
+                            id
+                          );
+                        } catch {
+                          /* private mode */
+                        }
+                      } else {
+                        setSelectedPersonId(id);
+                      }
                     } catch (e) {
                       if (handleAuthRedirect(e, router)) return;
                       setError(userMessageForApiError(e));
@@ -4630,12 +4664,12 @@ function RecordsTab({
       setPersonId(recordsFocus.personId);
       return;
     }
-    // Soft-deleted / missing person: parent workspace flash offers restore.
-    // Do not surface a claim-reopen miss against the wrong personId.
+    // Soft-deleted / missing person: parent flash offers restore. Keep
+    // recordsFocus so claim/openEvidence can resume after the person returns
+    // (same as the empty-roster early return above).
     setClaimFocusMiss(false);
     setClaimFocusMissUrl(null);
     setClaimFocusMissClaimId(null);
-    onRecordsFocusConsumed();
   }, [recordsFocus, persons, onRecordsFocusConsumed, familyId]);
 
   useEffect(() => {
