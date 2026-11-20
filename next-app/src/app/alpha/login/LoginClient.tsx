@@ -268,16 +268,35 @@ export default function AlphaLoginPage() {
                 <p className="mt-1 text-xs text-[color:var(--a-muted)]">
                   也可直接粘贴家人发来的邀请链接，我们会自动识别。
                 </p>
-                <button
-                  type="button"
-                  className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
-                  onClick={() => {
-                    setShowInvite(false);
-                    setInviteToken("");
-                  }}
-                >
-                  我已有账号，不需要邀请码
-                </button>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)]"
+                    onClick={() => {
+                      void (async () => {
+                        try {
+                          const text = await navigator.clipboard.readText();
+                          const normalized = normalizeInviteToken(text);
+                          if (normalized) setInviteToken(normalized);
+                        } catch {
+                          /* permission / empty */
+                        }
+                      })();
+                    }}
+                  >
+                    从剪贴板粘贴
+                  </button>
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)]"
+                    onClick={() => {
+                      setShowInvite(false);
+                      setInviteToken("");
+                    }}
+                  >
+                    我已有账号，不需要邀请码
+                  </button>
+                </div>
               </div>
             ) : (
               <button
