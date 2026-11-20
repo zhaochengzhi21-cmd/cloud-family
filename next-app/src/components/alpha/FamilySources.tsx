@@ -566,6 +566,20 @@ export function FamilySources({
                         idempotencyKey: crypto.randomUUID(),
                       });
                       setFocusMissId(null);
+                      const qs = new URLSearchParams({
+                        tab: "overview",
+                        scroll: "sources",
+                        evidence: id,
+                      });
+                      setAttachFlash({
+                        message:
+                          "已恢复这条资料来源。可复制链接发给家人一起看。",
+                        url: `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`,
+                        personId: "",
+                        claimId: "",
+                        evidenceId: id,
+                      });
+                      setAttachCopyFlash("");
                       await load();
                       onCreated?.();
                       onLinked?.();
