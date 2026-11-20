@@ -3708,7 +3708,9 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
     "西递明经胡氏·库收录（测试）",
     sample.surname
   );
-  await seedPerson(page, familyId, sample.wenGuang, []);
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "BIRTH_DATE", text: "约明嘉靖年间" },
+  ]);
 
   await page.goto(`/alpha/families/${familyId}`);
   await page.getByRole("tab", { name: "概览" }).click();
@@ -3723,4 +3725,18 @@ test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseU
     sourcesLib.getByRole("list", { name: "资料来源列表" })
   ).toContainText("库收录谱页（测试）", { timeout: 60_000 });
   await expect(sourcesLib.getByText("已用于 0 条资料")).toBeVisible();
+
+  const row = sourcesLib
+    .locator("[data-evidence-id]")
+    .filter({ hasText: "库收录谱页（测试）" });
+  await row.getByRole("button", { name: "挂到人物资料" }).click();
+  const attach = sourcesLib.getByRole("form", { name: "挂到人物资料" });
+  await attach.locator("select").first().selectOption(personId);
+  await expect(attach.locator("select").nth(1)).not.toHaveValue("", {
+    timeout: 60_000,
+  });
+  await attach.getByRole("button", { name: "确认挂接" }).click();
+  await expect(row.getByText("已用于 1 条资料")).toBeVisible({
+    timeout: 60_000,
+  });
 });

@@ -58,17 +58,20 @@ function isPhoto(mime: string | null, type: string) {
 
 export function FamilySources({
   familyId,
+  persons = [],
   onAuthError,
   onOpenRecords,
   canEdit = false,
   canManage = false,
   onRemoved,
   onCreated,
+  onLinked,
   focusEvidenceId = null,
   onFocusEvidenceConsumed,
   dataVersion = 0,
 }: {
   familyId: string;
+  persons?: Array<{ id: string; preferredName: string }>;
   onAuthError: (e: unknown) => boolean;
   onOpenRecords?: (
     personId: string,
@@ -83,6 +86,7 @@ export function FamilySources({
   canManage?: boolean;
   onRemoved?: (evidenceId: string, label: string) => void;
   onCreated?: () => void;
+  onLinked?: () => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
   /** Bumps when the workspace reloads so the library stays in sync. */
@@ -112,6 +116,7 @@ export function FamilySources({
   );
   const [linksLoadingId, setLinksLoadingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [attachingId, setAttachingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -379,6 +384,18 @@ export function FamilySources({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
+                    {canEdit && e.linkCount === 0 && persons.length > 0 ? (
+                      <button
+                        type="button"
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        aria-expanded={attachingId === e.id}
+                        onClick={() =>
+                          setAttachingId((id) => (id === e.id ? null : e.id))
+                        }
+                      >
+                        挂到人物资料
+                      </button>
+                    ) : null}
                     {e.description || e.sourceDateText ? (
                       <button
                         type="button"
@@ -477,6 +494,20 @@ export function FamilySources({
                     ) : null}
                   </div>
                 </div>
+                {attachingId === e.id && canEdit ? (
+                  <LibraryAttachForm
+                    familyId={familyId}
+                    evidenceId={e.id}
+                    persons={persons}
+                    onAuthError={onAuthError}
+                    onCancel={() => setAttachingId(null)}
+                    onDone={async () => {
+                      setAttachingId(null);
+                      await load();
+                      onLinked?.();
+                    }}
+                  />
+                ) : null}
                 {detailId === e.id ? (
                   <div className="mt-2 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-2 text-xs text-[color:var(--a-muted)]">
                     {e.description ? (
@@ -873,6 +904,171 @@ function LibraryAddSourceForm({
           className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
         >
           {busy ? "保存中…" : "保存到资料来源库"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function LibraryAttachForm({
+  familyId,
+  evidenceId,
+  persons,
+  onAuthError,
+  onCancel,
+  onDone,
+}: {
+  familyId: string;
+  evidenceId: string;
+  persons: Array<{ id: string; preferredName: string }>;
+  onAuthError: (e: unknown) => boolean;
+  onCancel: () => void;
+  onDone: () => Promise<void>;
+}) {
+  const sorted = useMemo(
+    () =>
+      persons
+        .slice()
+        .sort((a, b) =>
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+        ),
+    [persons]
+  );
+  const [personId, setPersonId] = useState(sorted[0]?.id ?? "");
+  const [claims, setClaims] = useState<
+    Awaited<ReturnType<typeof v1api.listPersonClaims>>["claims"]
+  >([]);
+  const [claimId, setClaimId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loadingClaims, setLoadingClaims] = useState(false);
+  const [localError, setLocalError] = useState("");
+
+  useEffect(() => {
+    if (!personId) {
+      setClaims([]);
+      setClaimId("");
+      return;
+    }
+    let cancelled = false;
+    setLoadingClaims(true);
+    setLocalError("");
+    v1api
+      .listPersonClaims(familyId, personId)
+      .then((r) => {
+        if (cancelled) return;
+        const open = r.claims.filter((c) => c.status !== "REJECTED");
+        setClaims(open);
+        setClaimId(open[0]?.id ?? "");
+      })
+      .catch((e) => {
+        if (cancelled || onAuthError(e)) return;
+        setLocalError(userMessageForApiError(e));
+        setClaims([]);
+        setClaimId("");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingClaims(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, personId, onAuthError]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!claimId) {
+      setLocalError("请选择一条人物资料");
+      return;
+    }
+    setBusy(true);
+    setLocalError("");
+    try {
+      await v1api.linkEvidence(
+        familyId,
+        claimId,
+        { evidenceId, relation: "SUPPORTS" },
+        { idempotencyKey: crypto.randomUUID() }
+      );
+      await onDone();
+    } catch (err) {
+      if (onAuthError(err)) return;
+      setLocalError(userMessageForApiError(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form
+      onSubmit={submit}
+      className="mt-2 space-y-3 rounded-xl border border-[color:var(--a-brand-line)] bg-[color:var(--a-surface-strong)] p-3"
+      aria-label="挂到人物资料"
+    >
+      {localError ? (
+        <p className="alpha-alert alpha-alert-error" role="alert">
+          {localError}
+        </p>
+      ) : null}
+      <div>
+        <label htmlFor={`lib-attach-person-${evidenceId}`} className="alpha-label">
+          选择家人
+        </label>
+        <select
+          id={`lib-attach-person-${evidenceId}`}
+          value={personId}
+          onChange={(e) => setPersonId(e.target.value)}
+          className="alpha-input"
+          required
+        >
+          {sorted.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.preferredName}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label htmlFor={`lib-attach-claim-${evidenceId}`} className="alpha-label">
+          选择人物资料
+        </label>
+        {loadingClaims ? (
+          <p className="text-sm text-[color:var(--a-muted)]">正在加载…</p>
+        ) : claims.length === 0 ? (
+          <p className="text-sm text-[color:var(--a-muted)]">
+            这位家人还没有可挂接的资料，请先在资料页添加一条。
+          </p>
+        ) : (
+          <select
+            id={`lib-attach-claim-${evidenceId}`}
+            value={claimId}
+            onChange={(e) => setClaimId(e.target.value)}
+            className="alpha-input"
+            required
+          >
+            {claims.map((c) => (
+              <option key={c.id} value={c.id}>
+                {(CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType) +
+                  (c.value?.text ? ` · ${c.value.text}` : "")}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="alpha-btn alpha-btn-secondary flex-1 !min-h-[44px]"
+        >
+          取消
+        </button>
+        <button
+          type="submit"
+          disabled={busy || !claimId || loadingClaims}
+          className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
+        >
+          {busy ? "挂接中…" : "确认挂接"}
         </button>
       </div>
     </form>

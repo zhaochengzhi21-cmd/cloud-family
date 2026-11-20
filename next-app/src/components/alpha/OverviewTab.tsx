@@ -1506,6 +1506,7 @@ export function OverviewTab({
       {persons.length > 0 ? (
         <FamilySources
           familyId={familyId}
+          persons={persons}
           onAuthError={onAuthError}
           onOpenRecords={onOpenRecords}
           canEdit={canEdit}
@@ -1516,6 +1517,10 @@ export function OverviewTab({
             void onReload?.();
           }}
           onCreated={() => {
+            void load();
+            void onReload?.();
+          }}
+          onLinked={() => {
             void load();
             void onReload?.();
           }}
