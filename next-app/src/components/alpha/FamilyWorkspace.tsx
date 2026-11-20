@@ -2722,9 +2722,40 @@ function MembersTab({
   return (
     <div>
       {canEdit && persons.length === 1 ? (
-        <p className="mb-3 text-sm text-[color:var(--a-muted)]">
-          再添加一位家人后，可在「世系」里建立父母或配偶关系。
-        </p>
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
+          <p>再添加一位家人后，可在「世系」里建立父母或配偶关系。</p>
+          <button
+            type="button"
+            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              const url = `${window.location.origin}/alpha/families/${familyId}?tab=members&add=person`;
+              void navigator.clipboard.writeText(url).then(
+                () => {
+                  setCopyFlashId("sole-edit-ok");
+                  window.setTimeout(() => {
+                    setCopyFlashId((id) =>
+                      id === "sole-edit-ok" ? null : id
+                    );
+                  }, 2500);
+                },
+                () => {
+                  setCopyFlashId("sole-edit-fail");
+                  window.setTimeout(() => {
+                    setCopyFlashId((id) =>
+                      id === "sole-edit-fail" ? null : id
+                    );
+                  }, 2500);
+                }
+              );
+            }}
+          >
+            {copyFlashId === "sole-edit-ok"
+              ? "已复制链接"
+              : copyFlashId === "sole-edit-fail"
+                ? "请手动复制"
+                : "复制添加成员链接发给家人"}
+          </button>
+        </div>
       ) : null}
       {!canEdit && persons.length === 1 ? (
         <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
