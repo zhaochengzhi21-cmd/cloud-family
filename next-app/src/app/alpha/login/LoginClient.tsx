@@ -36,7 +36,11 @@ export default function AlphaLoginPage() {
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState(
-    expired ? ERROR_COPY.unauthenticated : ""
+    expired
+      ? nextPath
+        ? `${ERROR_COPY.unauthenticated}登录后将回到刚才的页面。`
+        : ERROR_COPY.unauthenticated
+      : ""
   );
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -249,13 +253,13 @@ export default function AlphaLoginPage() {
             {message ? (
               <p
                 className={
-                  message === ERROR_COPY.unauthenticated ||
+                  message.startsWith(ERROR_COPY.unauthenticated) ||
                   message.includes("暂未开放")
                     ? "alpha-alert alpha-alert-error"
                     : "text-sm text-[color:var(--a-muted)]"
                 }
                 role={
-                  message === ERROR_COPY.unauthenticated ||
+                  message.startsWith(ERROR_COPY.unauthenticated) ||
                   message.includes("暂未开放")
                     ? "alert"
                     : "status"

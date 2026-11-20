@@ -85,7 +85,19 @@ export function handleAuthRedirect(
   router: { replace: (h: string) => void }
 ) {
   if (e instanceof V1ApiError && e.status === 401) {
-    router.replace("/alpha/login?reason=expired");
+    const q = new URLSearchParams({ reason: "expired" });
+    try {
+      const next = `${window.location.pathname}${window.location.search}`;
+      if (
+        next.startsWith("/alpha/") &&
+        !next.startsWith("/alpha/login")
+      ) {
+        q.set("next", next);
+      }
+    } catch {
+      /* non-browser */
+    }
+    router.replace(`/alpha/login?${q.toString()}`);
     return true;
   }
   return false;
