@@ -1018,7 +1018,22 @@ export function OverviewTab({
                     >
                       邀请家人
                     </button>
-                  ) : null}
+                  ) : (
+                    <button
+                      type="button"
+                      className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                      onClick={() =>
+                        document
+                          .getElementById("overview-participants")
+                          ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          })
+                      }
+                    >
+                      查看参与家人
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
