@@ -2253,6 +2253,7 @@ export function FamilyWorkspace({
             generationByPerson={generationByPerson}
             componentCount={componentCount}
             canEdit={canEdit}
+            canReview={canReview}
             focusPersonId={lineageFocusId}
             onAddRel={() => {
               setRelFocusPersonId(null);
@@ -2266,6 +2267,32 @@ export function FamilyWorkspace({
             onGoMembers={() => {
               setTab("members");
               if (canEdit) setShowAddPerson(true);
+            }}
+            onRestorePerson={async (personId) => {
+              try {
+                const r = await v1api.restorePerson(familyId, personId, {
+                  idempotencyKey: crypto.randomUUID(),
+                });
+                const qs = new URLSearchParams({
+                  tab: "lineage",
+                  person: personId,
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
+                setFlash(
+                  `已恢复「${r.person.preferredName}」${
+                    r.relationshipsRestoredCount > 0
+                      ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
+                      : ""
+                  }。可复制链接发给家人一起看世系。`
+                );
+                await load();
+                setLineageFocusId(personId);
+              } catch (e) {
+                if (handleAuthRedirect(e, router)) return;
+                setError(userMessageForApiError(e));
+              }
             }}
             onOpenParticipants={
               canReview
@@ -3143,11 +3170,13 @@ function LineageTab({
   generationByPerson,
   componentCount,
   canEdit,
+  canReview,
   focusPersonId,
   onAddRel,
   onAddKin,
   onGoMembers,
   onOpenParticipants,
+  onRestorePerson,
   onOpen,
   personMap,
   familyId,
@@ -3158,11 +3187,13 @@ function LineageTab({
   generationByPerson: Record<string, number>;
   componentCount: number;
   canEdit: boolean;
+  canReview: boolean;
   focusPersonId?: string | null;
   onAddRel: () => void;
   onAddKin: (personId: string, role: KinRole) => void;
   onGoMembers: () => void;
   onOpenParticipants?: () => void;
+  onRestorePerson?: (personId: string) => Promise<void>;
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
   familyId: string;
@@ -3196,6 +3227,7 @@ function LineageTab({
     null
   );
   const [focusMissCopyFlash, setFocusMissCopyFlash] = useState("");
+  const [focusMissRestoreBusy, setFocusMissRestoreBusy] = useState(false);
   const [copyFlash, setCopyFlash] = useState("");
   const [collapsed, setCollapsed] = useState<Set<number>>(() => {
     if (persons.length <= LINEAGE_FOLD_THRESHOLD) return new Set();
@@ -3460,8 +3492,32 @@ function LineageTab({
           role="status"
         >
           <p className="text-sm text-[color:var(--a-muted)]">
-            要定位的家人已不在世系名单中，可能刚被移除。可复制链接发给有编辑权限的家人核对，或查看参与家人。
+            {canReview
+              ? "要定位的家人已不在世系名单中，可能刚被移除。可点恢复这位家人。"
+              : `要定位的家人已不在世系名单中，可能刚被移除。可复制链接发给${REVIEWER_CONTACT}核对，或查看参与家人。`}
           </p>
+          {canReview && focusMissPersonId && onRestorePerson ? (
+            <button
+              type="button"
+              disabled={focusMissRestoreBusy}
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-60"
+              onClick={() => {
+                const id = focusMissPersonId;
+                setFocusMissRestoreBusy(true);
+                void (async () => {
+                  try {
+                    await onRestorePerson(id);
+                    setFocusMiss(false);
+                    setFocusMissPersonId(null);
+                  } finally {
+                    setFocusMissRestoreBusy(false);
+                  }
+                })();
+              }}
+            >
+              {focusMissRestoreBusy ? "恢复中…" : "恢复这位家人"}
+            </button>
+          ) : null}
           {focusMissPersonId ? (
             <button
               type="button"
