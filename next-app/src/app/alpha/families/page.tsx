@@ -30,6 +30,9 @@ export default function AlphaFamiliesPage() {
   const [leftNote, setLeftNote] = useState("");
   const [leftNoteCopyFlash, setLeftNoteCopyFlash] = useState("");
   const [emptyCopyFlash, setEmptyCopyFlash] = useState("");
+  const [familyCopyFlashId, setFamilyCopyFlashId] = useState<string | null>(
+    null
+  );
   const nameInputRef = useRef<HTMLInputElement>(null);
   const createDialogRef = useRef<HTMLDivElement>(null);
 
@@ -303,10 +306,13 @@ export default function AlphaFamiliesPage() {
           ) : (
             <ul className="space-y-3">
               {filtered.map((f) => (
-                <li key={f.id}>
+                <li
+                  key={f.id}
+                  className="flex flex-wrap items-stretch gap-2"
+                >
                   <Link
                     href={`/alpha/families/${f.id}`}
-                    className="alpha-panel alpha-panel-interactive flex min-h-[64px] items-center justify-between px-4 py-3"
+                    className="alpha-panel alpha-panel-interactive flex min-h-[64px] min-w-0 flex-1 items-center justify-between px-4 py-3"
                   >
                     <div>
                       <p className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
@@ -327,6 +333,38 @@ export default function AlphaFamiliesPage() {
                       打开
                     </span>
                   </Link>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[64px] !px-3 !text-xs"
+                    aria-label={`复制「${f.displayName}」家族链接`}
+                    onClick={() => {
+                      const url = `${window.location.origin}/alpha/families/${f.id}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () => {
+                          setFamilyCopyFlashId(f.id);
+                          window.setTimeout(() => {
+                            setFamilyCopyFlashId((id) =>
+                              id === f.id ? null : id
+                            );
+                          }, 2500);
+                        },
+                        () => {
+                          setFamilyCopyFlashId(`fail:${f.id}`);
+                          window.setTimeout(() => {
+                            setFamilyCopyFlashId((id) =>
+                              id === `fail:${f.id}` ? null : id
+                            );
+                          }, 2500);
+                        }
+                      );
+                    }}
+                  >
+                    {familyCopyFlashId === f.id
+                      ? "已复制"
+                      : familyCopyFlashId === `fail:${f.id}`
+                        ? "请手动复制"
+                        : "复制链接"}
+                  </button>
                 </li>
               ))}
             </ul>
