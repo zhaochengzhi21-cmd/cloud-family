@@ -11,9 +11,11 @@ import {
 } from "@/v1/services/permissionService";
 import { PermissionDomainError } from "@/v1/domain/permission/errors";
 import { getFamilyGraph } from "@/v1/services/familyGraphService";
-import { getClaimsForSubject } from "@/v1/services/claimService";
+import { canReadClaim } from "@/v1/services/claimService";
 import { listClaimIdsWithActiveEvidence } from "@/v1/repositories/evidenceRepository";
+import * as claimRepo from "@/v1/repositories/claimRepository";
 import { mapPool } from "@/v1/util/pool";
+import type { ClaimDto } from "@/v1/domain/claim/types";
 import {
   getClaimTypeDefinition,
   listRegisteredClaimTypes,
@@ -400,18 +402,29 @@ export async function getFamilyAgentChannel(
     claimType: string;
   }> = [];
 
-  const rows = await mapPool(graph.persons, 8, async (person) => {
-    const claims = await getClaimsForSubject(
-      familyId,
-      "PERSON",
-      person.id,
-      actorContext,
-      { db: database }
-    );
-    return { person, claims };
-  });
+  const personIds = graph.persons.map((p) => p.id);
+  const claimRows = await claimRepo.listActiveClaimsForPersonSubjects(
+    database,
+    familyId,
+    personIds
+  );
+  const readableClaims = (
+    await mapPool(claimRows, 16, async (row) => {
+      const ok = await canReadClaim(row, actorContext, { db: database });
+      return ok ? claimRepo.mapClaimDto(row) : null;
+    })
+  ).filter((c): c is ClaimDto => c !== null);
 
-  for (const { person, claims } of rows) {
+  const claimsByPerson = new Map<string, ClaimDto[]>();
+  for (const c of readableClaims) {
+    if (c.subjectType !== "PERSON") continue;
+    const list = claimsByPerson.get(c.subjectId) ?? [];
+    list.push(c);
+    claimsByPerson.set(c.subjectId, list);
+  }
+
+  for (const person of graph.persons) {
+    const claims = claimsByPerson.get(person.id) ?? [];
     const types = new Set(
       claims.filter((c) => c.status !== "REJECTED").map((c) => c.claimType)
     );

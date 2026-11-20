@@ -275,3 +275,23 @@ export async function listActiveClaimsForSubject(
       )
     );
 }
+
+/** Batch load for agent/overview — all active PERSON claims for many subjects. */
+export async function listActiveClaimsForPersonSubjects(
+  db: DbOrTx,
+  familyId: string,
+  personIds: string[]
+) {
+  if (personIds.length === 0) return [];
+  return db
+    .select()
+    .from(claims)
+    .where(
+      and(
+        eq(claims.familyId, familyId),
+        eq(claims.subjectType, "PERSON"),
+        inArray(claims.subjectId, personIds),
+        isNull(claims.deletedAt)
+      )
+    );
+}
