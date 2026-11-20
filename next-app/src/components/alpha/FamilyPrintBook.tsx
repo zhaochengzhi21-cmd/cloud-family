@@ -403,20 +403,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                   <Link
                     href={`/alpha/families/${familyId}`}
                     className="alpha-print-hide font-semibold text-[color:var(--a-ink)] underline-offset-2 hover:underline"
-                    onClick={() => {
-                      try {
-                        sessionStorage.setItem(
-                          `alpha-evidence-focus:${familyId}`,
-                          source!.id
-                        );
-                        sessionStorage.setItem(
-                          `alpha-tab:${familyId}`,
-                          "overview"
-                        );
-                      } catch {
-                        /* private mode */
-                      }
-                    }}
+                    onClick={() => focusEvidenceInWorkspace(familyId, source!.id)}
                   >
                     [{n}] {label}
                   </Link>
@@ -428,6 +415,15 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       ) : null}
     </article>
   );
+}
+
+function focusEvidenceInWorkspace(familyId: string, evidenceId: string) {
+  try {
+    sessionStorage.setItem(`alpha-evidence-focus:${familyId}`, evidenceId);
+    sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
+  } catch {
+    /* private mode */
+  }
 }
 
 function PrintPersonLink({
@@ -448,6 +444,33 @@ function PrintPersonLink({
         {name}
       </Link>
       <span className="alpha-print-only">{name}</span>
+    </>
+  );
+}
+
+function PrintCiteMark({
+  familyId,
+  evidenceId,
+  n,
+}: {
+  familyId: string;
+  evidenceId: string;
+  n: number | undefined;
+}) {
+  if (n == null) return null;
+  return (
+    <>
+      <sup className="alpha-print-only ml-0.5 text-[color:var(--a-muted)]">
+        [{n}]
+      </sup>
+      <Link
+        href={`/alpha/families/${familyId}`}
+        aria-label={`查看来源 ${n}`}
+        className="alpha-print-hide ml-0.5 align-super text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+        onClick={() => focusEvidenceInWorkspace(familyId, evidenceId)}
+      >
+        [{n}]
+      </Link>
     </>
   );
 }
@@ -520,9 +543,12 @@ function BookEntry({
                     {i > 0 ? "；" : ""}
                     {factText(f)}
                     {f.sources.map((s) => (
-                      <sup key={s.sourceId} className="ml-0.5 text-[color:var(--a-muted)]">
-                        [{sourceNo.get(s.sourceId)}]
-                      </sup>
+                      <PrintCiteMark
+                        key={s.sourceId}
+                        familyId={familyId}
+                        evidenceId={s.sourceId}
+                        n={sourceNo.get(s.sourceId)}
+                      />
                     ))}
                     {f.status !== "ACCEPTED" ? (
                       <span className="ml-1 text-xs text-[color:var(--a-muted)]">
@@ -578,9 +604,12 @@ function BookEntry({
                   </p>
                 ) : null}
                 {f.sources.map((s) => (
-                  <sup key={s.sourceId} className="ml-0.5 text-[color:var(--a-muted)]">
-                    [{sourceNo.get(s.sourceId)}]
-                  </sup>
+                  <PrintCiteMark
+                    key={s.sourceId}
+                    familyId={familyId}
+                    evidenceId={s.sourceId}
+                    n={sourceNo.get(s.sourceId)}
+                  />
                 ))}
               </div>
             );
