@@ -747,7 +747,25 @@ export function PersonProfile({
         alias.length === 0 &&
         deathDate.length === 0 &&
         burial.length === 0 ? (
-          <p className="text-sm text-[color:var(--a-muted)]">暂无生平记录。</p>
+          <div className="alpha-panel border-dashed px-4 py-5">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              暂无生平记录。有编辑权限的家人补充后，会显示在这里。
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link
+                href={workspaceHref}
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+              >
+                返回家族档案
+              </Link>
+              <Link
+                href={`/alpha/families/${familyId}/print?person=${personId}`}
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+              >
+                在打印版家谱中查看
+              </Link>
+            </div>
+          </div>
         ) : (
         <ol className="alpha-lineage-rail space-y-4 pl-6">
           <TimelineEvent
@@ -1845,8 +1863,8 @@ function pendingStatusLabel(status: string, canReview: boolean): string {
       CLAIM_STATUS_LABEL[status as keyof typeof CLAIM_STATUS_LABEL] ?? status
     );
   }
-  if (status === "CONFLICTED") return "需管理员选用";
-  if (status === "PROPOSED") return "待管理员确认";
+  if (status === "CONFLICTED") return "需创建者或管理员选用";
+  if (status === "PROPOSED") return "待创建者或管理员确认";
   return (
     CLAIM_STATUS_LABEL[status as keyof typeof CLAIM_STATUS_LABEL] ?? status
   );
@@ -1895,11 +1913,15 @@ function ClaimValues({
             className="alpha-print-hide text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
             onClick={() => onFocusClaim(differTarget.id, differTarget.status)}
           >
-            {canReview ? "存在不同说法" : "存在不同说法（需管理员选用）"}
+            {canReview
+              ? "存在不同说法"
+              : "存在不同说法（需创建者或管理员选用）"}
           </button>
         ) : (
           <p className="text-xs font-semibold text-[color:var(--a-brand)]">
-            {canReview ? "存在不同说法" : "存在不同说法（需管理员选用）"}
+            {canReview
+              ? "存在不同说法"
+              : "存在不同说法（需创建者或管理员选用）"}
           </p>
         )
       ) : null}

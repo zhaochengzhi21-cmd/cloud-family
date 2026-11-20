@@ -1239,7 +1239,7 @@ export function OverviewTab({
           </div>
           {smartPendingIds.length > 0 && !canReview ? (
             <p className="mb-2 text-sm text-[color:var(--a-muted)]">
-              其中有智能整理写入的资料，需管理员确认后才会成为正式记载。
+              其中有智能整理写入的资料，需创建者或管理员确认后才会成为正式记载。
             </p>
           ) : null}
           <ul className="space-y-2">
@@ -1301,8 +1301,8 @@ export function OverviewTab({
                             ? "去选用说法"
                             : "去确认"
                           : c.status === "CONFLICTED"
-                            ? "需管理员选用"
-                            : "待管理员确认"}
+                            ? "需创建者或管理员选用"
+                            : "待创建者或管理员确认"}
                       </span>
                     </span>
                   </button>
@@ -1487,7 +1487,7 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需管理员重新打开
+                        · 需创建者或管理员重新打开
                       </span>
                     ) : null}
                     {(item.eventType === "EVIDENCE_CREATED" ||
@@ -1526,7 +1526,7 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需管理员恢复
+                        · 需创建者或管理员恢复
                       </span>
                     ) : null}
                     {(item.eventType === "RELATIONSHIP_CREATED" ||
@@ -1590,7 +1590,7 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需管理员恢复
+                        · 需创建者或管理员恢复
                       </span>
                     ) : null}
                   </p>

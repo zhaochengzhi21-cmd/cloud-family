@@ -3537,9 +3537,14 @@ test("明经胡氏：只读成员人物页无资料时生平为空提示", async
       name: sample.wenGuang.preferredName,
     })
   ).toBeVisible({ timeout: 60_000 });
+  const life = viewerPage.getByRole("region", { name: "生平" });
+  await expect(life).toContainText("暂无生平记录。有编辑权限的家人补充后");
   await expect(
-    viewerPage.getByRole("region", { name: "生平" })
-  ).toContainText("暂无生平记录。");
+    life.getByRole("link", { name: "返回家族档案" })
+  ).toBeVisible();
+  await expect(
+    life.getByRole("link", { name: "在打印版家谱中查看" })
+  ).toBeVisible();
   await expect(
     viewerPage.getByRole("button", { name: "补充出生" })
   ).toHaveCount(0);
@@ -3768,7 +3773,7 @@ test("明经胡氏：编辑者打开已移除人物页可去概览", async ({
   await expect(
     page.getByRole("heading", { name: "最近动态" })
   ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("需管理员恢复").first()).toBeVisible({
+  await expect(page.getByText("需创建者或管理员恢复").first()).toBeVisible({
     timeout: 60_000,
   });
 });
@@ -4327,7 +4332,7 @@ test("明经胡氏：编辑者人物页待确认 chip 需管理员", async ({
   ).toBeVisible({ timeout: 60_000 });
   const life = page.getByRole("region", { name: "档案" });
   await expect(
-    life.getByRole("button", { name: "待管理员确认", exact: true })
+    life.getByRole("button", { name: "待创建者或管理员确认", exact: true })
   ).toBeVisible({ timeout: 60_000 });
   await expect(
     life.getByRole("button", { name: "待确认", exact: true })
@@ -4368,9 +4373,9 @@ test("明经胡氏：编辑者概览待确认显示需管理员", async ({
   await page.getByRole("tab", { name: "概览" }).click();
   const pending = page.getByRole("region", { name: /待确认资料/ });
   await expect(pending).toBeVisible({ timeout: 60_000 });
-  await expect(pending.getByText("待管理员确认")).toBeVisible();
+  await expect(pending.getByText("待创建者或管理员确认")).toBeVisible();
   await pending
-    .getByRole("button", { name: /待管理员确认/ })
+    .getByRole("button", { name: /待创建者或管理员确认/ })
     .click();
   await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
     timeout: 60_000,
@@ -4381,7 +4386,7 @@ test("明经胡氏：编辑者概览待确认显示需管理员", async ({
   await expect(
     page
       .locator(`[data-claim-id="${claimId}"]`)
-      .getByText("需管理员确认后才会成为正式记载")
+      .getByText("需创建者或管理员确认后才会成为正式记载")
   ).toBeVisible();
   await expect(
     page

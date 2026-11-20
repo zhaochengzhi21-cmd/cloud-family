@@ -22,6 +22,9 @@ export const ROLE_LABEL = {
   VIEWER: "只读",
 } as const;
 
+/** Who can confirm / reject / restore admin-gated actions (OWNER + ADMIN). */
+export const REVIEWER_CONTACT = "创建者或管理员";
+
 export const CLAIM_STATUS_LABEL = {
   PROPOSED: "待确认",
   ACCEPTED: "已确认",

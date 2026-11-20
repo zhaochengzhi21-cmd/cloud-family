@@ -780,11 +780,11 @@ export function FamilyWorkspace({
         </div>
         {!canEdit ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-            当前为只读。如需添加成员或资料，请联系家族创建者。
+            当前为只读。如需添加成员或资料，请联系创建者或管理员。
           </p>
         ) : !canReview ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-            你可以编辑资料；确认或不采用需由创建者/管理员操作。
+            你可以编辑资料；确认或不采用需由创建者或管理员操作。
           </p>
         ) : null}
       </header>
@@ -3003,7 +3003,7 @@ function RecordsTab({
                   </button>
                 ) : canEdit ? (
                   <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
-                    需管理员重新打开
+                    需创建者或管理员重新打开
                   </span>
                 ) : null}
               </li>
@@ -3474,7 +3474,7 @@ function AddClaimForm({
         <p className="text-xs text-[color:var(--a-muted)]">
           {canReview
             ? "保存后为「待确认」，可继续添加资料来源后再确认。"
-            : "保存后为「待确认」。你可以先补上资料来源；确认或不采用需由创建者/管理员操作。"}
+            : "保存后为「待确认」。你可以先补上资料来源；确认或不采用需由创建者或管理员操作。"}
         </p>
         <button
           type="submit"
@@ -3566,7 +3566,7 @@ function ConflictChooser({
       <p className="mt-1 text-sm text-[color:var(--a-muted)]">
         {canReview
           ? "请选用一种说法作为正式记载，或标记不采用。"
-          : "目前资料中记录不一致，需管理员选用一种说法。"}
+          : "目前资料中记录不一致，需创建者或管理员选用一种说法。"}
       </p>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2">
         {claims.map((c, i) => {
@@ -3812,7 +3812,7 @@ function ClaimCard({
           </div>
         ) : !canReview && claim.status === "PROPOSED" ? (
           <p className="text-xs text-[color:var(--a-muted)]">
-            需管理员确认后才会成为正式记载
+            需创建者或管理员确认后才会成为正式记载
           </p>
         ) : null}
         {canReview && claim.status === "CONFLICTED" ? (
@@ -3881,7 +3881,7 @@ function ClaimCard({
           </div>
         ) : !canReview && claim.status === "CONFLICTED" ? (
           <p className="text-xs text-[color:var(--a-muted)]">
-            需管理员选用一种说法
+            需创建者或管理员选用一种说法
           </p>
         ) : null}
         {claim.status === "ACCEPTED" ? (
@@ -6491,7 +6491,7 @@ function PersonDrawer({
                       </button>
                     ) : canEdit ? (
                       <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
-                        需管理员重新打开
+                        需创建者或管理员重新打开
                       </span>
                     ) : null}
                   </li>
