@@ -445,6 +445,8 @@ export function FamilyWorkspace({
           personId: person,
           claimId: claim,
           statusFilter,
+          openEvidence: true,
+          evidenceType,
         });
         setRecordsFocus({
           personId: person,
@@ -623,7 +625,7 @@ export function FamilyWorkspace({
 
   const [recordsFocus, setRecordsFocus] = useState<{
     personId: string;
-    claimId: string;
+    claimId?: string;
     statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     nonce: number;
   } | null>(null);
@@ -632,6 +634,8 @@ export function FamilyWorkspace({
     personId: string;
     claimId: string;
     statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+    openEvidence?: boolean;
+    evidenceType?: string;
   } | null>(null);
   /** Records-tab subject mirrored into ?person= (not the member drawer). */
   const [recordsUrlPerson, setRecordsUrlPerson] = useState<string | null>(null);
@@ -785,25 +789,32 @@ export function FamilyWorkspace({
           nonce: Date.now(),
         });
       }
-      if (resolved.focusClaimId) {
+      if (resolved.focusClaimId || resolved.statusFilter) {
         setRecordsFocus({
           personId,
           claimId: resolved.focusClaimId,
           statusFilter: resolved.statusFilter,
           nonce: Date.now(),
         });
-        setShareClaim({
-          personId,
-          claimId: resolved.focusClaimId,
-          statusFilter: resolved.statusFilter,
-        });
-        if (resolved.openEvidence) {
-          setEvidenceSeed({
+        if (resolved.focusClaimId) {
+          setShareClaim({
             personId,
             claimId: resolved.focusClaimId,
+            statusFilter: resolved.statusFilter,
+            openEvidence: resolved.openEvidence,
             evidenceType: resolved.evidenceType,
-            nonce: Date.now(),
           });
+          if (resolved.openEvidence) {
+            setEvidenceSeed({
+              personId,
+              claimId: resolved.focusClaimId,
+              evidenceType: resolved.evidenceType,
+              nonce: Date.now(),
+            });
+          }
+        } else {
+          setShareClaim(null);
+          setRecordsUrlPerson(personId);
         }
       }
       setTab("records");
@@ -844,6 +855,17 @@ export function FamilyWorkspace({
         params.delete("claimStatus");
       }
       params.delete("claimType");
+      if (shareClaim.openEvidence) {
+        params.set("openEvidence", "1");
+        if (shareClaim.evidenceType) {
+          params.set("evidenceType", shareClaim.evidenceType);
+        } else {
+          params.delete("evidenceType");
+        }
+      } else {
+        params.delete("openEvidence");
+        params.delete("evidenceType");
+      }
     } else if (
       pendingClaim &&
       pendingClaimPerson &&
@@ -861,9 +883,21 @@ export function FamilyWorkspace({
         params.set("claimStatus", pendingClaimStatus);
       }
       params.delete("claimType");
+      const pendingOpenEvidence = searchParams.get("openEvidence");
+      const pendingEvidenceType = searchParams.get("evidenceType");
+      if (pendingOpenEvidence === "1" || pendingEvidenceType) {
+        params.set("openEvidence", "1");
+        if (pendingEvidenceType) params.set("evidenceType", pendingEvidenceType);
+        else params.delete("evidenceType");
+      } else {
+        params.delete("openEvidence");
+        params.delete("evidenceType");
+      }
     } else if (tab === "records") {
       params.delete("claim");
       params.delete("claimStatus");
+      params.delete("openEvidence");
+      params.delete("evidenceType");
       // On 资料, ?person= is the records subject — not the member drawer.
       const recordsPerson =
         recordsUrlPerson || pendingClaimPerson || null;
@@ -878,6 +912,8 @@ export function FamilyWorkspace({
       params.delete("claim");
       params.delete("claimStatus");
       params.delete("claimType");
+      params.delete("openEvidence");
+      params.delete("evidenceType");
       // Prefer open drawer; otherwise keep lineage highlight subject shareable.
       const lineagePerson =
         selectedPersonId ||
@@ -900,6 +936,8 @@ export function FamilyWorkspace({
       params.delete("claim");
       params.delete("claimStatus");
       params.delete("claimType");
+      params.delete("openEvidence");
+      params.delete("evidenceType");
       params.delete("kin");
       if (selectedPersonId) params.set("person", selectedPersonId);
       else params.delete("person");
@@ -1745,8 +1783,14 @@ export function FamilyWorkspace({
             recordsFocus={recordsFocus}
             onRecordsFocusConsumed={() => setRecordsFocus(null)}
             onRecordsPersonChange={setRecordsUrlPerson}
-            onShareClaim={(personId, claimId, statusFilter) =>
-              setShareClaim({ personId, claimId, statusFilter })
+            onShareClaim={(personId, claimId, statusFilter, opts) =>
+              setShareClaim({
+                personId,
+                claimId,
+                statusFilter,
+                openEvidence: opts?.openEvidence,
+                evidenceType: opts?.evidenceType,
+              })
             }
             onOpenSourcesLibrary={(evidenceId) => {
               setSourcesFocusEvidenceId(evidenceId);
@@ -3142,7 +3186,7 @@ function RecordsTab({
   onEvidenceSeedConsumed: () => void;
   recordsFocus: {
     personId: string;
-    claimId: string;
+    claimId?: string;
     statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     nonce: number;
   } | null;
@@ -3151,7 +3195,8 @@ function RecordsTab({
   onShareClaim?: (
     personId: string,
     claimId: string,
-    statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL"
+    statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL",
+    opts?: { openEvidence?: boolean; evidenceType?: string }
   ) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onAuthError: (e: unknown) => boolean;
@@ -3347,6 +3392,15 @@ function RecordsTab({
     if (!recordsFocus || loading) return;
     if (personId !== recordsFocus.personId) return;
     if (claimsPersonId !== personId) return;
+    // Person + status filter only (e.g. overview pending overflow chips).
+    if (!recordsFocus.claimId) {
+      setClaimFocusMiss(false);
+      if (recordsFocus.statusFilter) {
+        setStatusFilter(recordsFocus.statusFilter);
+      }
+      onRecordsFocusConsumed();
+      return;
+    }
     const focused = claims.find((c) => c.id === recordsFocus.claimId);
     if (!focused) {
       setClaimFocusMiss(true);
@@ -3788,6 +3842,17 @@ function RecordsTab({
                   setStatusFilter("ALL");
                   setOpenEvidenceClaimId(id);
                   setOpenEvidenceType(null);
+                  onShareClaim?.(personId, id, "ALL", { openEvidence: true });
+                  const qs = new URLSearchParams({
+                    tab: "records",
+                    person: personId,
+                    claim: id,
+                    claimStatus: "ALL",
+                    openEvidence: "1",
+                  });
+                  setFlashCopyUrl(
+                    `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                  );
                 }}
                 onOpenParticipants={onOpenParticipants}
               />
@@ -3810,10 +3875,35 @@ function RecordsTab({
                       setOpenEvidenceClaimId(null);
                       setOpenEvidenceType(null);
                     }}
+                    onShareOpenEvidence={(open, evidenceType) => {
+                      const shareStatus =
+                        statusFilter === "PROPOSED" ||
+                        statusFilter === "CONFLICTED" ||
+                        statusFilter === "ALL"
+                          ? statusFilter
+                          : "ALL";
+                      onShareClaim?.(personId, c.id, shareStatus, {
+                        openEvidence: open,
+                        evidenceType,
+                      });
+                    }}
                     onOpenEvidenceAfterAccept={(id) => {
                       setStatusFilter("ALL");
                       setOpenEvidenceClaimId(id);
                       setOpenEvidenceType(null);
+                      onShareClaim?.(personId, id, "ALL", {
+                        openEvidence: true,
+                      });
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: personId,
+                        claim: id,
+                        claimStatus: "ALL",
+                        openEvidence: "1",
+                      });
+                      setFlashCopyUrl(
+                        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                      );
                     }}
                     onProposeAlternate={(claimType) => {
                       setStatusFilter("ALL");
@@ -4492,7 +4582,7 @@ function ConflictChooser({
       }
       onFlash(
         unsourced && canEdit
-          ? "已采用这条说法。接着可以补上谱页或其他来源。"
+          ? "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
           : "已采用这条说法"
       );
       await onChanged();
@@ -4615,6 +4705,7 @@ function ClaimCard({
   seedEvidenceType = null,
   onAutoOpenEvidenceConsumed,
   onOpenEvidenceAfterAccept,
+  onShareOpenEvidence,
   onProposeAlternate,
   onOpenSourcesLibrary,
   onOpenParticipants,
@@ -4634,6 +4725,8 @@ function ClaimCard({
   seedEvidenceType?: string | null;
   onAutoOpenEvidenceConsumed?: () => void;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
+  /** Keep ?openEvidence=1 in the address bar while the attach composer is open. */
+  onShareOpenEvidence?: (open: boolean, evidenceType?: string) => void;
   /** Seed composer for a different SINGLETON saying. */
   onProposeAlternate?: (claimType: string) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
@@ -4665,6 +4758,9 @@ function ClaimCard({
   const [evidenceDetailId, setEvidenceDetailId] = useState<string | null>(null);
   const [reviewBusy, setReviewBusy] = useState(false);
   const [copyFlash, setCopyFlash] = useState("");
+  const unsourcedAccepted =
+    claim.status === "ACCEPTED" &&
+    !(bundle?.evidenceLinks && bundle.evidenceLinks.length > 0);
 
   async function copyClaimLink() {
     const qs = new URLSearchParams({
@@ -4679,6 +4775,24 @@ function ClaimCard({
     try {
       await navigator.clipboard.writeText(url);
       setCopyFlash("已复制链接");
+    } catch {
+      setCopyFlash("请手动复制地址栏链接");
+    }
+    window.setTimeout(() => setCopyFlash(""), 2500);
+  }
+
+  async function copyEvidenceHandoffLink() {
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: personId,
+      claim: claim.id,
+      claimStatus: "ALL",
+      openEvidence: "1",
+    });
+    const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyFlash("已复制补来源链接");
     } catch {
       setCopyFlash("请手动复制地址栏链接");
     }
@@ -4704,8 +4818,15 @@ function ClaimCard({
     if (!autoOpenEvidence || !canEdit) return;
     if (seedEvidenceType) setForcedEvidenceType(seedEvidenceType);
     setShowEvidence(true);
+    onShareOpenEvidence?.(true, seedEvidenceType ?? undefined);
     onAutoOpenEvidenceConsumed?.();
-  }, [autoOpenEvidence, canEdit, seedEvidenceType, onAutoOpenEvidenceConsumed]);
+  }, [
+    autoOpenEvidence,
+    canEdit,
+    seedEvidenceType,
+    onAutoOpenEvidenceConsumed,
+    onShareOpenEvidence,
+  ]);
 
   const statusLabel =
     CLAIM_STATUS_LABEL[claim.status as keyof typeof CLAIM_STATUS_LABEL] ??
@@ -4760,6 +4881,15 @@ function ClaimCard({
             >
               复制本条链接
             </button>
+            {canEdit && unsourcedAccepted ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => void copyEvidenceHandoffLink()}
+              >
+                复制补来源链接
+              </button>
+            ) : null}
             {copyFlash ? (
               <span className="text-xs text-[color:var(--a-muted)]" role="status">
                 {copyFlash}
@@ -4790,7 +4920,7 @@ function ClaimCard({
                   }
                   onFlash(
                     unsourced && canEdit
-                      ? "已确认这条资料。接着可以补上谱页或其他来源。"
+                      ? "已确认这条资料。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
                       : "已确认这条资料"
                   );
                   await onChanged();
@@ -4870,7 +5000,7 @@ function ClaimCard({
                   }
                   onFlash(
                     unsourced && canEdit
-                      ? "已采用这条说法。接着可以补上谱页或其他来源。"
+                      ? "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
                       : "已采用这条说法"
                   );
                   await onChanged();
@@ -5126,7 +5256,10 @@ function ClaimCard({
         <button
           type="button"
           className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
-          onClick={() => setShowEvidence(true)}
+          onClick={() => {
+            setShowEvidence(true);
+            onShareOpenEvidence?.(true);
+          }}
         >
           添加资料来源
         </button>
@@ -5146,10 +5279,12 @@ function ClaimCard({
           onClose={() => {
             setShowEvidence(false);
             setForcedEvidenceType(null);
+            onShareOpenEvidence?.(false);
           }}
           onDone={async () => {
             setShowEvidence(false);
             setForcedEvidenceType(null);
+            onShareOpenEvidence?.(false);
             onFlash("已添加资料来源");
             const b = await v1api.getClaim(familyId, claim.id);
             setBundle(b);

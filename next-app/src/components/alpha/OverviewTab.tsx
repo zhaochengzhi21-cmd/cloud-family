@@ -537,6 +537,68 @@ export function OverviewTab({
 
   const smartBatchCount = Math.min(20, smartPendingIds.length);
 
+  /** People with pending beyond the overview slice (claims 31+). */
+  const pendingOverflowPeople = useMemo(() => {
+    if (!overview || overview.pendingTotal <= overview.pending.length) {
+      return [] as Array<{
+        id: string;
+        name: string;
+        statusFilter: "PROPOSED" | "CONFLICTED";
+        leftover: number;
+      }>;
+    }
+    const shownProposed = new Map<string, number>();
+    const shownConflicted = new Map<string, number>();
+    for (const c of overview.pending) {
+      if (c.status === "CONFLICTED") {
+        shownConflicted.set(
+          c.personId,
+          (shownConflicted.get(c.personId) ?? 0) + 1
+        );
+      } else {
+        shownProposed.set(
+          c.personId,
+          (shownProposed.get(c.personId) ?? 0) + 1
+        );
+      }
+    }
+    const leftovers: Array<{
+      id: string;
+      name: string;
+      statusFilter: "PROPOSED" | "CONFLICTED";
+      leftover: number;
+    }> = [];
+    for (const [personId, stats] of Object.entries(overview.personStats)) {
+      const propLeft = Math.max(
+        0,
+        stats.proposed - (shownProposed.get(personId) ?? 0)
+      );
+      const confLeft = Math.max(
+        0,
+        stats.conflicted - (shownConflicted.get(personId) ?? 0)
+      );
+      if (propLeft + confLeft <= 0) continue;
+      const name = personName.get(personId) ?? "成员";
+      if (confLeft > 0) {
+        leftovers.push({
+          id: personId,
+          name,
+          statusFilter: "CONFLICTED",
+          leftover: confLeft,
+        });
+      } else {
+        leftovers.push({
+          id: personId,
+          name,
+          statusFilter: "PROPOSED",
+          leftover: propLeft,
+        });
+      }
+    }
+    leftovers.sort((a, b) => b.leftover - a.leftover);
+    return leftovers.slice(0, 8);
+  }, [overview, personName]);
+
   const reviewSmartPending = useCallback(
     async (action: "accept" | "reject") => {
       if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
@@ -1279,25 +1341,34 @@ export function OverviewTab({
             </p>
           ) : null}
           {overview.pendingTotal > overview.pending.length ? (
-            <p className="mb-2 text-sm text-[color:var(--a-muted)]">
-              列表优先显示前 {overview.pending.length} 条；处理完后点刷新可看到其余{" "}
-              {overview.pendingTotal - overview.pending.length} 条。也可先到资料页按人继续处理。
-              <button
-                type="button"
-                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                onClick={() => {
-                  const first = overview.pending[0];
-                  if (!first) return;
-                  onOpenRecords(first.personId, {
-                    focusClaimId: first.claimId,
-                    statusFilter:
-                      first.status === "CONFLICTED" ? "CONFLICTED" : "PROPOSED",
-                  });
-                }}
-              >
-                去资料页
-              </button>
-            </p>
+            <div className="mb-2 space-y-2">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                列表优先显示前 {overview.pending.length} 条；其余{" "}
+                {overview.pendingTotal - overview.pending.length}{" "}
+                条可到资料页按人继续处理（处理完后点刷新也会出现在此列表）。
+              </p>
+              {pendingOverflowPeople.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {pendingOverflowPeople.map((p) => (
+                    <button
+                      key={`${p.id}-${p.statusFilter}`}
+                      type="button"
+                      className="alpha-chip alpha-chip-proposed cursor-pointer font-semibold underline-offset-2 hover:underline"
+                      onClick={() =>
+                        onOpenRecords(p.id, {
+                          statusFilter: p.statusFilter,
+                        })
+                      }
+                    >
+                      {p.name}
+                      {p.statusFilter === "CONFLICTED"
+                        ? ` · 不同说法约 ${p.leftover} 条`
+                        : ` · 待确认约 ${p.leftover} 条`}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <ul className="space-y-2">
             {overview.pending.map((c) => {
