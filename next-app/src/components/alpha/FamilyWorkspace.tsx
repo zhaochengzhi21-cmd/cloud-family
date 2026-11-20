@@ -1180,8 +1180,11 @@ export function FamilyWorkspace({
         personMissAnnounced.current !== person
       ) {
         personMissAnnounced.current = person;
+        setFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+        );
         setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可查看参与家人。"
+          "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可复制链接发给有编辑权限的家人，或查看参与家人。"
         );
         setFlashParticipantsCta(true);
         setRecordsUrlPerson(null);
@@ -1198,8 +1201,11 @@ export function FamilyWorkspace({
         personMissAnnounced.current !== person
       ) {
         personMissAnnounced.current = person;
+        setFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+        );
         setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可查看参与家人。"
+          "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可复制链接发给有编辑权限的家人，或查看参与家人。"
         );
         setFlashParticipantsCta(true);
         setLineageUrlPerson(null);
@@ -1215,8 +1221,11 @@ export function FamilyWorkspace({
     ) {
       personMissAnnounced.current = person;
       setSelectedPersonId(null);
+      setFlashCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+      );
       setFlash(
-        "链接指向的成员已不在名单中，可能刚被移除。可在概览「参与家人」中联系有编辑权限的家人。"
+        "链接指向的成员已不在名单中，可能刚被移除。可复制链接发给有编辑权限的家人，或查看参与家人。"
       );
       setFlashParticipantsCta(true);
     }
