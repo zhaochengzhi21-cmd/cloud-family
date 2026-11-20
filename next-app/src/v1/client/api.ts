@@ -316,9 +316,65 @@ export const v1api = {
         expiresAt: string;
         createdAt: string;
       }>;
-      members: Array<{ role: string; isYou: boolean; joinedAt: string }>;
+      members: Array<{
+        membershipId: string;
+        role: string;
+        isYou: boolean;
+        joinedAt: string;
+        maskedEmail: string | null;
+        manageable: boolean;
+      }>;
+      actorRole: string;
       invitableRoles: Array<"ADMIN" | "EDITOR" | "VIEWER">;
     }>(`/api/v1/families/${familyId}/invites`),
+
+  updateFamilyMemberRole: (
+    familyId: string,
+    membershipId: string,
+    role: "ADMIN" | "EDITOR" | "VIEWER",
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ membership: { membershipId: string; role: string } }>(
+      `/api/v1/families/${familyId}/members/${membershipId}`,
+      {
+        method: "PATCH",
+        body: { role },
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
+
+  removeFamilyMember: (
+    familyId: string,
+    membershipId: string,
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ membershipId: string }>(
+      `/api/v1/families/${familyId}/members/${membershipId}`,
+      {
+        method: "DELETE",
+        body: {},
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
+
+  leaveFamily: (familyId: string, opts?: { idempotencyKey?: string }) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ membershipId: string }>(
+      `/api/v1/families/${familyId}/members/me/leave`,
+      {
+        method: "POST",
+        body: {},
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
 
   createFamilyInvite: (
     familyId: string,

@@ -115,6 +115,50 @@ export function FamilyInvites({
     }
   }
 
+  async function changeRole(
+    membershipId: string,
+    next: "ADMIN" | "EDITOR" | "VIEWER"
+  ) {
+    setBusy(true);
+    setMessage("");
+    setFailed(false);
+    try {
+      await v1api.updateFamilyMemberRole(familyId, membershipId, next, {
+        idempotencyKey: crypto.randomUUID(),
+      });
+      setMessage(`已改为${roleLabel(next)}`);
+      await load();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeMember(membershipId: string, label: string) {
+    if (!window.confirm(`确认移除「${label}」？对方将无法再打开这个家族。`)) {
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    setFailed(false);
+    try {
+      await v1api.removeFamilyMember(familyId, membershipId, {
+        idempotencyKey: crypto.randomUUID(),
+      });
+      setMessage("已移除该账号");
+      await load();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!access) {
     return message ? (
       <p role="alert" className="text-sm text-[color:var(--a-danger)]">
@@ -143,6 +187,122 @@ export function FamilyInvites({
             .join("、")}
           。可复制链接发给家人，也可填写邮箱尝试发送；对方登录后即可加入。每条链接只能用一次，7 天内有效。
         </p>
+
+        <div>
+          <p className="mb-2 text-sm font-semibold text-[color:var(--a-ink)]">
+            已加入的账号
+          </p>
+          <ul
+            className="divide-y divide-[color:var(--a-brand-line)] text-sm"
+            aria-label="已加入的账号"
+          >
+            {access.members.map((m) => {
+              const label =
+                m.isYou
+                  ? "你"
+                  : m.maskedEmail ?? `账号 · ${roleLabel(m.role)}`;
+              const roleOptions = access.invitableRoles.filter((r) => {
+                if (access.actorRole === "OWNER") return true;
+                return r !== "ADMIN";
+              });
+              return (
+                <li
+                  key={m.membershipId}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[color:var(--a-ink)]">
+                      {label}
+                      {m.isYou && m.maskedEmail ? (
+                        <span className="ml-2 font-normal text-[color:var(--a-muted)]">
+                          {m.maskedEmail}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-[color:var(--a-muted)]">
+                      {roleLabel(m.role)}
+                      {" · "}
+                      {relativeTimeLabel(m.joinedAt)}加入
+                    </p>
+                  </div>
+                  {m.manageable && !m.isYou ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="sr-only" htmlFor={`member-role-${m.membershipId}`}>
+                        权限
+                      </label>
+                      <select
+                        id={`member-role-${m.membershipId}`}
+                        value={
+                          roleOptions.includes(m.role as InviteRole)
+                            ? m.role
+                            : roleOptions[0] ?? "VIEWER"
+                        }
+                        disabled={busy}
+                        onChange={(e) =>
+                          void changeRole(
+                            m.membershipId,
+                            e.target.value as InviteRole
+                          )
+                        }
+                        className="alpha-input !min-h-[32px] !w-auto !px-2 !text-xs"
+                      >
+                        {roleOptions.map((r) => (
+                          <option key={r} value={r}>
+                            {roleLabel(r)}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          void removeMember(m.membershipId, label)
+                        }
+                        className="font-semibold text-[color:var(--a-danger)] underline-offset-2 hover:underline"
+                      >
+                        移除
+                      </button>
+                    </div>
+                  ) : null}
+                  {m.isYou && m.role !== "OWNER" ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            "确认退出这个家族？退出后需再次受邀才能加入。"
+                          )
+                        ) {
+                          return;
+                        }
+                        setBusy(true);
+                        setMessage("");
+                        setFailed(false);
+                        void (async () => {
+                          try {
+                            await v1api.leaveFamily(familyId, {
+                              idempotencyKey: crypto.randomUUID(),
+                            });
+                            window.location.href = "/alpha/families";
+                          } catch (e) {
+                            if (onAuthError(e)) return;
+                            setFailed(true);
+                            setMessage(userMessageForApiError(e));
+                            setBusy(false);
+                          }
+                        })();
+                      }}
+                      className="font-semibold text-[color:var(--a-danger)] underline-offset-2 hover:underline"
+                    >
+                      退出家族
+                    </button>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <label className="min-w-0 flex-1">

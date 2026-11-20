@@ -54,10 +54,14 @@ export async function GET(
         createdAt: i.createdAt.toISOString(),
       })),
       members: summary.members.map((m) => ({
+        membershipId: m.membershipId,
         role: m.role,
         isYou: m.isYou,
         joinedAt: m.joinedAt.toISOString(),
+        maskedEmail: m.maskedEmail,
+        manageable: m.manageable,
       })),
+      actorRole: summary.actorRole,
       invitableRoles: summary.invitableRoles,
     });
   } catch (e) {

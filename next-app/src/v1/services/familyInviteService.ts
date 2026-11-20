@@ -8,15 +8,16 @@
  */
 
 import { randomUUID } from "crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getV1Db, type V1Db } from "@/db/client";
-import { familyMemberships } from "@/db/schema";
+import { familyMemberships, users } from "@/db/schema";
 import type { MembershipRole } from "@/db/constants";
 import { InviteDomainError } from "@/v1/domain/invite/errors";
 import {
   generateShareRawToken,
   hashShareToken,
 } from "@/v1/domain/permission/shareToken";
+import { decryptEmail } from "@/v1/domain/auth/crypto";
 import { authorizeFamilyAction } from "@/v1/services/permissionService";
 import * as inviteRepo from "@/v1/repositories/familyInviteRepository";
 import * as familyRepo from "@/v1/repositories/familyRepository";
@@ -24,6 +25,23 @@ import {
   advanceFamilyVersion,
   lockFamilyForMutation,
 } from "@/v1/repositories/familyMutationRepository";
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return "***";
+  const tip = local.slice(0, Math.min(2, local.length));
+  return `${tip}***@${domain}`;
+}
+
+function canManageMember(
+  actorRole: MembershipRole,
+  targetRole: MembershipRole
+): boolean {
+  if (targetRole === "OWNER") return false;
+  if (actorRole === "OWNER") return true;
+  if (actorRole === "ADMIN") return targetRole === "EDITOR" || targetRole === "VIEWER";
+  return false;
+}
 
 export const FAMILY_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -110,7 +128,15 @@ export async function createFamilyInvite(
 
 export type FamilyAccessSummary = {
   invites: Array<{ id: string; role: string; expiresAt: Date; createdAt: Date }>;
-  members: Array<{ role: string; isYou: boolean; joinedAt: Date }>;
+  members: Array<{
+    membershipId: string;
+    role: string;
+    isYou: boolean;
+    joinedAt: Date;
+    maskedEmail: string | null;
+    manageable: boolean;
+  }>;
+  actorRole: MembershipRole;
   /** Roles the caller may hand out. */
   invitableRoles: InviteRole[];
 };
@@ -126,6 +152,7 @@ export async function getFamilyAccessSummary(
   const invites = await inviteRepo.listOpenInvites(db, familyId, now);
   const rows = await db
     .select({
+      id: familyMemberships.id,
       userId: familyMemberships.userId,
       role: familyMemberships.role,
       createdAt: familyMemberships.createdAt,
@@ -137,17 +164,193 @@ export async function getFamilyAccessSummary(
         eq(familyMemberships.status, "ACTIVE")
       )
     );
+  const userIds = rows.map((r) => r.userId);
+  const emailByUser = new Map<string, string | null>();
+  if (userIds.length > 0) {
+    const userRows = await db
+      .select({
+        id: users.id,
+        emailCiphertext: users.emailCiphertext,
+        emailKeyVersion: users.emailKeyVersion,
+      })
+      .from(users)
+      .where(inArray(users.id, userIds));
+    for (const u of userRows) {
+      let masked: string | null = null;
+      if (u.emailCiphertext && u.emailKeyVersion != null) {
+        try {
+          masked = maskEmail(
+            decryptEmail(u.emailCiphertext as Buffer, u.emailKeyVersion)
+          );
+        } catch {
+          masked = null;
+        }
+      }
+      emailByUser.set(u.id, masked);
+    }
+  }
   return {
     invites,
     members: rows
       .map((r) => ({
+        membershipId: r.id,
         role: r.role,
         isYou: r.userId === actorUserId,
         joinedAt: r.createdAt,
+        maskedEmail: emailByUser.get(r.userId) ?? null,
+        manageable: canManageMember(actorRole, r.role as MembershipRole),
       }))
       .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime()),
+    actorRole,
     invitableRoles: INVITE_ROLES.filter((r) => canInviteRole(actorRole, r)),
   };
+}
+
+/**
+ * Change a non-OWNER member's role. OWNER may set ADMIN/EDITOR/VIEWER;
+ * ADMIN may only set EDITOR/VIEWER on those roles.
+ */
+export async function updateFamilyMemberRole(
+  familyId: string,
+  membershipId: string,
+  actorUserId: string,
+  role: string,
+  options?: { db?: V1Db; now?: Date }
+): Promise<{ membershipId: string; role: InviteRole }> {
+  if (!INVITE_ROLES.includes(role as InviteRole)) {
+    throw new InviteDomainError("INVALID_INPUT");
+  }
+  const db = dbOrDefault(options?.db);
+  const actorRole = await requireManager(db, familyId, actorUserId);
+  if (!canInviteRole(actorRole, role as InviteRole)) {
+    throw new InviteDomainError("FORBIDDEN");
+  }
+  const now = options?.now ?? new Date();
+  return db.transaction(async (tx) => {
+    await lockFamilyForMutation(tx, familyId);
+    const [row] = await tx
+      .select()
+      .from(familyMemberships)
+      .where(
+        and(
+          eq(familyMemberships.id, membershipId),
+          eq(familyMemberships.familyId, familyId),
+          eq(familyMemberships.status, "ACTIVE")
+        )
+      )
+      .limit(1);
+    if (!row) throw new InviteDomainError("INVITE_NOT_FOUND");
+    if (!canManageMember(actorRole, row.role as MembershipRole)) {
+      throw new InviteDomainError("FORBIDDEN");
+    }
+    if (row.userId === actorUserId) {
+      throw new InviteDomainError("FORBIDDEN");
+    }
+    await tx
+      .update(familyMemberships)
+      .set({ role, updatedAt: now })
+      .where(eq(familyMemberships.id, membershipId));
+    await advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId,
+      summary: "Member role updated",
+      eventType: "MEMBERSHIP_ROLE_CHANGED",
+      entityType: "MEMBERSHIP",
+      entityId: membershipId,
+      metadataJson: { role, previousRole: row.role },
+      now,
+    });
+    return { membershipId, role: role as InviteRole };
+  });
+}
+
+/** Soft-remove (SUSPENDED) a non-OWNER member. */
+export async function removeFamilyMember(
+  familyId: string,
+  membershipId: string,
+  actorUserId: string,
+  options?: { db?: V1Db; now?: Date }
+): Promise<{ membershipId: string }> {
+  const db = dbOrDefault(options?.db);
+  const actorRole = await requireManager(db, familyId, actorUserId);
+  const now = options?.now ?? new Date();
+  return db.transaction(async (tx) => {
+    await lockFamilyForMutation(tx, familyId);
+    const [row] = await tx
+      .select()
+      .from(familyMemberships)
+      .where(
+        and(
+          eq(familyMemberships.id, membershipId),
+          eq(familyMemberships.familyId, familyId),
+          eq(familyMemberships.status, "ACTIVE")
+        )
+      )
+      .limit(1);
+    if (!row) throw new InviteDomainError("INVITE_NOT_FOUND");
+    if (!canManageMember(actorRole, row.role as MembershipRole)) {
+      throw new InviteDomainError("FORBIDDEN");
+    }
+    if (row.userId === actorUserId) {
+      throw new InviteDomainError("FORBIDDEN");
+    }
+    await tx
+      .update(familyMemberships)
+      .set({ status: "SUSPENDED", updatedAt: now })
+      .where(eq(familyMemberships.id, membershipId));
+    await advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId,
+      summary: "Member removed",
+      eventType: "MEMBERSHIP_SUSPENDED",
+      entityType: "MEMBERSHIP",
+      entityId: membershipId,
+      metadataJson: { previousRole: row.role },
+      now,
+    });
+    return { membershipId };
+  });
+}
+
+/** Non-OWNER leaves the family (self → SUSPENDED). */
+export async function leaveFamily(
+  familyId: string,
+  actorUserId: string,
+  options?: { db?: V1Db; now?: Date }
+): Promise<{ membershipId: string }> {
+  const db = dbOrDefault(options?.db);
+  const now = options?.now ?? new Date();
+  return db.transaction(async (tx) => {
+    await lockFamilyForMutation(tx, familyId);
+    const [row] = await tx
+      .select()
+      .from(familyMemberships)
+      .where(
+        and(
+          eq(familyMemberships.familyId, familyId),
+          eq(familyMemberships.userId, actorUserId),
+          eq(familyMemberships.status, "ACTIVE")
+        )
+      )
+      .limit(1);
+    if (!row) throw new InviteDomainError("FAMILY_NOT_FOUND");
+    if (row.role === "OWNER") throw new InviteDomainError("FORBIDDEN");
+    await tx
+      .update(familyMemberships)
+      .set({ status: "SUSPENDED", updatedAt: now })
+      .where(eq(familyMemberships.id, row.id));
+    await advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId,
+      summary: "Member left family",
+      eventType: "MEMBERSHIP_LEFT",
+      entityType: "MEMBERSHIP",
+      entityId: row.id,
+      metadataJson: { previousRole: row.role },
+      now,
+    });
+    return { membershipId: row.id };
+  });
 }
 
 export async function revokeFamilyInvite(
