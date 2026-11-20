@@ -426,16 +426,28 @@ export function FamilyWorkspace({
         params.get("tab") === "records" &&
         openEvidence
       ) {
+        const statusRaw = params.get("claimStatus");
+        const statusFilter =
+          statusRaw === "PROPOSED" ||
+          statusRaw === "CONFLICTED" ||
+          statusRaw === "ALL"
+            ? statusRaw
+            : undefined;
         setEvidenceSeed({
           personId: person,
           claimId: claim,
           evidenceType,
           nonce: Date.now(),
         });
-        setShareClaim({ personId: person, claimId: claim });
+        setShareClaim({
+          personId: person,
+          claimId: claim,
+          statusFilter,
+        });
         setRecordsFocus({
           personId: person,
           claimId: claim,
+          statusFilter,
           nonce: Date.now(),
         });
         setTab("records");
