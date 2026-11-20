@@ -506,6 +506,7 @@ export function FamilySources({
                     </p>
                     <p className="text-xs text-[color:var(--a-muted)]">
                       {e.sourceLocator ? `${e.sourceLocator} · ` : ""}
+                      {e.sourceDateText ? `${e.sourceDateText} · ` : ""}
                       {e.linkCount > 0 && onOpenRecords ? (
                         <button
                           type="button"
