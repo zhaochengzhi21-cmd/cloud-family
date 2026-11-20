@@ -916,7 +916,7 @@ export function OverviewTab({
         : `${unsourcedAcceptedTotal} 条已确认资料还没有来源`,
       body: canEdit
         ? "有出处的资料才经得起后人核对。点人名打开那条资料并挂上来源；谱页、口述、照片都可以。"
-        : "可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。",
+        : "可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。也可在下方「参与家人」找到可编辑的账号。",
       people: unsourcedPeople.slice(0, 6),
       peopleAria: canEdit ? "补上来源" : "查看",
       browsePeople: !canEdit,
