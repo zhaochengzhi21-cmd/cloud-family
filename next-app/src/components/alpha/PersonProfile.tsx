@@ -576,6 +576,14 @@ export function PersonProfile({
           >
             返回家族档案
           </Link>
+          {error === ERROR_COPY.notFound || error === ERROR_COPY.forbidden ? (
+            <Link
+              href="/alpha/families"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            >
+              返回我的家族
+            </Link>
+          ) : null}
         </div>
       </div>
     );
