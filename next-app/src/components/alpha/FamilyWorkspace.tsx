@@ -447,6 +447,7 @@ export function FamilyWorkspace({
   }, [familyId]);
 
   useEffect(() => {
+    if (loading) return;
     try {
       const params = new URLSearchParams(window.location.search);
       const kin = params.get("kin");
@@ -455,6 +456,15 @@ export function FamilyWorkspace({
         person &&
         (kin === "child" || kin === "parent" || kin === "spouse")
       ) {
+        if (!canEdit) {
+          if (addDeepLinkAnnounced.current !== `kin:${kin}`) {
+            addDeepLinkAnnounced.current = `kin:${kin}`;
+            setFlash(
+              "当前为只读，无法添加家庭关系。可在概览「参与家人」中联系有编辑权限的家人。"
+            );
+          }
+          return;
+        }
         setRelFocusPersonId(person);
         setKinRole(kin);
         setShowAddKin(true);
@@ -475,6 +485,7 @@ export function FamilyWorkspace({
           parsed.role === "parent" ||
           parsed.role === "spouse")
       ) {
+        if (!canEdit) return;
         setRelFocusPersonId(parsed.personId);
         setKinRole(parsed.role);
         setShowAddKin(true);
@@ -483,7 +494,7 @@ export function FamilyWorkspace({
     } catch {
       /* private mode / bad JSON */
     }
-  }, [familyId]);
+  }, [familyId, canEdit, loading]);
 
   useEffect(() => {
     if (loading) return;
