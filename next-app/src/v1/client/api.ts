@@ -473,15 +473,23 @@ export const v1api = {
       body,
     }),
 
-  deletePerson: (familyId: string, personId: string) =>
-    v1Fetch<{
+  deletePerson: (
+    familyId: string,
+    personId: string,
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{
       personId: string;
       familyVersion: number;
       relationshipsRemovedCount: number;
     }>(`/api/v1/families/${familyId}/persons/${personId}`, {
       method: "DELETE",
       body: {},
-    }),
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
 
   restorePerson: (
     familyId: string,
@@ -562,11 +570,22 @@ export const v1api = {
     });
   },
 
-  deleteRelationship: (familyId: string, relationshipId: string) =>
-    v1Fetch<{ relationshipId: string; familyVersion: number }>(
+  deleteRelationship: (
+    familyId: string,
+    relationshipId: string,
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ relationshipId: string; familyVersion: number }>(
       `/api/v1/families/${familyId}/relationships/${relationshipId}`,
-      { method: "DELETE", body: {} }
-    ),
+      {
+        method: "DELETE",
+        body: {},
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
 
   restoreRelationship: (
     familyId: string,
@@ -975,11 +994,22 @@ export const v1api = {
     );
   },
 
-  deleteEvidence: (familyId: string, evidenceId: string) =>
-    v1Fetch<{ evidenceId: string; familyVersion: number }>(
+  deleteEvidence: (
+    familyId: string,
+    evidenceId: string,
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ evidenceId: string; familyVersion: number }>(
       `/api/v1/families/${familyId}/evidence/${evidenceId}`,
-      { method: "DELETE", body: {} }
-    ),
+      {
+        method: "DELETE",
+        body: {},
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
 
   restoreEvidence: (
     familyId: string,
@@ -1012,12 +1042,20 @@ export const v1api = {
   linkEvidence: (
     familyId: string,
     claimId: string,
-    body: { evidenceId: string; relation: string }
-  ) =>
-    v1Fetch<{ claimId: string }>(
+    body: { evidenceId: string; relation: string },
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ claimId: string }>(
       `/api/v1/families/${familyId}/claims/${claimId}/evidence`,
-      { method: "POST", body }
-    ),
+      {
+        method: "POST",
+        body,
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
 
   linkEvidenceBatch: (
     familyId: string,

@@ -3,6 +3,7 @@ import { beginWorkspaceRequest } from "@/v1/http/workspaceContext";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { okJson } from "@/v1/http/response";
 import { deleteRelationship } from "@/v1/services/relationshipService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -23,21 +24,30 @@ export async function DELETE(
   const p = paramsSchema.safeParse(params);
   if (!p.success) return invalidRequest();
 
-  try {
-    const result = await deleteRelationship(
-      p.data.relationshipId,
-      ctx.actorContext,
-      { db: ctx.db, expectedFamilyId: p.data.familyId }
-    );
-    return okJson({
-      relationshipId: result.relationshipId,
-      familyVersion: result.familyVersion,
-    });
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "relationships.delete",
+    body: { relationshipId: p.data.relationshipId },
+    run: async () => {
+      try {
+        const result = await deleteRelationship(
+          p.data.relationshipId,
+          ctx.actorContext,
+          { db: ctx.db, expectedFamilyId: p.data.familyId }
+        );
+        return okJson({
+          relationshipId: result.relationshipId,
+          familyVersion: result.familyVersion,
+        });
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }

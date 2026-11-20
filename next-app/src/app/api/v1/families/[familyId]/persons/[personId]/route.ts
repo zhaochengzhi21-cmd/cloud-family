@@ -9,6 +9,7 @@ import {
   getPerson,
   updatePerson,
 } from "@/v1/services/personService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -113,27 +114,34 @@ export async function DELETE(
   const p = paramsSchema.safeParse(params);
   if (!p.success) return invalidRequest();
 
-  try {
-    const existing = await getPerson(p.data.personId, ctx.actorContext, {
-      db: ctx.db,
-    });
-    if (existing.familyId !== p.data.familyId) return notFound();
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "persons.delete",
+    body: { personId: p.data.personId },
+    run: async () => {
+      try {
+        const existing = await getPerson(p.data.personId, ctx.actorContext, {
+          db: ctx.db,
+        });
+        if (existing.familyId !== p.data.familyId) return notFound();
 
-    const result = await deletePerson(
-      p.data.personId,
-      ctx.actorContext,
-      { db: ctx.db }
-    );
-    return okJson({
-      personId: result.personId,
-      familyVersion: result.familyVersion,
-      relationshipsRemovedCount: result.relationshipsRemovedCount,
-    });
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+        const result = await deletePerson(p.data.personId, ctx.actorContext, {
+          db: ctx.db,
+        });
+        return okJson({
+          personId: result.personId,
+          familyVersion: result.familyVersion,
+          relationshipsRemovedCount: result.relationshipsRemovedCount,
+        });
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }

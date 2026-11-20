@@ -6,6 +6,7 @@ import {
   deleteEvidence,
   listEvidenceClaimLinks,
 } from "@/v1/services/evidenceService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -55,22 +56,31 @@ export async function DELETE(
   const p = paramsSchema.safeParse(params);
   if (!p.success) return invalidRequest();
 
-  try {
-    const result = await deleteEvidence(
-      p.data.familyId,
-      p.data.evidenceId,
-      ctx.actorContext,
-      { db: ctx.db }
-    );
-    return okJson({
-      evidenceId: result.evidenceId,
-      familyVersion: result.familyVersion,
-    });
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "evidence.delete",
+    body: { evidenceId: p.data.evidenceId },
+    run: async () => {
+      try {
+        const result = await deleteEvidence(
+          p.data.familyId,
+          p.data.evidenceId,
+          ctx.actorContext,
+          { db: ctx.db }
+        );
+        return okJson({
+          evidenceId: result.evidenceId,
+          familyVersion: result.familyVersion,
+        });
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }

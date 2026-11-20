@@ -474,25 +474,24 @@ export async function listFamilyEvidence(
     database,
     familyId
   );
-  const out: FamilyEvidenceItem[] = [];
+  const readable: typeof rows = [];
   for (const row of rows) {
-    if (out.length >= limit) break;
+    if (readable.length >= limit) break;
     const ok = await canReadEvidenceInternal(row.evidence, actorContext, {
       db: database,
     });
     if (!ok) continue;
-    const linkCount = await evidenceRepo.countActiveLinksForEvidence(
-      database,
-      row.evidence.id
-    );
-    out.push({
-      ...evidenceRepo.mapEvidenceDto(row.evidence),
-      mimeType:
-        row.mediaStatus === "ACTIVE" ? row.mimeType ?? null : null,
-      linkCount,
-    });
+    readable.push(row);
   }
-  return out;
+  const linkCounts = await evidenceRepo.countActiveLinksForEvidenceIds(
+    database,
+    readable.map((r) => r.evidence.id)
+  );
+  return readable.map((row) => ({
+    ...evidenceRepo.mapEvidenceDto(row.evidence),
+    mimeType: row.mediaStatus === "ACTIVE" ? row.mimeType ?? null : null,
+    linkCount: linkCounts.get(row.evidence.id) ?? 0,
+  }));
 }
 
 export async function linkEvidenceToClaim(

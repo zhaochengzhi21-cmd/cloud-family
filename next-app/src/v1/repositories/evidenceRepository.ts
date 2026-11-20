@@ -2,7 +2,7 @@
  * Trusted internal Evidence data access — not a public security boundary.
  */
 
-import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
 import { claimEvidence, evidence, mediaObjects } from "@/db/schema";
 import type {
@@ -199,4 +199,26 @@ export async function countActiveLinksForEvidence(
 ): Promise<number> {
   const links = await listActiveLinksForEvidence(db, evidenceId);
   return links.length;
+}
+
+/** Batch link counts for family evidence lists (avoids N+1). */
+export async function countActiveLinksForEvidenceIds(
+  db: DbOrTx,
+  evidenceIds: string[]
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  if (evidenceIds.length === 0) return out;
+  for (const id of evidenceIds) out.set(id, 0);
+  const rows = await db
+    .select({
+      evidenceId: claimEvidence.evidenceId,
+      n: count(),
+    })
+    .from(claimEvidence)
+    .where(inArray(claimEvidence.evidenceId, evidenceIds))
+    .groupBy(claimEvidence.evidenceId);
+  for (const r of rows) {
+    out.set(r.evidenceId, Number(r.n));
+  }
+  return out;
 }
