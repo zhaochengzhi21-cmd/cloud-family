@@ -2025,10 +2025,24 @@ export function FamilyWorkspace({
             setShowAddPerson(true);
           }}
           onDone={async () => {
+            const focusId = relFocusPersonId;
             setShowAddRel(false);
             setRelFocusPersonId(null);
             setError("");
-            setFlash("已添加家庭关系");
+            if (focusId) {
+              const qs = new URLSearchParams({
+                tab: "lineage",
+                person: focusId,
+              });
+              setFlashCopyUrl(
+                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+              );
+              setFlash("已添加家庭关系。可复制链接发给家人一起看世系。");
+            } else {
+              setFlashCopyUrl(null);
+              setFlash("已添加家庭关系");
+            }
+            setTab("lineage");
             await load();
           }}
           onError={(msg) => setError(msg)}
@@ -2047,14 +2061,26 @@ export function FamilyWorkspace({
             setRelFocusPersonId(null);
           }}
           onDone={async (result) => {
+            const focusId = result.newPersonId ?? relFocusPersonId;
             setShowAddKin(false);
             setRelFocusPersonId(null);
             setError("");
-            setFlash(
-              result.createdName
-                ? `已添加「${result.createdName}」并建立关系`
-                : "已添加家庭关系"
-            );
+            const base = result.createdName
+              ? `已添加「${result.createdName}」并建立关系`
+              : "已添加家庭关系";
+            if (focusId) {
+              const qs = new URLSearchParams({
+                tab: "lineage",
+                person: focusId,
+              });
+              setFlashCopyUrl(
+                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+              );
+              setFlash(`${base}。可复制链接发给家人一起看世系。`);
+            } else {
+              setFlashCopyUrl(null);
+              setFlash(base);
+            }
             await load();
             if (result.newPersonId) {
               setDrawerExternalSeed({
@@ -2062,6 +2088,9 @@ export function FamilyWorkspace({
                 nonce: Date.now(),
               });
               setSelectedPersonId(result.newPersonId);
+            } else {
+              setTab("lineage");
+              if (focusId) setLineageUrlPerson(focusId);
             }
           }}
           onError={(msg) => setError(msg)}
