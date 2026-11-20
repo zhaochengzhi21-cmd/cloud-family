@@ -1883,12 +1883,15 @@ function PhotoWall({
 }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<Set<string>>(() => new Set());
+  const [attempt, setAttempt] = useState(0);
   const [viewer, setViewer] = useState<{ url: string; title: string } | null>(
     null
   );
 
   useEffect(() => {
     let cancelled = false;
+    setUrls({});
+    setFailed(new Set());
     void Promise.all(
       photos.map(async (p) => {
         try {
@@ -1908,10 +1911,33 @@ function PhotoWall({
     return () => {
       cancelled = true;
     };
-  }, [familyId, photos]);
+  }, [familyId, photos, attempt]);
 
   const ready = photos.filter((p) => urls[p.mediaId]);
-  if (ready.length === 0 && failed.size === photos.length) return null;
+  if (ready.length === 0 && failed.size === photos.length && photos.length > 0) {
+    return (
+      <section aria-labelledby="profile-photos" className="mb-8">
+        <h2
+          id="profile-photos"
+          className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          照片
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-[color:var(--a-muted)]" role="status">
+            照片暂时无法显示。
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            重试
+          </button>
+        </div>
+      </section>
+    );
+  }
   if (ready.length === 0 && Object.keys(urls).length === 0) {
     return (
       <section aria-labelledby="profile-photos" className="mb-8">
