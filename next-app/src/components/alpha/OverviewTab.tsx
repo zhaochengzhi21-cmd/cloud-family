@@ -455,39 +455,55 @@ export function OverviewTab({
     action?: { label: string; onClick: () => void };
     people?: Person[];
     peopleAria?: string;
+    /** When true, people chips open the person (read) instead of capture actions. */
+    browsePeople?: boolean;
   };
 
   const steps: Step[] = [];
   if (total === 0) {
     steps.push({
       key: "first",
-      title: "添加第一位家人",
-      body: "从你最熟悉的长辈开始，姓名或常用称呼就够了。",
+      title: canEdit ? "添加第一位家人" : "还没有家族成员",
+      body: canEdit
+        ? "从你最熟悉的长辈开始，姓名或常用称呼就够了。"
+        : "有编辑权限的家人添加成员后，名单会出现在这里。",
       action: canEdit ? { label: "添加成员", onClick: onAddPerson } : undefined,
     });
   } else if (total === 1) {
     steps.push({
       key: "second",
-      title: "再添加一位家人",
-      body: "有两位成员后，就能建立父母或配偶关系，世系开始成形。",
+      title: canEdit ? "再添加一位家人" : "档案里只有一位成员",
+      body: canEdit
+        ? "有两位成员后，就能建立父母或配偶关系，世系开始成形。"
+        : "有编辑权限的家人再补一位后，才能建立关系、排进世代。",
       action: canEdit ? { label: "添加成员", onClick: onAddPerson } : undefined,
     });
   }
   if (total >= 2 && unconnected.length > 0) {
     steps.push({
       key: "connect",
-      title: `为 ${unconnected.length} 位成员建立关系`,
-      body: "还没有父母或配偶关系，暂时无法排进世代。点人名可为 TA 添加父母（也可在弹窗里改成配偶或子女）。",
-      people: canEdit ? unconnected.slice(0, 6) : undefined,
-      peopleAria: "建立关系",
+      title: canEdit
+        ? `为 ${unconnected.length} 位成员建立关系`
+        : `还有 ${unconnected.length} 位成员未连入世系`,
+      body: canEdit
+        ? "还没有父母或配偶关系，暂时无法排进世代。点人名可为 TA 添加父母（也可在弹窗里改成配偶或子女）。"
+        : "还没有父母或配偶关系，暂时无法排进世代。可先打开人物页了解他们；有编辑权限的家人补上关系后，世系会出现。",
+      people: unconnected.slice(0, 6),
+      peopleAria: canEdit ? "建立关系" : "查看",
+      browsePeople: !canEdit,
     });
   } else if (componentCount > 1) {
     steps.push({
       key: "branches",
-      title: `连接 ${componentCount} 个家族分支`,
-      body: "档案里有几支还没有连在一起。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。",
-      people: canEdit && branchReps.length > 0 ? branchReps : undefined,
-      peopleAria: "连接分支",
+      title: canEdit
+        ? `连接 ${componentCount} 个家族分支`
+        : `档案里有 ${componentCount} 个尚未连接的分支`,
+      body: canEdit
+        ? "档案里有几支还没有连在一起。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。"
+        : "几支还没有连在一起。可先打开较小分支里的人物页；有编辑权限的家人补上关系后，会并入主支。",
+      people: branchReps.length > 0 ? branchReps : undefined,
+      peopleAria: canEdit ? "连接分支" : "查看",
+      browsePeople: !canEdit,
       action: canEdit
         ? { label: "添加家庭关系", onClick: onAddRel }
         : undefined,
@@ -728,6 +744,10 @@ export function OverviewTab({
                           key={p.id}
                           type="button"
                           onClick={() => {
+                            if (s.browsePeople) {
+                              onOpenPerson?.(p.id);
+                              return;
+                            }
                             if (s.key === "connect" || s.key === "branches") {
                               onAddKin?.(p.id, "parent");
                               return;
@@ -778,7 +798,11 @@ export function OverviewTab({
                             );
                           }}
                           className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
-                          aria-label={`为${p.preferredName}${s.peopleAria ?? "补充资料"}`}
+                          aria-label={
+                            s.browsePeople
+                              ? `查看${p.preferredName}`
+                              : `为${p.preferredName}${s.peopleAria ?? "补充资料"}`
+                          }
                         >
                           {p.preferredName}
                         </button>

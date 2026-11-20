@@ -7,6 +7,7 @@ import { test, expect, type Page } from "@playwright/test";
 import {
   requireV1Env,
   insertFakeUser,
+  insertMembership,
   loginAs,
   cleanupAllV1TestData,
   tableCounts,
@@ -2289,6 +2290,91 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
   await expect(
     page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
   ).toBeVisible({ timeout: 60_000 });
+});
+
+test("明经胡氏：只读成员概览下一步用浏览文案", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·只读概览（测试）",
+    sample.surname
+  );
+  void ownerId;
+
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  await seedPerson(page, familyId, sample.guanSan, []);
+
+  const viewerId = await insertFakeUser();
+  await insertMembership(familyId, viewerId, "VIEWER");
+  const viewerCtx = await browser.newContext({ baseURL });
+  const viewerPage = await viewerCtx.newPage();
+  await loginAs(viewerPage, viewerId, baseURL!);
+  await viewerPage.goto(`/alpha/families/${familyId}`);
+  await expect(viewerPage.getByRole("tab", { selected: true })).toHaveText(
+    "概览",
+    { timeout: 60_000 }
+  );
+  const connectStep = viewerPage
+    .getByRole("listitem")
+    .filter({ hasText: "未连入世系" });
+  await expect(connectStep).toContainText("还有 2 位成员未连入世系", {
+    timeout: 60_000,
+  });
+  await expect(connectStep).toContainText("可先打开人物页了解他们");
+  await expect(connectStep).not.toContainText("点人名可为 TA 添加父母");
+  await connectStep
+    .getByRole("button", { name: `查看${sample.wenGuang.preferredName}` })
+    .click();
+  await expect(
+    viewerPage.getByRole("dialog").getByRole("heading", {
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await viewerCtx.close();
+});
+
+test("明经胡氏：只读成员人物页无资料时生平为空提示", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·只读生平（测试）",
+    sample.surname
+  );
+  void ownerId;
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  const viewerId = await insertFakeUser();
+  await insertMembership(familyId, viewerId, "VIEWER");
+  const viewerCtx = await browser.newContext({ baseURL });
+  const viewerPage = await viewerCtx.newPage();
+  await loginAs(viewerPage, viewerId, baseURL!);
+  await viewerPage.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    viewerPage.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    viewerPage.getByRole("region", { name: "生平" })
+  ).toContainText("暂无生平记录。");
+  await expect(
+    viewerPage.getByRole("button", { name: "补充出生" })
+  ).toHaveCount(0);
+  await viewerCtx.close();
 });
 
 test("明经胡氏：打印版脚注可直达来源库", async ({ page, baseURL }) => {

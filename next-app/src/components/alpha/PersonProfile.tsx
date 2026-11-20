@@ -549,6 +549,18 @@ export function PersonProfile({
         >
           生平
         </h2>
+        {!canEdit &&
+        birthDate.length === 0 &&
+        birthPlace.length === 0 &&
+        generationWord.length === 0 &&
+        birthOrder.length === 0 &&
+        ancestral.length === 0 &&
+        occupation.length === 0 &&
+        alias.length === 0 &&
+        deathDate.length === 0 &&
+        burial.length === 0 ? (
+          <p className="text-sm text-[color:var(--a-muted)]">暂无生平记录。</p>
+        ) : (
         <ol className="alpha-lineage-rail space-y-4 pl-6">
           <TimelineEvent
             title="出生"
@@ -713,6 +725,7 @@ export function PersonProfile({
             />
           ) : null}
         </ol>
+        )}
       </section>
 
       {photos.length > 0 ? (
