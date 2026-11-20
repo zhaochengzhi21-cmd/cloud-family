@@ -726,6 +726,16 @@ export function FamilyWorkspace({
         nonce?: number;
       };
       if (parsed.personId && parsed.claimId) {
+        let openEvidence = false;
+        let evidenceType: string | undefined;
+        try {
+          const params = new URLSearchParams(window.location.search);
+          evidenceType = params.get("evidenceType") || undefined;
+          openEvidence =
+            params.get("openEvidence") === "1" || Boolean(evidenceType);
+        } catch {
+          /* ignore */
+        }
         setRecordsFocus({
           personId: parsed.personId,
           claimId: parsed.claimId,
@@ -736,7 +746,17 @@ export function FamilyWorkspace({
           personId: parsed.personId,
           claimId: parsed.claimId,
           statusFilter: parsed.statusFilter,
+          openEvidence: openEvidence || undefined,
+          evidenceType,
         });
+        if (openEvidence) {
+          setEvidenceSeed({
+            personId: parsed.personId,
+            claimId: parsed.claimId,
+            evidenceType,
+            nonce: Date.now(),
+          });
+        }
         setTab("records");
       }
     } catch {
@@ -762,6 +782,9 @@ export function FamilyWorkspace({
         } catch {
           /* private mode */
         }
+        const evidenceType = params.get("evidenceType") || undefined;
+        const openEvidence =
+          params.get("openEvidence") === "1" || Boolean(evidenceType);
         setRecordsFocus({
           personId: person,
           claimId: claim,
@@ -772,7 +795,17 @@ export function FamilyWorkspace({
           personId: person,
           claimId: claim,
           statusFilter,
+          openEvidence: openEvidence || undefined,
+          evidenceType,
         });
+        if (openEvidence) {
+          setEvidenceSeed({
+            personId: person,
+            claimId: claim,
+            evidenceType,
+            nonce: Date.now(),
+          });
+        }
         if (statusFilter) setRecordsUrlStatus(statusFilter);
         setTab("records");
         return;
@@ -4191,7 +4224,11 @@ function RecordsTab({
   const [claimFocusMissUrl, setClaimFocusMissUrl] = useState<string | null>(
     null
   );
+  const [claimFocusMissClaimId, setClaimFocusMissClaimId] = useState<
+    string | null
+  >(null);
   const [claimFocusMissCopyFlash, setClaimFocusMissCopyFlash] = useState("");
+  const [claimFocusReopenBusy, setClaimFocusReopenBusy] = useState(false);
   const [claimSeedBlocked, setClaimSeedBlocked] = useState(false);
   /** When VIEWER hits ?openEvidence= / claim seed — keep a forwardable handoff URL. */
   const [seedBlockedHandoffUrl, setSeedBlockedHandoffUrl] = useState<
@@ -4399,6 +4436,7 @@ function RecordsTab({
       setClaimFocusMissUrl(
         `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
       );
+      setClaimFocusMissClaimId(recordsFocus.claimId ?? null);
     }
     setClaimFocusMiss(true);
     onRecordsFocusConsumed();
@@ -4431,12 +4469,14 @@ function RecordsTab({
       setClaimFocusMissUrl(
         `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
       );
+      setClaimFocusMissClaimId(recordsFocus.claimId);
       setClaimFocusMiss(true);
       onRecordsFocusConsumed();
       return;
     }
     setClaimFocusMiss(false);
     setClaimFocusMissUrl(null);
+    setClaimFocusMissClaimId(null);
     const claimId = recordsFocus.claimId;
     if (focused.status === "REJECTED") {
       setStatusFilter("ALL");
@@ -4624,9 +4664,11 @@ function RecordsTab({
         >
           <p className="text-sm text-[color:var(--a-muted)]">
             要打开的那条资料已不在当前列表中，可能刚被移除或不属于这位家人。
-            {claimFocusMissUrl
-              ? ` 可复制链接发给${REVIEWER_CONTACT}核对，或查看全部资料。`
-              : ""}
+            {canReview && claimFocusMissClaimId
+              ? " 若刚标记为不采用，可点恢复待确认。"
+              : claimFocusMissUrl
+                ? ` 可复制链接发给${REVIEWER_CONTACT}核对，或查看全部资料。`
+                : ""}
           </p>
           {claimFocusMissUrl ? (
             <button
@@ -4655,12 +4697,64 @@ function RecordsTab({
               {claimFocusMissCopyFlash || "复制链接发给家人"}
             </button>
           ) : null}
+          {canReview && claimFocusMissClaimId ? (
+            <button
+              type="button"
+              disabled={claimFocusReopenBusy}
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-60"
+              onClick={() => {
+                const id = claimFocusMissClaimId;
+                setClaimFocusReopenBusy(true);
+                void (async () => {
+                  try {
+                    await v1api.reopenClaim(familyId, id, {
+                      idempotencyKey: crypto.randomUUID(),
+                    });
+                    setClaimFocusMiss(false);
+                    setClaimFocusMissUrl(null);
+                    setClaimFocusMissClaimId(null);
+                    setStatusFilter("PROPOSED");
+                    setRejectedOpen(false);
+                    await loadClaims();
+                    setFlash(
+                      "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                    );
+                    const qs = new URLSearchParams({
+                      tab: "records",
+                      person: personId,
+                      claim: id,
+                      claimStatus: "PROPOSED",
+                    });
+                    setFlashCopyUrl(
+                      `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                    );
+                    window.setTimeout(() => {
+                      const el = document.querySelector(
+                        `[data-claim-id="${id}"]`
+                      );
+                      if (el instanceof HTMLElement) {
+                        scrollIntoViewSafe(el, { block: "center" });
+                      }
+                    }, 80);
+                  } catch (e) {
+                    if (onAuthError(e)) return;
+                    setError(userMessageForApiError(e));
+                  } finally {
+                    setClaimFocusReopenBusy(false);
+                  }
+                })();
+              }}
+            >
+              {claimFocusReopenBusy ? "恢复中…" : "恢复待确认"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
             onClick={() => {
               setClaimFocusMiss(false);
               setClaimFocusMissUrl(null);
+              setClaimFocusMissClaimId(null);
               setStatusFilter("ALL");
               setTypeFilter("ALL");
               setRejectedOpen(true);
@@ -4674,6 +4768,7 @@ function RecordsTab({
             onClick={() => {
               setClaimFocusMiss(false);
               setClaimFocusMissUrl(null);
+              setClaimFocusMissClaimId(null);
             }}
           >
             知道了
