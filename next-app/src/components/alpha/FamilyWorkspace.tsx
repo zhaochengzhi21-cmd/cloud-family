@@ -2514,8 +2514,16 @@ function RecordsTab({
     if (focused.status === "REJECTED") {
       setStatusFilter("ALL");
       setRejectedOpen(true);
+    } else if (focused.status === "PROPOSED") {
+      setStatusFilter(
+        recordsFocus.statusFilter === "PROPOSED" ? "PROPOSED" : "ALL"
+      );
+    } else if (focused.status === "CONFLICTED") {
+      setStatusFilter("CONFLICTED");
     } else if (recordsFocus.statusFilter) {
       setStatusFilter(recordsFocus.statusFilter);
+    } else {
+      setStatusFilter("ALL");
     }
     onRecordsFocusConsumed();
     const t = window.setTimeout(() => {

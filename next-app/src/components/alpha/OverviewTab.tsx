@@ -1335,10 +1335,9 @@ export function OverviewTab({
                   ? {
                       personId: item.personId,
                       claimId: item.claimId,
-                      statusFilter:
-                        item.eventType === "CLAIM_CREATED"
-                          ? ("PROPOSED" as const)
-                          : ("ALL" as const),
+                      // Always 全部 — CLAIM_CREATED rows outlive 待确认;
+                      // a hard PROPOSED filter hides confirmed/conflicted cards.
+                      statusFilter: "ALL" as const,
                     }
                   : null;
               return (
