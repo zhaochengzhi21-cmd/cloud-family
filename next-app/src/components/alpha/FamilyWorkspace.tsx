@@ -242,6 +242,8 @@ export function FamilyWorkspace({
     claimId?: string;
     evidenceId?: string;
     relation?: string;
+    /** For claim undo → reopen deep-link handoff. */
+    personId?: string;
   }>(null);
 
   const openParticipantsFromFlash = useCallback(() => {
@@ -1577,9 +1579,24 @@ export function FamilyWorkspace({
                         await v1api.reopenClaim(familyId, undo.id, {
                           idempotencyKey: crypto.randomUUID(),
                         });
-                        setFlash(
-                          "已重新打开这条资料，可再次确认或不采用"
-                        );
+                        if (undo.personId) {
+                          const qs = new URLSearchParams({
+                            tab: "records",
+                            person: undo.personId,
+                            claim: undo.id,
+                            claimStatus: "PROPOSED",
+                          });
+                          setFlashCopyUrl(
+                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                          );
+                          setFlash(
+                            "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                          );
+                        } else {
+                          setFlash(
+                            "已重新打开这条资料，可再次确认或不采用"
+                          );
+                        }
                       }
                       await load();
                     } catch (e) {
@@ -1769,7 +1786,18 @@ export function FamilyWorkspace({
                 await v1api.reopenClaim(familyId, claimId, {
                   idempotencyKey: crypto.randomUUID(),
                 });
-                setFlash("已重新打开这条资料，可再次确认或不采用");
+                const qs = new URLSearchParams({
+                  tab: "records",
+                  person: personId,
+                  claim: claimId,
+                  claimStatus: "PROPOSED",
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
+                setFlash(
+                  "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                );
                 await load();
                 openRecordsFor(personId, {
                   focusClaimId: claimId,
@@ -3646,6 +3674,7 @@ function RecordsTab({
       kind: "claim";
       id: string;
       label: string;
+      personId?: string;
     }
   ) => void;
   setError: (s: string) => void;
@@ -4426,6 +4455,7 @@ function RecordsTab({
                           kind: "claim",
                           id: undoClaimId,
                           label: "这条资料",
+                          personId,
                         }
                       : null
                   );
@@ -4534,6 +4564,7 @@ function RecordsTab({
                               kind: "claim",
                               id: undoClaimId,
                               label: "这条资料",
+                              personId,
                             }
                           : null
                       );
@@ -4597,7 +4628,18 @@ function RecordsTab({
                           await v1api.reopenClaim(familyId, c.id, {
                             idempotencyKey: crypto.randomUUID(),
                           });
-                          setFlash("已重新打开这条资料，可再次确认或不采用");
+                          const qs = new URLSearchParams({
+                            tab: "records",
+                            person: personId,
+                            claim: c.id,
+                            claimStatus: "PROPOSED",
+                          });
+                          setFlashCopyUrl(
+                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                          );
+                          setFlash(
+                            "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                          );
                           setRejectedOpen(false);
                           setStatusFilter("PROPOSED");
                           await loadClaims();
@@ -8012,9 +8054,12 @@ function PersonDrawer({
                     className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                     onClick={() => {
                       const url = localFlashCopyUrl;
+                      const okMsg = localFlash.includes("补来源")
+                        ? "已复制补来源链接，可发给家人一起补"
+                        : "已复制链接，可发给家人";
                       void navigator.clipboard.writeText(url).then(
                         () => {
-                          setLocalFlash("已复制补来源链接，可发给家人一起补");
+                          setLocalFlash(okMsg);
                           setLocalFlashCopyUrl(null);
                         },
                         () => setLocalFlash("请手动复制地址栏链接")
@@ -8032,14 +8077,22 @@ function PersonDrawer({
                       const id = localUndoClaimId;
                       setLocalUndoClaimId(null);
                       setLocalFlash("");
-                      setLocalFlashCopyUrl(null);
                       void (async () => {
                         try {
                           await v1api.reopenClaim(familyId, id, {
                             idempotencyKey: crypto.randomUUID(),
                           });
+                          const qs = new URLSearchParams({
+                            tab: "records",
+                            person: person.id,
+                            claim: id,
+                            claimStatus: "PROPOSED",
+                          });
+                          setLocalFlashCopyUrl(
+                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                          );
                           setLocalFlash(
-                            "已重新打开这条资料，可再次确认或不采用"
+                            "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
                           );
                           await loadClaims();
                           onChanged();
@@ -8561,8 +8614,17 @@ function PersonDrawer({
                               await v1api.reopenClaim(familyId, c.id, {
                                 idempotencyKey: crypto.randomUUID(),
                               });
+                              const qs = new URLSearchParams({
+                                tab: "records",
+                                person: person.id,
+                                claim: c.id,
+                                claimStatus: "PROPOSED",
+                              });
+                              setLocalFlashCopyUrl(
+                                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                              );
                               setLocalFlash(
-                                "已重新打开这条资料，可再次确认或不采用"
+                                "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
                               );
                               setRejectedOpen(false);
                               await loadClaims();
