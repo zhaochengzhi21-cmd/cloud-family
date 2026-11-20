@@ -2507,6 +2507,39 @@ export function OverviewTab({
                           >
                             去邀请
                           </button>
+                          {" · "}
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                            onClick={() => {
+                              const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                              void navigator.clipboard.writeText(url).then(
+                                () => {
+                                  setActivityCopyFlash(
+                                    "已复制邀请入口链接，可发给其他确认者"
+                                  );
+                                  window.setTimeout(
+                                    () => setActivityCopyFlash(""),
+                                    2500
+                                  );
+                                },
+                                () => {
+                                  setActivityCopyFlash(
+                                    "请手动复制地址栏链接"
+                                  );
+                                  window.setTimeout(
+                                    () => setActivityCopyFlash(""),
+                                    2500
+                                  );
+                                }
+                              );
+                            }}
+                          >
+                            {activityCopyFlash.includes("邀请入口") ||
+                            activityCopyFlash.startsWith("请手动")
+                              ? activityCopyFlash
+                              : "复制邀请入口"}
+                          </button>
                         </>
                       ) : (
                         <span className="text-[color:var(--a-muted)]">

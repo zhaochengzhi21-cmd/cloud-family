@@ -3534,13 +3534,39 @@ function LineageTab({
                 : "添加家庭关系后，这里会按世代展示。"}
           </p>
           {canEdit ? (
-            <button
-              type="button"
-              className="alpha-btn alpha-btn-primary mt-5"
-              onClick={persons.length < 2 ? onGoMembers : onAddRel}
-            >
-              {persons.length < 2 ? "去添加成员" : "添加家庭关系"}
-            </button>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-primary"
+                onClick={persons.length < 2 ? onGoMembers : onAddRel}
+              >
+                {persons.length < 2 ? "去添加成员" : "添加家庭关系"}
+              </button>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams(
+                    persons.length < 2
+                      ? { tab: "lineage", add: "person" }
+                      : { tab: "lineage", add: "rel" }
+                  );
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setCopyFlash("已复制链接，可发给家人一起补");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {copyFlash || "复制链接发给家人"}
+              </button>
+            </div>
           ) : (
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <p className="w-full text-sm text-[color:var(--a-muted)]">
@@ -7644,6 +7670,32 @@ function AddKinModal({
   );
 }
 
+function UnderstaffedRelCopyButton({ familyId }: { familyId: string }) {
+  const [flash, setFlash] = useState("");
+  return (
+    <button
+      type="button"
+      className="alpha-btn alpha-btn-secondary w-full !min-h-[40px] !text-sm"
+      onClick={() => {
+        const qs = new URLSearchParams({ tab: "lineage", add: "person" });
+        const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+        void navigator.clipboard.writeText(url).then(
+          () => {
+            setFlash("已复制添加成员链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          },
+          () => {
+            setFlash("请手动复制地址栏链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          }
+        );
+      }}
+    >
+      {flash || "复制添加成员链接发给家人"}
+    </button>
+  );
+}
+
 function AddRelationshipModal({
   familyId,
   persons,
@@ -7750,18 +7802,21 @@ function AddRelationshipModal({
     return (
       <ModalShell title="添加家庭关系" onClose={onClose}>
         <p className="text-sm leading-relaxed text-[color:var(--a-muted)]">
-          至少需要两位成员，才能建立父母或配偶关系。请先再添加一位家人。
+          至少需要两位成员，才能建立父母或配偶关系。请先再添加一位家人。可复制添加链接发给家人一起补。
         </p>
-        <button
-          type="button"
-          onClick={() => {
-            if (onNeedMorePeople) onNeedMorePeople();
-            else onClose();
-          }}
-          className="alpha-btn alpha-btn-primary mt-5 w-full"
-        >
-          {onNeedMorePeople ? "去添加成员" : "知道了"}
-        </button>
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (onNeedMorePeople) onNeedMorePeople();
+              else onClose();
+            }}
+            className="alpha-btn alpha-btn-primary w-full"
+          >
+            {onNeedMorePeople ? "去添加成员" : "知道了"}
+          </button>
+          <UnderstaffedRelCopyButton familyId={familyId} />
+        </div>
       </ModalShell>
     );
   }
