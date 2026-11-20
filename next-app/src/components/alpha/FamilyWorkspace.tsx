@@ -4208,6 +4208,7 @@ function AddEvidenceForm({
   const [library, setLibrary] = useState<
     Awaited<ReturnType<typeof v1api.listEvidence>>["evidence"]
   >([]);
+  const [libraryTotal, setLibraryTotal] = useState(0);
   const [pickedId, setPickedId] = useState("");
   const [evidenceType, setEvidenceType] = useState(defaultEvidenceType);
   const [title, setTitle] = useState("");
@@ -4230,6 +4231,7 @@ function AddEvidenceForm({
       .listEvidence(familyId)
       .then((r) => {
         if (cancelled) return;
+        setLibraryTotal(r.evidence.length);
         setLibrary(r.evidence.filter((e) => !linked.has(e.id)));
       })
       .catch((e) => {
@@ -4452,7 +4454,9 @@ function AddEvidenceForm({
           {reuseOptions.length === 0 ? (
             <div className="space-y-2">
               <p className="text-sm text-[color:var(--a-muted)]">
-                还没有可复用的来源，请先新建一条。
+                {libraryTotal > 0
+                  ? "已有来源都已挂到这条资料。可新建一条，或换其他出处。"
+                  : "还没有可复用的来源，请先新建一条。"}
               </p>
               <button
                 type="button"
