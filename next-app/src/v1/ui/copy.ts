@@ -130,7 +130,8 @@ export const ERROR_COPY = {
   notFound:
     "找不到这份资料，或者你没有查看权限。可返回「我的家族」另选一份档案。",
   familyConflict: "这份家族档案刚刚被其他人更新，请点「刷新」后再试。",
-  personConflict: "这位成员的资料刚刚被更新，请关闭后重新打开人物卡片再修改。",
+  personConflict:
+    "这位成员的资料刚刚被更新，已载入最新内容，请再试一次保存。",
   ancestryCycle:
     "这条关系会形成循环世系，请检查所选成员，或去世系页核对现有关系。",
   duplicateRelationship: "这条家庭关系已经存在。可在世系或人物卡片中查看。",

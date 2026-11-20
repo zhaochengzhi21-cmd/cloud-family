@@ -6450,6 +6450,8 @@ function AddPersonModal({
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const [addedNames, setAddedNames] = useState<string[]>([]);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
+  const [addCopyFlash, setAddCopyFlash] = useState("");
   const firstRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -6469,12 +6471,14 @@ function AddPersonModal({
     setLocalError("");
     const preferredName = name.trim();
     try {
-      await v1api.createPerson(familyId, {
+      const created = await v1api.createPerson(familyId, {
         preferredName,
         livingStatus: living,
         gender,
       });
       setAddedNames((prev) => [...prev, preferredName]);
+      setLastAddedId(created.person.id);
+      setAddCopyFlash("");
       setName("");
       setLiving("UNKNOWN");
       setGender("UNKNOWN");
@@ -6498,9 +6502,38 @@ function AddPersonModal({
     >
       <form onSubmit={submit} className="space-y-4">
         {lastAdded ? (
-          <p className="alpha-alert alpha-alert-ok" role="status">
-            已添加「{lastAdded}」。可继续添加下一位，或点完成。
-          </p>
+          <div className="alpha-alert alpha-alert-ok space-y-2" role="status">
+            <p>已添加「{lastAdded}」。可继续添加下一位，或点完成。</p>
+            {lastAddedId ? (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/alpha/families/${familyId}/people/${lastAddedId}`;
+                    void navigator.clipboard.writeText(url).then(
+                      () => {
+                        setAddCopyFlash("已复制人物资料链接");
+                        window.setTimeout(() => setAddCopyFlash(""), 2500);
+                      },
+                      () => {
+                        setAddCopyFlash("请手动复制地址栏链接");
+                        window.setTimeout(() => setAddCopyFlash(""), 2500);
+                      }
+                    );
+                  }}
+                >
+                  {addCopyFlash || "复制人物资料链接"}
+                </button>
+                <a
+                  href={`/alpha/families/${familyId}/people/${lastAddedId}`}
+                  className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                >
+                  打开人物页
+                </a>
+              </div>
+            ) : null}
+          </div>
         ) : null}
         {localError ? (
           <p className="alpha-alert alpha-alert-error" role="alert">
