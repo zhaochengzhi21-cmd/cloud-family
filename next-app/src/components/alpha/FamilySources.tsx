@@ -297,9 +297,18 @@ export function FamilySources({
 
   if (error && !items) {
     return (
-      <p role="alert" className="text-sm text-[color:var(--a-danger)]">
-        {error}
-      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <p role="alert" className="text-sm text-[color:var(--a-danger)]">
+          {error}
+        </p>
+        <button
+          type="button"
+          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          onClick={() => void load()}
+        >
+          重试
+        </button>
+      </div>
     );
   }
   if (!items) return null;
@@ -801,9 +810,18 @@ export function FamilySources({
           </div>
         ) : null}
         {error ? (
-          <p role="alert" className="mt-2 text-sm text-[color:var(--a-danger)]">
-            {error}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[color:var(--a-danger)]">
+            <p role="alert" className="min-w-0">
+              {error}
+            </p>
+            <button
+              type="button"
+              className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => void load()}
+            >
+              重试
+            </button>
+          </div>
         ) : null}
       </div>
     </section>
