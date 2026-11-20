@@ -391,7 +391,7 @@ export function FamilySources({
             <p className="text-sm text-[color:var(--a-muted)]">
               {canEdit
                 ? "还没有成员，来源仍可收录与查看；挂到人物资料需先添加家人。"
-                : "还没有成员。有编辑权限的家人添加成员后，才可把来源挂到人物资料。"}
+                : "还没有成员。有编辑权限的家人添加成员后，才可把来源挂到人物资料。可复制添加链接发给对方。"}
             </p>
             {canEdit && onAddPerson ? (
               <button
@@ -400,6 +400,43 @@ export function FamilySources({
                 onClick={onAddPerson}
               >
                 去添加成员
+              </button>
+            ) : null}
+            {!canEdit ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "members",
+                    add: "person",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => setCopyFlash({ id: "add-person", ok: true }),
+                    () => setCopyFlash({ id: "add-person", ok: false })
+                  );
+                  window.setTimeout(() => {
+                    setCopyFlash((cur) =>
+                      cur?.id === "add-person" ? null : cur
+                    );
+                  }, 2500);
+                }}
+              >
+                {copyFlash?.id === "add-person"
+                  ? copyFlash.ok
+                    ? "已复制链接"
+                    : "请手动复制"
+                  : "复制添加成员链接"}
+              </button>
+            ) : null}
+            {!canEdit && onOpenParticipants ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={onOpenParticipants}
+              >
+                查看参与家人
               </button>
             ) : null}
           </div>
