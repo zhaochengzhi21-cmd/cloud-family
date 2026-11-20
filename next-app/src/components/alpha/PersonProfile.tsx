@@ -967,6 +967,35 @@ export function PersonProfile({
                   </button>
                 </>
               ) : null}
+              {!canEdit && pendingClaims.length === 0 ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                  onClick={() => {
+                    const qs = new URLSearchParams({
+                      tab: "records",
+                      person: personId,
+                      claimType: "BIRTH_DATE",
+                    });
+                    const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                    void navigator.clipboard.writeText(url).then(
+                      () => {
+                        setPendingCopyFlash("已复制补充生平链接");
+                        window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                      },
+                      () => {
+                        setPendingCopyFlash("请手动复制地址栏链接");
+                        window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                      }
+                    );
+                  }}
+                >
+                  {pendingCopyFlash.includes("补充生平") ||
+                  pendingCopyFlash.startsWith("请手动")
+                    ? pendingCopyFlash
+                    : "复制补充生平链接发给家人"}
+                </button>
+              ) : null}
               <Link
                 href={`${workspaceHref}?scroll=participants`}
                 className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"

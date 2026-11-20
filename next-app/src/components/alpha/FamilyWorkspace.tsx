@@ -8366,7 +8366,7 @@ function PersonDrawer({
               <p className="text-sm text-[color:var(--a-muted)]">
                 {canEdit
                   ? "还没有人物资料，可以从出生信息等开始记录。"
-                  : "暂无人物资料。有编辑权限的家人补充后，会显示在这里。"}
+                  : "暂无人物资料。有编辑权限的家人补充后，会显示在这里。可复制链接发给对方。"}
               </p>
               {canEdit ? (
                 <ClaimStartCtas
@@ -8375,15 +8375,38 @@ function PersonDrawer({
                     setDrawerClaimSeed({ claimType, nonce: Date.now() })
                   }
                 />
-              ) : onOpenParticipants ? (
-                <button
-                  type="button"
-                  className="mt-3 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                  onClick={onOpenParticipants}
-                >
-                  查看参与家人
-                </button>
-              ) : null}
+              ) : (
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: person.id,
+                        claimType: "BIRTH_DATE",
+                      });
+                      const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () =>
+                          setLocalFlash("已复制链接，可发给有编辑权限的家人"),
+                        () => setLocalFlash("请手动复制地址栏链接")
+                      );
+                    }}
+                  >
+                    复制补充资料链接
+                  </button>
+                  {onOpenParticipants ? (
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={onOpenParticipants}
+                    >
+                      查看参与家人
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </div>
           ) : null}
           {!claimsLoading && activeClaims.length > 0 && canEdit ? (
