@@ -171,9 +171,12 @@ export function FamilyWorkspace({
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
-    kind: "person" | "relationship" | "evidence";
+    kind: "person" | "relationship" | "evidence" | "evidence-link";
     id: string;
     label: string;
+    claimId?: string;
+    evidenceId?: string;
+    relation?: string;
   }>(null);
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
@@ -698,7 +701,7 @@ export function FamilyWorkspace({
                           idempotencyKey: crypto.randomUUID(),
                         });
                         setFlash(`已恢复${undo.label}`);
-                      } else {
+                      } else if (undo.kind === "evidence") {
                         const r = await v1api.restoreEvidence(
                           familyId,
                           undo.id,
@@ -708,6 +711,21 @@ export function FamilyWorkspace({
                           r.evidence.title?.trim() || undo.label || "资料来源";
                         setFlash(`已恢复「${label}」`);
                         setSourcesFocusEvidenceId(r.evidence.id);
+                      } else if (
+                        undo.kind === "evidence-link" &&
+                        undo.claimId &&
+                        undo.evidenceId
+                      ) {
+                        await v1api.linkEvidence(
+                          familyId,
+                          undo.claimId,
+                          {
+                            evidenceId: undo.evidenceId,
+                            relation: undo.relation ?? "SUPPORTS",
+                          },
+                          { idempotencyKey: crypto.randomUUID() }
+                        );
+                        setFlash(`已恢复「${undo.label}」的挂接`);
                       }
                       await load();
                     } catch (e) {
@@ -968,6 +986,18 @@ export function FamilyWorkspace({
               setPendingUndo({ kind: "evidence", id: evidenceId, label });
               setFlash(`已移除「${label}」。误删可点恢复。`);
             }}
+            onEvidenceUnlinked={(args) => {
+              setError("");
+              setPendingUndo({
+                kind: "evidence-link",
+                id: `${args.claimId}:${args.evidenceId}`,
+                label: args.label,
+                claimId: args.claimId,
+                evidenceId: args.evidenceId,
+                relation: args.relation,
+              });
+              setFlash(`已取消「${args.label}」的挂接。误取消可点恢复。`);
+            }}
           />
         </div>
       ) : null}
@@ -1159,6 +1189,18 @@ export function FamilyWorkspace({
             setError("");
             setPendingUndo({ kind: "evidence", id: evidenceId, label });
             setFlash(`已移除「${label}」。误删可点恢复。`);
+          }}
+          onEvidenceUnlinked={(args) => {
+            setError("");
+            setPendingUndo({
+              kind: "evidence-link",
+              id: `${args.claimId}:${args.evidenceId}`,
+              label: args.label,
+              claimId: args.claimId,
+              evidenceId: args.evidenceId,
+              relation: args.relation,
+            });
+            setFlash(`已取消「${args.label}」的挂接。误取消可点恢复。`);
           }}
           onError={(msg) => setError(msg)}
           onAuth={(e) => handleAuthRedirect(e, router)}
@@ -2047,6 +2089,7 @@ function RecordsTab({
   setFlash,
   setError,
   onEvidenceRemoved,
+  onEvidenceUnlinked,
 }: {
   familyId: string;
   persons: GraphPerson[];
@@ -2077,6 +2120,12 @@ function RecordsTab({
   setFlash: (s: string) => void;
   setError: (s: string) => void;
   onEvidenceRemoved: (evidenceId: string, label: string) => void;
+  onEvidenceUnlinked: (args: {
+    claimId: string;
+    evidenceId: string;
+    relation: string;
+    label: string;
+  }) => void;
 }) {
   const [personId, setPersonId] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
@@ -2569,6 +2618,7 @@ function RecordsTab({
                     onError={setError}
                     onFlash={setFlash}
                     onEvidenceRemoved={onEvidenceRemoved}
+                    onEvidenceUnlinked={onEvidenceUnlinked}
                   />
                 ))}
               </ul>
@@ -3172,6 +3222,7 @@ function ClaimCard({
   onError,
   onFlash,
   onEvidenceRemoved,
+  onEvidenceUnlinked,
   onAuthError,
 }: {
   familyId: string;
@@ -3187,6 +3238,12 @@ function ClaimCard({
   onError: (s: string) => void;
   onFlash: (s: string) => void;
   onEvidenceRemoved?: (evidenceId: string, label: string) => void;
+  onEvidenceUnlinked?: (args: {
+    claimId: string;
+    evidenceId: string;
+    relation: string;
+    label: string;
+  }) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
   const [bundle, setBundle] = useState<Awaited<
@@ -3476,7 +3533,7 @@ function ClaimCard({
                       onClick={async () => {
                         setRemovingBusy(true);
                         try {
-                          await v1api.unlinkEvidence(
+                          const unlinked = await v1api.unlinkEvidence(
                             familyId,
                             claim.id,
                             l.evidence.id,
@@ -3486,9 +3543,18 @@ function ClaimCard({
                             l.evidence.title?.trim() ||
                             EVIDENCE_TYPE_UI[l.evidence.evidenceType] ||
                             "资料来源";
-                          onFlash(
-                            `已取消「${label}」的挂接；来源仍在家族来源库。`
-                          );
+                          if (onEvidenceUnlinked) {
+                            onEvidenceUnlinked({
+                              claimId: claim.id,
+                              evidenceId: l.evidence.id,
+                              relation: unlinked.relation,
+                              label,
+                            });
+                          } else {
+                            onFlash(
+                              `已取消「${label}」的挂接；来源仍在家族来源库。`
+                            );
+                          }
                           setRemovingEvidenceId(null);
                           setRemovingEvidenceShared(0);
                           const b = await v1api.getClaim(familyId, claim.id);
@@ -5026,6 +5092,7 @@ function PersonDrawer({
   onDeleted,
   onRelationshipRemoved,
   onEvidenceRemoved,
+  onEvidenceUnlinked,
   onRequestAddRel,
   onRequestAddKin,
   onShowInLineage,
@@ -5055,6 +5122,12 @@ function PersonDrawer({
     label: string
   ) => void | Promise<void>;
   onEvidenceRemoved: (evidenceId: string, label: string) => void;
+  onEvidenceUnlinked: (args: {
+    claimId: string;
+    evidenceId: string;
+    relation: string;
+    label: string;
+  }) => void;
   onRequestAddRel: () => void;
   onRequestAddKin: (role: KinRole) => void;
   onShowInLineage: () => void;
@@ -5733,6 +5806,7 @@ function PersonDrawer({
                         }}
                         onFlash={setLocalFlash}
                         onEvidenceRemoved={onEvidenceRemoved}
+                        onEvidenceUnlinked={onEvidenceUnlinked}
                       />
                     ))}
                   </ul>
