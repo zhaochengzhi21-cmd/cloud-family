@@ -1770,6 +1770,49 @@ test("明经胡氏：人物页不确定在世/性别直达抽屉焦点", async (
   await expect(genderDrawer.locator("#edit-gender")).toBeFocused();
 });
 
+test("明经胡氏：人物页可修改已填的在世状态与性别", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·修改基本信息（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "修改在世状态" })
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "修改性别" })).toBeVisible();
+
+  await page.getByRole("button", { name: "修改在世状态" }).click();
+  const livingDrawer = page.getByRole("dialog");
+  await expect(livingDrawer.locator("#edit-living")).toHaveValue("DECEASED", {
+    timeout: 60_000,
+  });
+  await expect(livingDrawer.locator("#edit-living")).toBeFocused();
+  await livingDrawer.getByRole("button", { name: "关闭" }).click();
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await page.getByRole("button", { name: "修改性别" }).click();
+  const genderDrawer = page.getByRole("dialog");
+  await expect(genderDrawer.locator("#edit-gender")).toHaveValue("MALE", {
+    timeout: 60_000,
+  });
+  await expect(genderDrawer.locator("#edit-gender")).toBeFocused();
+});
+
 test("明经胡氏：概览有配偶无子女时 chip 打开添加子女", async ({
   page,
   baseURL,

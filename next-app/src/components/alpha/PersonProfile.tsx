@@ -547,23 +547,26 @@ export function PersonProfile({
               修改姓名
             </button>
           ) : null}
-          {canEdit &&
-          (!person.livingStatus || person.livingStatus === "UNKNOWN") ? (
+          {canEdit ? (
             <button
               type="button"
               onClick={() => openPersonBasics("living")}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
             >
-              确认在世状态
+              {!person.livingStatus || person.livingStatus === "UNKNOWN"
+                ? "确认在世状态"
+                : "修改在世状态"}
             </button>
           ) : null}
-          {canEdit && (!person.gender || person.gender === "UNKNOWN") ? (
+          {canEdit ? (
             <button
               type="button"
               onClick={() => openPersonBasics("gender")}
               className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
             >
-              确认性别
+              {!person.gender || person.gender === "UNKNOWN"
+                ? "确认性别"
+                : "修改性别"}
             </button>
           ) : null}
           {family.parents.length +
