@@ -526,6 +526,54 @@ export function OverviewTab({
     return out;
   }, [overview, unsourcedAccepted, sortedPersons]);
 
+  /** People with unsourced beyond the overview slice (claims 31+). */
+  const unsourcedOverflowPeople = useMemo(() => {
+    if (
+      !overview ||
+      unsourcedAcceptedTotal <= unsourcedAccepted.length
+    ) {
+      return [] as Array<{ id: string; name: string; leftover: number }>;
+    }
+    const shown = new Map<string, number>();
+    for (const c of unsourcedAccepted) {
+      shown.set(c.personId, (shown.get(c.personId) ?? 0) + 1);
+    }
+    const leftovers: Array<{ id: string; name: string; leftover: number }> =
+      [];
+    for (const [personId, stats] of Object.entries(overview.personStats)) {
+      const left = Math.max(0, (stats.unsourced ?? 0) - (shown.get(personId) ?? 0));
+      if (left <= 0) continue;
+      leftovers.push({
+        id: personId,
+        name: personName.get(personId) ?? "成员",
+        leftover: left,
+      });
+    }
+    leftovers.sort((a, b) => b.leftover - a.leftover);
+    return leftovers.slice(0, 8);
+  }, [
+    overview,
+    unsourcedAccepted,
+    unsourcedAcceptedTotal,
+    personName,
+  ]);
+
+  const sourceStepPeople = useMemo(() => {
+    const primary = unsourcedPeople.slice(0, 6);
+    if (unsourcedOverflowPeople.length === 0) return primary;
+    const seen = new Set(primary.map((p) => p.id));
+    const extra: Person[] = [];
+    for (const o of unsourcedOverflowPeople) {
+      if (seen.has(o.id)) continue;
+      const person = sortedPersons.find((p) => p.id === o.id);
+      if (!person) continue;
+      extra.push(person);
+      seen.add(o.id);
+      if (primary.length + extra.length >= 8) break;
+    }
+    return [...primary, ...extra];
+  }, [unsourcedPeople, unsourcedOverflowPeople, sortedPersons]);
+
   const total = persons.length;
   const connectedCount = total - unconnected.length;
   const birthCount = overview ? total - missingBirth.length : null;
@@ -1012,15 +1060,19 @@ export function OverviewTab({
     });
   }
   if (overview && unsourcedAcceptedTotal > 0) {
+    const overflowNote =
+      unsourcedAcceptedTotal > unsourcedAccepted.length
+        ? `优先列出部分家人；其余约 ${unsourcedAcceptedTotal - unsourcedAccepted.length} 条也可点人名到资料页继续补。`
+        : "";
     steps.push({
       key: "source",
       title: canEdit
         ? `为 ${unsourcedAcceptedTotal} 条已确认资料补上来源`
         : `${unsourcedAcceptedTotal} 条已确认资料还没有来源`,
       body: canEdit
-        ? "有出处的资料才经得起后人核对。点人名打开那条资料并挂上来源；谱页、口述、照片都可以。"
-        : "可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。也可在下方「参与家人」找到可编辑的账号。",
-      people: unsourcedPeople.slice(0, 6),
+        ? `有出处的资料才经得起后人核对。点人名打开那条资料并挂上来源；谱页、口述、照片都可以。${overflowNote}`
+        : `可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。也可在下方「参与家人」找到可编辑的账号。${overflowNote}`,
+      people: sourceStepPeople,
       peopleAria: canEdit ? "补上来源" : "查看",
       browsePeople: !canEdit,
     });
@@ -1236,7 +1288,10 @@ export function OverviewTab({
                                   openEvidence: true,
                                 });
                               } else {
-                                onOpenPerson?.(p.id);
+                                // Overflow person — claim not in the overview slice.
+                                onOpenRecords(p.id, {
+                                  statusFilter: "ALL",
+                                });
                               }
                               return;
                             }

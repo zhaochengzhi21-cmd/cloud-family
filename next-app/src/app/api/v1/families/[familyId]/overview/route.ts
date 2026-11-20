@@ -22,6 +22,8 @@ type PersonStats = {
   proposed: number;
   accepted: number;
   conflicted: number;
+  /** ACCEPTED claims with no active evidence link. */
+  unsourced: number;
   claimTypes: string[];
 };
 
@@ -86,6 +88,7 @@ export async function GET(
         proposed: 0,
         accepted: 0,
         conflicted: 0,
+        unsourced: 0,
         claimTypes: [],
       };
       for (const c of claims) {
@@ -122,6 +125,10 @@ export async function GET(
     const unsourcedAccepted = acceptedSummaries.filter(
       (c) => !sourcedIds.has(c.claimId)
     );
+    for (const c of unsourcedAccepted) {
+      const stats = personStats[c.personId];
+      if (stats) stats.unsourced += 1;
+    }
 
     // AI / import drafts first so humans clear the agent queue sooner.
     const originRank = (o: string) =>

@@ -258,6 +258,7 @@ export const v1api = {
             proposed: number;
             accepted: number;
             conflicted: number;
+            unsourced: number;
             claimTypes: string[];
           }
         >;
