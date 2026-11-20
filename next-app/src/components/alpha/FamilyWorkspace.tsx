@@ -8071,13 +8071,30 @@ function PersonDrawer({
       const needsDeath =
         res.person.livingStatus === "DECEASED" &&
         !activeClaims.some((c) => c.claimType === "DEATH_DATE");
-      setLocalFlash(
-        needsDeath
-          ? "已保存基本信息。建议在下方补充去世信息。"
-          : "已保存基本信息"
-      );
       if (needsDeath) {
+        const qs = new URLSearchParams({
+          tab: "records",
+          person: person.id,
+          claimType: "DEATH_DATE",
+        });
+        setLocalFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+        );
+        setLocalFlash(
+          "已保存基本信息。建议在下方补充去世信息。可复制链接发给家人一起补。"
+        );
         setDrawerClaimSeed({ claimType: "DEATH_DATE", nonce: Date.now() });
+      } else {
+        const qs = new URLSearchParams({
+          tab: "records",
+          person: person.id,
+        });
+        setLocalFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+        );
+        setLocalFlash(
+          "已保存基本信息。可复制链接发给家人一起看。"
+        );
       }
       await onChanged();
     } catch (err) {
