@@ -127,7 +127,8 @@ export const ERROR_COPY = {
   unauthenticated: "登录状态已失效，请重新登录。",
   forbidden:
     "你的当前权限不能执行这个操作。可在概览「参与家人」中联系有相应权限的家人。",
-  notFound: "找不到这份资料，或者你没有查看权限。",
+  notFound:
+    "找不到这份资料，或者你没有查看权限。可返回「我的家族」另选一份档案。",
   familyConflict: "这份家族档案刚刚被其他人更新，请刷新后再试。",
   personConflict: "这位成员的资料刚刚被更新，请重新载入后再修改。",
   ancestryCycle: "这条关系会形成循环世系，请检查所选成员。",
