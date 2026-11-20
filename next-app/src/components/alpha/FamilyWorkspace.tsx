@@ -1888,6 +1888,29 @@ export function FamilyWorkspace({
             setSourcesFocusEvidenceId(evidenceId);
             setTab("overview");
           }}
+          onOpenParticipants={
+            canReview
+              ? undefined
+              : () => {
+                  setSelectedPersonId(null);
+                  setDrawerBasicsFocus(null);
+                  setDrawerExternalSeed(null);
+                  try {
+                    sessionStorage.setItem(
+                      `alpha-overview-scroll:${familyId}`,
+                      "overview-participants"
+                    );
+                  } catch {
+                    /* private mode */
+                  }
+                  setTab("overview");
+                  window.setTimeout(() => {
+                    document
+                      .getElementById("overview-participants")
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }, 80);
+                }
+          }
           onDeleted={async (name, personId) => {
             setSelectedPersonId(null);
             setDrawerExternalSeed(null);
@@ -3615,6 +3638,7 @@ function RecordsTab({
                   setOpenEvidenceClaimId(id);
                   setOpenEvidenceType(null);
                 }}
+                onOpenParticipants={onOpenParticipants}
               />
             ) : null}
             {listRows.length > 0 ? (
@@ -4208,6 +4232,7 @@ function ConflictChooser({
   onFlash,
   onAuthError,
   onOpenEvidenceAfterAccept,
+  onOpenParticipants,
 }: {
   familyId: string;
   claims: ClaimRow[];
@@ -4218,6 +4243,7 @@ function ConflictChooser({
   onFlash: (s: string, undoClaimId?: string) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
+  onOpenParticipants?: () => void;
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -4278,6 +4304,15 @@ function ConflictChooser({
           ? "请选用一种说法作为正式记载，或标记不采用。"
           : `目前资料中记录不一致，需${REVIEWER_CONTACT}选用一种说法。`}
       </p>
+      {!canReview && onOpenParticipants ? (
+        <button
+          type="button"
+          className="mt-2 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          onClick={onOpenParticipants}
+        >
+          查看参与家人
+        </button>
+      ) : null}
       <ul className="mt-3 grid gap-3 sm:grid-cols-2">
         {claims.map((c, i) => {
           const originLabel =
@@ -6355,6 +6390,7 @@ function PersonDrawer({
   onShowInLineage,
   onOpenPerson,
   onOpenSourcesLibrary,
+  onOpenParticipants,
   onError,
   onAuth,
 }: {
@@ -6390,6 +6426,7 @@ function PersonDrawer({
   onShowInLineage: () => void;
   onOpenPerson: (id: string) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
+  onOpenParticipants?: () => void;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -7103,6 +7140,7 @@ function PersonDrawer({
                     onOpenEvidenceAfterAccept={(id) =>
                       setDrawerOpenEvidenceClaimId(id)
                     }
+                    onOpenParticipants={onOpenParticipants}
                   />
                 ) : null}
                 {listRows.length > 0 ? (
