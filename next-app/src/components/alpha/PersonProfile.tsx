@@ -2122,9 +2122,7 @@ function ClaimValues({
             className="alpha-print-hide text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
             onClick={() => onFocusClaim(differTarget.id, differTarget.status)}
           >
-            {canReview
-              ? "存在不同说法"
-              : `存在不同说法（需${REVIEWER_CONTACT}选用）`}
+            {canReview ? "存在不同说法" : "存在不同说法 · 查看"}
           </button>
         ) : (
           <p className="text-xs font-semibold text-[color:var(--a-brand)]">
