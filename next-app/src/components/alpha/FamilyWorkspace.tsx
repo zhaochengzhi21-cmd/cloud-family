@@ -484,6 +484,7 @@ export function FamilyWorkspace({
       if (!id) return;
       sessionStorage.removeItem(`alpha-lineage-focus:${familyId}`);
       setLineageFocusId(id);
+      setLineageUrlPerson(id);
       setTab("lineage");
     } catch {
       /* private mode */
@@ -503,6 +504,8 @@ export function FamilyWorkspace({
   } | null>(null);
   /** Records-tab subject mirrored into ?person= (not the member drawer). */
   const [recordsUrlPerson, setRecordsUrlPerson] = useState<string | null>(null);
+  /** Lineage-tab highlight subject mirrored into ?person= when drawer is closed. */
+  const [lineageUrlPerson, setLineageUrlPerson] = useState<string | null>(null);
   const [sourcesFocusEvidenceId, setSourcesFocusEvidenceId] = useState<
     string | null
   >(null);
@@ -714,6 +717,14 @@ export function FamilyWorkspace({
         recordsUrlPerson || pendingClaimPerson || null;
       if (recordsPerson) params.set("person", recordsPerson);
       else params.delete("person");
+    } else if (tab === "lineage") {
+      params.delete("claim");
+      params.delete("claimStatus");
+      // Prefer open drawer; otherwise keep lineage highlight subject shareable.
+      const lineagePerson =
+        selectedPersonId || lineageUrlPerson || pendingClaimPerson || null;
+      if (lineagePerson) params.set("person", lineagePerson);
+      else params.delete("person");
     } else {
       params.delete("claim");
       params.delete("claimStatus");
@@ -730,6 +741,7 @@ export function FamilyWorkspace({
     selectedPersonId,
     shareClaim,
     recordsUrlPerson,
+    lineageUrlPerson,
     pathname,
     router,
     searchParams,
@@ -739,6 +751,11 @@ export function FamilyWorkspace({
     if (tab === "records") return;
     setShareClaim((prev) => (prev ? null : prev));
     setRecordsUrlPerson((prev) => (prev ? null : prev));
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab === "lineage") return;
+    setLineageUrlPerson((prev) => (prev ? null : prev));
   }, [tab]);
 
   useEffect(() => {
@@ -752,7 +769,7 @@ export function FamilyWorkspace({
     const claim = searchParams.get("claim");
     const person = searchParams.get("person");
     const urlTab = searchParams.get("tab");
-    // On 资料, ?person= selects the records subject — do not open the drawer.
+    // On 资料 / 世系, ?person= is the tab subject — do not open the drawer.
     if ((claim && person) || urlTab === "records") {
       if (person) {
         try {
@@ -761,6 +778,18 @@ export function FamilyWorkspace({
           /* private mode */
         }
         setRecordsUrlPerson(person);
+      }
+      return;
+    }
+    if (urlTab === "lineage") {
+      if (person) {
+        try {
+          sessionStorage.setItem(`alpha-lineage-focus:${familyId}`, person);
+        } catch {
+          /* private mode */
+        }
+        setLineageUrlPerson(person);
+        setLineageFocusId(person);
       }
       return;
     }
@@ -794,6 +823,23 @@ export function FamilyWorkspace({
           "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人。"
         );
         setRecordsUrlPerson(null);
+      }
+      return;
+    }
+    if (urlTab === "lineage") {
+      if (persons.some((p) => p.id === person)) {
+        setLineageUrlPerson(person);
+        setLineageFocusId(person);
+        personMissAnnounced.current = null;
+      } else if (
+        persons.length > 0 &&
+        personMissAnnounced.current !== person
+      ) {
+        personMissAnnounced.current = person;
+        setFlash(
+          "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人。"
+        );
+        setLineageUrlPerson(null);
       }
       return;
     }

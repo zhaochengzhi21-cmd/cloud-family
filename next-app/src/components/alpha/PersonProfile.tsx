@@ -434,7 +434,9 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(`${workspaceHref}?tab=lineage`);
+    router.push(
+      `${workspaceHref}?tab=lineage&person=${encodeURIComponent(personId)}`
+    );
   }
 
   function openSourcesLibrary(evidenceId: string) {
