@@ -1749,11 +1749,13 @@ function BackupSection({
   onAuthError: (e: unknown) => boolean;
 }) {
   const [busy, setBusy] = useState<"json" | "ged" | null>(null);
+  const [lastKind, setLastKind] = useState<"json" | "ged">("json");
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
 
   async function download(kind: "json" | "ged") {
     setBusy(kind);
+    setLastKind(kind);
     setMessage("");
     setFailed(false);
     try {
@@ -1837,9 +1839,9 @@ function BackupSection({
                 type="button"
                 className="shrink-0 font-semibold underline-offset-2 hover:underline"
                 disabled={busy !== null}
-                onClick={() => void download("json")}
+                onClick={() => void download(lastKind)}
               >
-                重试备份
+                重试
               </button>
             ) : null}
           </div>
