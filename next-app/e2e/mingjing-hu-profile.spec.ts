@@ -3940,3 +3940,56 @@ test("明经胡氏：唯一成员添加亲属提示新建", async ({ page, baseU
   await expect(dialog.getByRole("button", { name: "新建成员" })).toBeEnabled();
   await expect(dialog.locator("#kin-name")).toBeVisible();
 });
+
+test("明经胡氏：邀请链接丢失会话可重新生成", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·邀请重生成（测试）",
+    sample.surname
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const inviteBox = page.getByRole("region", { name: "邀请家人" });
+  await expect(inviteBox).toBeVisible({ timeout: 60_000 });
+  await inviteBox.locator("#invite-role").selectOption("EDITOR");
+  await inviteBox.getByRole("button", { name: "生成邀请链接" }).click();
+  const inviteUrl = await inviteBox.locator("#invite-link").inputValue();
+  expect(inviteUrl).toMatch(/\/alpha\/invite\//);
+  const pending = inviteBox.getByRole("list", { name: "尚未使用的邀请" });
+  await expect(pending.getByRole("button", { name: "复制链接" })).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await page.evaluate((fid) => {
+    const keys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k?.startsWith(`alpha-invite-link:${fid}:`)) keys.push(k);
+    }
+    for (const k of keys) sessionStorage.removeItem(k);
+  }, familyId);
+  await page.reload();
+  await page.getByRole("tab", { name: "概览" }).click();
+  const inviteBox2 = page.getByRole("region", { name: "邀请家人" });
+  const pending2 = inviteBox2.getByRole("list", { name: "尚未使用的邀请" });
+  await expect(
+    pending2.getByText("链接不在本会话，无法再复制")
+  ).toBeVisible({ timeout: 60_000 });
+  await pending2.getByRole("button", { name: "重新生成链接" }).click();
+  await expect(inviteBox2.locator("#invite-link")).toBeVisible({
+    timeout: 60_000,
+  });
+  const newUrl = await inviteBox2.locator("#invite-link").inputValue();
+  expect(newUrl).toMatch(/\/alpha\/invite\//);
+  expect(newUrl).not.toBe(inviteUrl);
+  await expect(
+    pending2.getByRole("button", { name: "复制链接" })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    inviteBox2.getByRole("status").filter({ hasText: "已重新生成邀请链接" })
+  ).toBeVisible();
+});

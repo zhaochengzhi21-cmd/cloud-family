@@ -167,6 +167,40 @@ export function FamilyInvites({
     }
   }
 
+  async function regenerate(invite: Access["invites"][number]) {
+    const nextRole = invite.role as InviteRole;
+    if (!access?.invitableRoles.includes(nextRole)) {
+      setFailed(true);
+      setMessage("当前权限无法重新生成该角色的邀请，请撤销后另选权限生成。");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    setFailed(false);
+    try {
+      await v1api.revokeFamilyInvite(familyId, invite.id);
+      clearStoredInviteUrl(familyId, invite.id);
+      if (link && storedUrls[invite.id] === link.url) {
+        setLink(null);
+      }
+      const r = await v1api.createFamilyInvite(familyId, nextRole);
+      const url = `${window.location.origin}/alpha/invite/${r.token}`;
+      writeStoredInviteUrl(familyId, r.invite.id, url);
+      setLink({
+        url,
+        role: r.invite.role,
+      });
+      setMessage("已重新生成邀请链接，旧链接已失效");
+      await load();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function changeRole(
     membershipId: string,
     next: "ADMIN" | "EDITOR" | "VIEWER"
@@ -453,7 +487,21 @@ export function FamilyInvites({
                         >
                           复制链接
                         </button>
-                      ) : null}
+                      ) : (
+                        <>
+                          <span className="text-xs text-[color:var(--a-muted)]">
+                            链接不在本会话，无法再复制
+                          </span>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void regenerate(i)}
+                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-50"
+                          >
+                            重新生成链接
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => void revoke(i.id)}
