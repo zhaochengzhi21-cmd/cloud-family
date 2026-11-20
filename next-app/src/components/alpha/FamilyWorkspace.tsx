@@ -227,7 +227,7 @@ export function FamilyWorkspace({
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
-    kind: "person" | "relationship" | "evidence" | "evidence-link";
+    kind: "person" | "relationship" | "evidence" | "evidence-link" | "claim";
     id: string;
     label: string;
     claimId?: string;
@@ -595,10 +595,10 @@ export function FamilyWorkspace({
   }, [familyId, tab]);
 
   useEffect(() => {
-    if (!flash) return;
+    if (!flash || pendingUndo) return;
     const t = window.setTimeout(() => setFlash(""), 8000);
     return () => window.clearTimeout(t);
-  }, [flash]);
+  }, [flash, pendingUndo]);
 
   useEffect(() => {
     if (!lineageFocusId) return;
@@ -824,6 +824,13 @@ export function FamilyWorkspace({
                           { idempotencyKey: crypto.randomUUID() }
                         );
                         setFlash(`已恢复「${undo.label}」的挂接`);
+                      } else if (undo.kind === "claim") {
+                        await v1api.reopenClaim(familyId, undo.id, {
+                          idempotencyKey: crypto.randomUUID(),
+                        });
+                        setFlash(
+                          "已重新打开这条资料，可再次确认或不采用"
+                        );
                       }
                       await load();
                     } catch (e) {
@@ -1084,6 +1091,7 @@ export function FamilyWorkspace({
             onOpenPerson={(id) => setSelectedPersonId(id)}
             onGoMembers={() => setTab("members")}
             setFlash={setFlash}
+            setPendingUndo={(undo) => setPendingUndo(undo)}
             setError={setError}
             onEvidenceRemoved={(evidenceId, label) => {
               setError("");
@@ -2330,6 +2338,7 @@ function RecordsTab({
   onOpenPerson,
   onGoMembers,
   setFlash,
+  setPendingUndo,
   setError,
   onEvidenceRemoved,
   onEvidenceUnlinked,
@@ -2362,6 +2371,13 @@ function RecordsTab({
   onOpenPerson: (id: string) => void;
   onGoMembers: () => void;
   setFlash: (s: string) => void;
+  setPendingUndo: (
+    undo: null | {
+      kind: "claim";
+      id: string;
+      label: string;
+    }
+  ) => void;
   setError: (s: string) => void;
   onEvidenceRemoved: (evidenceId: string, label: string) => void;
   onEvidenceUnlinked: (args: {
@@ -2835,7 +2851,18 @@ function RecordsTab({
                 canEdit={canEdit}
                 onChanged={loadClaims}
                 onError={setError}
-                onFlash={setFlash}
+                onFlash={(msg, undoClaimId) => {
+                  setFlash(msg);
+                  setPendingUndo(
+                    undoClaimId
+                      ? {
+                          kind: "claim",
+                          id: undoClaimId,
+                          label: "这条资料",
+                        }
+                      : null
+                  );
+                }}
                 onAuthError={onAuthError}
                 onOpenEvidenceAfterAccept={(id) => {
                   setStatusFilter("ALL");
@@ -2874,7 +2901,18 @@ function RecordsTab({
                     onAuthError={onAuthError}
                     onChanged={loadClaims}
                     onError={setError}
-                    onFlash={setFlash}
+                    onFlash={(msg, undoClaimId) => {
+                      setFlash(msg);
+                      setPendingUndo(
+                        undoClaimId
+                          ? {
+                              kind: "claim",
+                              id: undoClaimId,
+                              label: "这条资料",
+                            }
+                          : null
+                      );
+                    }}
                     onEvidenceRemoved={onEvidenceRemoved}
                     onEvidenceUnlinked={onEvidenceUnlinked}
                   />
@@ -3426,7 +3464,7 @@ function ConflictChooser({
   canEdit: boolean;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
-  onFlash: (s: string) => void;
+  onFlash: (s: string, undoClaimId?: string) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
 }) {
@@ -3468,7 +3506,7 @@ function ConflictChooser({
       await v1api.rejectClaim(familyId, claim.id, {
         idempotencyKey: crypto.randomUUID(),
       });
-      onFlash("已处理不同说法");
+      onFlash("已处理不同说法。误标可点恢复。", claim.id);
       await onChanged();
     } catch (e) {
       if (onAuthError(e)) return;
@@ -3574,7 +3612,7 @@ function ClaimCard({
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
-  onFlash: (s: string) => void;
+  onFlash: (s: string, undoClaimId?: string) => void;
   onEvidenceRemoved?: (evidenceId: string, label: string) => void;
   onEvidenceUnlinked?: (args: {
     claimId: string;
@@ -3718,7 +3756,7 @@ function ClaimCard({
                   await v1api.rejectClaim(familyId, claim.id, {
                     idempotencyKey: crypto.randomUUID(),
                   });
-                  onFlash("已标记为不采用");
+                  onFlash("已标记为不采用。误标可点恢复。", claim.id);
                   await onChanged();
                 } catch (e) {
                   if (onAuthError(e)) return;
@@ -3783,7 +3821,7 @@ function ClaimCard({
                   await v1api.rejectClaim(familyId, claim.id, {
                     idempotencyKey: crypto.randomUUID(),
                   });
-                  onFlash("已处理不同说法");
+                  onFlash("已处理不同说法。误标可点恢复。", claim.id);
                   await onChanged();
                 } catch (e) {
                   if (onAuthError(e)) return;
@@ -3824,7 +3862,7 @@ function ClaimCard({
                     await v1api.rejectClaim(familyId, claim.id, {
                       idempotencyKey: crypto.randomUUID(),
                     });
-                    onFlash("已标记为不采用");
+                    onFlash("已标记为不采用。误标可点恢复。", claim.id);
                     await onChanged();
                   } catch (e) {
                     if (onAuthError(e)) return;
@@ -5628,6 +5666,9 @@ function PersonDrawer({
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const [localFlash, setLocalFlash] = useState("");
+  const [localUndoClaimId, setLocalUndoClaimId] = useState<string | null>(
+    null
+  );
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [rejectedOpen, setRejectedOpen] = useState(false);
@@ -5670,13 +5711,19 @@ function PersonDrawer({
 
   useEffect(() => {
     setLocalFlash("");
+    setLocalUndoClaimId(null);
   }, [person.id]);
 
   useEffect(() => {
-    if (!localFlash) return;
+    if (!localFlash || localUndoClaimId) return;
     const t = window.setTimeout(() => setLocalFlash(""), 4000);
     return () => window.clearTimeout(t);
-  }, [localFlash]);
+  }, [localFlash, localUndoClaimId]);
+
+  function flashLocal(msg: string, undoClaimId?: string) {
+    setLocalFlash(msg);
+    setLocalUndoClaimId(undoClaimId ?? null);
+  }
 
   const loadClaims = useCallback(async () => {
     setClaimsLoading(true);
@@ -5940,9 +5987,52 @@ function PersonDrawer({
             </p>
           ) : null}
           {localFlash ? (
-            <p className="mb-3 alpha-alert alpha-alert-ok" role="status">
-              {localFlash}
-            </p>
+            <div
+              className="mb-3 flex flex-wrap items-start justify-between gap-3 alpha-alert alpha-alert-ok"
+              role="status"
+            >
+              <p className="min-w-0 flex-1">{localFlash}</p>
+              <div className="flex shrink-0 flex-wrap items-center gap-3">
+                {localUndoClaimId ? (
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      const id = localUndoClaimId;
+                      setLocalUndoClaimId(null);
+                      setLocalFlash("");
+                      void (async () => {
+                        try {
+                          await v1api.reopenClaim(familyId, id, {
+                            idempotencyKey: crypto.randomUUID(),
+                          });
+                          setLocalFlash(
+                            "已重新打开这条资料，可再次确认或不采用"
+                          );
+                          await loadClaims();
+                          onChanged();
+                        } catch (e) {
+                          if (onAuth(e)) return;
+                          setLocalError(userMessageForApiError(e));
+                        }
+                      })();
+                    }}
+                  >
+                    恢复
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="text-sm text-[color:var(--a-muted)] underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setLocalFlash("");
+                    setLocalUndoClaimId(null);
+                  }}
+                >
+                  关闭
+                </button>
+              </div>
+            </div>
           ) : null}
           {!canEdit ? (
             <p className="text-sm text-[color:var(--a-muted)]">
@@ -6223,7 +6313,7 @@ function PersonDrawer({
                       setLocalError(msg);
                       onError(msg);
                     }}
-                    onFlash={setLocalFlash}
+                    onFlash={flashLocal}
                     onAuthError={onAuth}
                     onOpenEvidenceAfterAccept={(id) =>
                       setDrawerOpenEvidenceClaimId(id)
@@ -6259,7 +6349,7 @@ function PersonDrawer({
                           setLocalError(msg);
                           onError(msg);
                         }}
-                        onFlash={setLocalFlash}
+                        onFlash={flashLocal}
                         onEvidenceRemoved={onEvidenceRemoved}
                         onEvidenceUnlinked={onEvidenceUnlinked}
                       />

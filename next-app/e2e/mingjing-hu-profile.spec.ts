@@ -998,6 +998,45 @@ test("明经胡氏：概览可一键不采用智能整理", async ({ page, baseU
   ).toHaveCount(0);
 });
 
+test("明经胡氏：不采用后可立即恢复待确认", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·不采用即时恢复（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "OCCUPATION", text: "万载知县，后升胶州刺史" },
+  ]);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const card = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "万载知县，后升胶州刺史" });
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await card.getByRole("button", { name: "不采用" }).click();
+  const undoFlash = page.getByRole("status").filter({
+    hasText: "已标记为不采用。误标可点恢复。",
+  });
+  await expect(undoFlash).toBeVisible({ timeout: 60_000 });
+  await undoFlash.getByRole("button", { name: "恢复" }).click();
+  await expect(
+    page.getByRole("status").filter({
+      hasText: "已重新打开这条资料，可再次确认或不采用",
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page
+      .locator("[data-claim-id]")
+      .filter({ hasText: "万载知县，后升胶州刺史" })
+      .getByRole("button", { name: "确认这条资料" })
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({
   page,
   baseURL,
