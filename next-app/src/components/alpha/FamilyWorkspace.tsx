@@ -1756,7 +1756,13 @@ export function FamilyWorkspace({
             onEvidenceRemoved={(evidenceId, label) => {
               setError("");
               setPendingUndo({ kind: "evidence", id: evidenceId, label });
-              setFlash(`已移除「${label}」。误删可点恢复。`);
+              const qs = new URLSearchParams({ evidence: evidenceId });
+              setFlashCopyUrl(
+                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+              );
+              setFlash(
+                `已移除「${label}」。误删可点恢复。可复制链接发给家人核对。`
+              );
             }}
             onReopenClaim={async (personId, claimId) => {
               try {
@@ -1977,7 +1983,13 @@ export function FamilyWorkspace({
             onEvidenceRemoved={(evidenceId, label) => {
               setError("");
               setPendingUndo({ kind: "evidence", id: evidenceId, label });
-              setFlash(`已移除「${label}」。误删可点恢复。`);
+              const qs = new URLSearchParams({ evidence: evidenceId });
+              setFlashCopyUrl(
+                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+              );
+              setFlash(
+                `已移除「${label}」。误删可点恢复。可复制链接发给家人核对。`
+              );
             }}
             onEvidenceUnlinked={(args) => {
               setError("");
@@ -1989,7 +2001,17 @@ export function FamilyWorkspace({
                 evidenceId: args.evidenceId,
                 relation: args.relation,
               });
-              setFlash(`已取消「${args.label}」的挂接。误取消可点恢复。`);
+              const qs = new URLSearchParams({
+                tab: "records",
+                claim: args.claimId,
+              });
+              if (recordsUrlPerson) qs.set("person", recordsUrlPerson);
+              setFlashCopyUrl(
+                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+              );
+              setFlash(
+                `已取消「${args.label}」的挂接。误取消可点恢复。可复制链接发给家人核对。`
+              );
             }}
           />
         </div>
