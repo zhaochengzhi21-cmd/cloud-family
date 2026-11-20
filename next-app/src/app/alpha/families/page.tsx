@@ -28,6 +28,9 @@ export default function AlphaFamiliesPage() {
   const [surnameTouched, setSurnameTouched] = useState(false);
   const [lastFamilyId, setLastFamilyId] = useState("");
   const [leftNote, setLeftNote] = useState("");
+  const [leftNoteHandoffUrl, setLeftNoteHandoffUrl] = useState<string | null>(
+    null
+  );
   const [leftNoteCopyFlash, setLeftNoteCopyFlash] = useState("");
   const [emptyCopyFlash, setEmptyCopyFlash] = useState("");
   const [familyCopyFlashId, setFamilyCopyFlashId] = useState<string | null>(
@@ -73,6 +76,11 @@ export default function AlphaFamiliesPage() {
       if (!note) return;
       sessionStorage.removeItem("alpha-left-family-note");
       setLeftNote(note);
+      const handoff = sessionStorage.getItem("alpha-left-family-handoff-url");
+      if (handoff) {
+        sessionStorage.removeItem("alpha-left-family-handoff-url");
+        setLeftNoteHandoffUrl(handoff);
+      }
     } catch {
       /* private mode */
     }
@@ -173,10 +181,16 @@ export default function AlphaFamiliesPage() {
                 type="button"
                 className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                 onClick={() => {
-                  const url = `${window.location.origin}/alpha/families`;
+                  const url =
+                    leftNoteHandoffUrl ||
+                    `${window.location.origin}/alpha/families`;
                   void navigator.clipboard.writeText(url).then(
                     () => {
-                      setLeftNoteCopyFlash("已复制链接");
+                      setLeftNoteCopyFlash(
+                        leftNoteHandoffUrl
+                          ? "已复制邀请入口链接"
+                          : "已复制链接"
+                      );
                       window.setTimeout(() => setLeftNoteCopyFlash(""), 2500);
                     },
                     () => {
@@ -186,7 +200,8 @@ export default function AlphaFamiliesPage() {
                   );
                 }}
               >
-                {leftNoteCopyFlash || "复制链接"}
+                {leftNoteCopyFlash ||
+                  (leftNoteHandoffUrl ? "复制邀请入口链接" : "复制链接")}
               </button>
             ) : null}
             <button
@@ -194,6 +209,7 @@ export default function AlphaFamiliesPage() {
               className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
               onClick={() => {
                 setLeftNote("");
+                setLeftNoteHandoffUrl(null);
                 setLeftNoteCopyFlash("");
               }}
             >

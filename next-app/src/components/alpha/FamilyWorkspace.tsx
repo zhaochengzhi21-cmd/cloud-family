@@ -1479,9 +1479,14 @@ export function FamilyWorkspace({
                         idempotencyKey: crypto.randomUUID(),
                       });
                       try {
+                        const handoffUrl = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
                         sessionStorage.setItem(
                           "alpha-left-family-note",
-                          "已退出。再次加入需要家人发一条新邀请。"
+                          `已退出「${familyName}」。再次加入需要家人发一条新邀请。可复制邀请入口链接发给${REVIEWER_CONTACT}。`
+                        );
+                        sessionStorage.setItem(
+                          "alpha-left-family-handoff-url",
+                          handoffUrl
                         );
                       } catch {
                         /* private mode */

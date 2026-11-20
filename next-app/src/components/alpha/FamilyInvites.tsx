@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ROLE_LABEL, relativeTimeLabel } from "@/v1/ui/copy";
+import { REVIEWER_CONTACT, ROLE_LABEL, relativeTimeLabel } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 
 type Access = Awaited<ReturnType<typeof v1api.getFamilyAccess>>;
@@ -480,9 +480,14 @@ export function FamilyInvites({
                               idempotencyKey: crypto.randomUUID(),
                             });
                             try {
+                              const handoffUrl = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
                               sessionStorage.setItem(
                                 "alpha-left-family-note",
-                                "已退出。再次加入需要家人发一条新邀请。可复制「我的家族」页链接提醒对方从参与家人处发邀请。"
+                                `已退出。再次加入需要家人发一条新邀请。可复制邀请入口链接发给${REVIEWER_CONTACT}，请对方在参与家人处发新邀请。`
+                              );
+                              sessionStorage.setItem(
+                                "alpha-left-family-handoff-url",
+                                handoffUrl
                               );
                             } catch {
                               /* private mode */
