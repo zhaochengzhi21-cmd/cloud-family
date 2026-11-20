@@ -137,6 +137,7 @@ export function PersonProfile({
   const [error, setError] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [flash, setFlash] = useState("");
+  const [copyPageFlash, setCopyPageFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
     kind: "relationship";
     id: string;
@@ -773,6 +774,24 @@ export function PersonProfile({
           >
             在打印版家谱中查看
           </Link>
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            onClick={() => {
+              const url = `${window.location.origin}/alpha/families/${familyId}/people/${personId}`;
+              void (async () => {
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setCopyPageFlash("已复制本页链接");
+                } catch {
+                  setCopyPageFlash("请手动复制地址栏");
+                }
+                window.setTimeout(() => setCopyPageFlash(""), 2500);
+              })();
+            }}
+          >
+            {copyPageFlash || "复制本页链接"}
+          </button>
           <button
             type="button"
             onClick={() => window.print()}
