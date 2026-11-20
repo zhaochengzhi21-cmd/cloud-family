@@ -2290,3 +2290,41 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
     page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
   ).toBeVisible({ timeout: 60_000 });
 });
+
+test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印亲属（测试）",
+    sample.surname
+  );
+
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, []);
+  const childId = await seedPerson(page, familyId, sample.yuanXi, []);
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  const childEntry = page
+    .locator(".alpha-panel")
+    .filter({ has: page.getByRole("heading", { name: sample.yuanXi.preferredName }) });
+  await expect(childEntry).toBeVisible({ timeout: 60_000 });
+  await childEntry
+    .getByRole("link", { name: sample.guanSan.preferredName })
+    .click();
+  await expect(page).toHaveURL(
+    new RegExp(`/alpha/families/${familyId}/people/${fatherId}$`)
+  );
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.guanSan.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+});

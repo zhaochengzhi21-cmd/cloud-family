@@ -120,9 +120,10 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       const raw = firstFactText(p.facts, "BIRTH_ORDER");
       return raw ? birthOrderRank(raw) : null;
     };
+    type KinRef = { id: string; name: string };
     const kin = new Map<
       string,
-      { parents: string[]; spouses: string[]; children: BookPerson[] }
+      { parents: KinRef[]; spouses: KinRef[]; children: BookPerson[] }
     >();
     const entry = (id: string) => {
       let k = kin.get(id);
@@ -132,16 +133,20 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       }
       return k;
     };
+    const pushUnique = (list: KinRef[], person: BookPerson) => {
+      if (list.some((x) => x.id === person.id)) return;
+      list.push({ id: person.id, name: person.preferredName });
+    };
     for (const r of book.relationships) {
       const from = byId.get(r.fromPersonId);
       const to = byId.get(r.toPersonId);
       if (!from || !to) continue;
       if (PARENT_TYPES.has(r.type)) {
-        entry(to.id).parents.push(from.preferredName);
+        pushUnique(entry(to.id).parents, from);
         entry(from.id).children.push(to);
       } else if (r.type === "SPOUSE") {
-        entry(from.id).spouses.push(to.preferredName);
-        entry(to.id).spouses.push(from.preferredName);
+        pushUnique(entry(from.id).spouses, to);
+        pushUnique(entry(to.id).spouses, from);
       }
     }
     for (const k of kin.values()) {
@@ -401,6 +406,28 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
   );
 }
 
+function PrintPersonLink({
+  familyId,
+  id,
+  name,
+}: {
+  familyId: string;
+  id: string;
+  name: string;
+}) {
+  return (
+    <>
+      <Link
+        href={`/alpha/families/${familyId}/people/${id}`}
+        className="alpha-print-hide text-[color:var(--a-ink)] underline-offset-2 hover:underline"
+      >
+        {name}
+      </Link>
+      <span className="alpha-print-only">{name}</span>
+    </>
+  );
+}
+
 function BookEntry({
   familyId,
   person,
@@ -409,7 +436,11 @@ function BookEntry({
 }: {
   familyId: string;
   person: BookPerson;
-  kin?: { parents: string[]; spouses: string[]; children: BookPerson[] };
+  kin?: {
+    parents: { id: string; name: string }[];
+    spouses: { id: string; name: string }[];
+    children: BookPerson[];
+  };
   sourceNo: Map<string, number>;
 }) {
   const meta = [
@@ -423,28 +454,29 @@ function BookEntry({
     rows: shownFacts(person.facts, t),
   })).filter((x) => x.rows.length > 0);
   const stories = shownFacts(person.facts, "STORY");
-  const childLabels = (kin?.children ?? []).map((c) => {
+  const childRefs = (kin?.children ?? []).map((c) => {
     const raw = firstFactText(c.facts, "BIRTH_ORDER");
-    return raw ? `${raw}${c.preferredName}` : c.preferredName;
+    return {
+      id: c.id,
+      name: raw ? `${raw}${c.preferredName}` : c.preferredName,
+    };
   });
   const kinRows = kin
     ? ([
         ["父母", kin.parents],
         ["配偶", kin.spouses],
-        ["子女", childLabels],
-      ] as const).filter(([, names]) => names.length > 0)
+        ["子女", childRefs],
+      ] as const).filter(([, refs]) => refs.length > 0)
     : [];
 
   return (
     <div className="alpha-panel alpha-print-avoid-break px-5 py-4">
       <h3 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
-        <Link
-          href={`/alpha/families/${familyId}/people/${person.id}`}
-          className="alpha-print-hide text-[color:var(--a-ink)] underline-offset-2 hover:underline"
-        >
-          {person.preferredName}
-        </Link>
-        <span className="alpha-print-only">{person.preferredName}</span>
+        <PrintPersonLink
+          familyId={familyId}
+          id={person.id}
+          name={person.preferredName}
+        />
         {meta.length ? (
           <span className="ml-3 text-sm font-normal text-[color:var(--a-muted)]">
             {meta.join(" · ")}
@@ -483,10 +515,21 @@ function BookEntry({
               </dd>
             </div>
           ))}
-          {kinRows.map(([label, names]) => (
+          {kinRows.map(([label, refs]) => (
             <div key={label} className="contents">
               <dt className="text-[color:var(--a-muted)]">{label}</dt>
-              <dd className="text-[color:var(--a-ink)]">{names.join("、")}</dd>
+              <dd className="text-[color:var(--a-ink)]">
+                {refs.map((ref, i) => (
+                  <span key={ref.id}>
+                    {i > 0 ? "、" : ""}
+                    <PrintPersonLink
+                      familyId={familyId}
+                      id={ref.id}
+                      name={ref.name}
+                    />
+                  </span>
+                ))}
+              </dd>
             </div>
           ))}
         </dl>
