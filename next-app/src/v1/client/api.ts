@@ -304,6 +304,7 @@ export const v1api = {
         relationshipType?: string;
         evidenceId?: string;
         evidenceType?: string;
+        membershipRole?: string;
         restorable?: boolean;
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),

@@ -25,9 +25,12 @@ function expiryLabel(iso: string, now = new Date()): string {
 export function FamilyInvites({
   familyId,
   onAuthError,
+  onMembershipChanged,
 }: {
   familyId: string;
   onAuthError: (e: unknown) => boolean;
+  /** Refresh 最近动态 after role / remove / leave. */
+  onMembershipChanged?: () => void;
 }) {
   const [access, setAccess] = useState<Access | null>(null);
   const [role, setRole] = useState<InviteRole>("EDITOR");
@@ -128,6 +131,7 @@ export function FamilyInvites({
       });
       setMessage(`已改为${roleLabel(next)}`);
       await load();
+      onMembershipChanged?.();
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
@@ -150,6 +154,7 @@ export function FamilyInvites({
       });
       setMessage("已移除该账号");
       await load();
+      onMembershipChanged?.();
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);

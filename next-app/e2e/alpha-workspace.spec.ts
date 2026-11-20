@@ -1335,6 +1335,19 @@ test.describe("CF-V1-UI-001 desktop 1280", () => {
     );
     const inviteBox2 = page.getByRole("region", { name: "邀请家人" });
     await expect(inviteBox2).toContainText("已有 4 个账号参与");
+    // Role change appears in 最近动态 (no email / raw enums).
+    const memberRoster = inviteBox2.getByRole("list", { name: "已加入的账号" });
+    const joinerRow = memberRoster
+      .getByRole("listitem")
+      .filter({ hasText: "可编辑" })
+      .filter({ has: page.getByRole("button", { name: "移除" }) })
+      .last();
+    await joinerRow.locator("select").selectOption("VIEWER");
+    await expect(inviteBox2.getByRole("status")).toContainText("已改为只读");
+    await expect(page.getByRole("region", { name: "最近动态" })).toContainText(
+      "将一个账号改为只读",
+      { timeout: 60_000 }
+    );
     await expect(
       inviteBox2.getByRole("list", { name: "尚未使用的邀请" })
     ).toHaveCount(0);

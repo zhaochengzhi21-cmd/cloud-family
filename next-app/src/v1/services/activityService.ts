@@ -30,6 +30,9 @@ const FEED_EVENT_TYPES = [
   "EVIDENCE_DELETED",
   "EVIDENCE_RESTORED",
   "MEMBER_JOINED",
+  "MEMBERSHIP_ROLE_CHANGED",
+  "MEMBERSHIP_SUSPENDED",
+  "MEMBERSHIP_LEFT",
 ];
 
 /** Claim types surfaced in the product UI; others (e.g. assertions) stay out of the feed. */
@@ -62,6 +65,8 @@ export type ActivityItem = {
   relationshipType?: string;
   evidenceId?: string;
   evidenceType?: string;
+  /** New role after MEMBERSHIP_ROLE_CHANGED (product ROLE_LABEL key). */
+  membershipRole?: string;
   /** Soft-deleted person/relationship can be restored in the UI. */
   restorable?: boolean;
 };
@@ -135,8 +140,18 @@ export async function getFamilyActivity(
       case "FAMILY_CREATED":
       case "FAMILY_IDENTITY_UPDATED":
       case "MEMBER_JOINED":
+      case "MEMBERSHIP_SUSPENDED":
+      case "MEMBERSHIP_LEFT":
         items.push(base);
         break;
+      case "MEMBERSHIP_ROLE_CHANGED": {
+        const role = metaString(r.metadataJson, "role");
+        items.push({
+          ...base,
+          membershipRole: role,
+        });
+        break;
+      }
       case "PERSON_DELETED": {
         // Name only from delete-time metadata (person is outside the live graph).
         const preferredName = metaString(r.metadataJson, "preferredName");

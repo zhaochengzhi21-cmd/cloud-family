@@ -124,6 +124,18 @@ function activityPieces(item: ActivityItem): Piece[] | null {
     }
     case "MEMBER_JOINED":
       return ["通过邀请加入了家族"];
+    case "MEMBERSHIP_ROLE_CHANGED": {
+      const roleKey = item.membershipRole;
+      const roleLabel =
+        roleKey && roleKey in ROLE_LABEL
+          ? ROLE_LABEL[roleKey as keyof typeof ROLE_LABEL]
+          : "新权限";
+      return [`将一个账号改为${roleLabel}`];
+    }
+    case "MEMBERSHIP_SUSPENDED":
+      return ["移除了一个参与账号"];
+    case "MEMBERSHIP_LEFT":
+      return ["退出了家族"];
     default:
       return null;
   }
@@ -1482,7 +1494,13 @@ export function OverviewTab({
       ) : null}
 
       {canReview ? (
-        <FamilyInvites familyId={familyId} onAuthError={onAuthError} />
+        <FamilyInvites
+          familyId={familyId}
+          onAuthError={onAuthError}
+          onMembershipChanged={() => {
+            void load();
+          }}
+        />
       ) : null}
 
       {persons.length > 0 ? (
