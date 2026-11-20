@@ -1615,7 +1615,12 @@ export function OverviewTab({
             void load();
           }}
         />
-      ) : null}
+      ) : (
+        <ParticipantsRoster
+          familyId={familyId}
+          onAuthError={onAuthError}
+        />
+      )}
 
       <FamilySources
         familyId={familyId}
@@ -1755,6 +1760,132 @@ function BackupSection({
             }`}
           >
             {message}
+          </p>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+const ROLE_SORT: Record<string, number> = {
+  OWNER: 0,
+  ADMIN: 1,
+  EDITOR: 2,
+  VIEWER: 3,
+};
+
+function ParticipantsRoster({
+  familyId,
+  onAuthError,
+}: {
+  familyId: string;
+  onAuthError: (e: unknown) => boolean;
+}) {
+  const [members, setMembers] = useState<
+    Awaited<ReturnType<typeof v1api.listFamilyMembers>>["members"] | null
+  >(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setError("");
+    v1api
+      .listFamilyMembers(familyId)
+      .then((r) => {
+        if (cancelled) return;
+        const sorted = r.members.slice().sort((a, b) => {
+          const ra = ROLE_SORT[a.role] ?? 9;
+          const rb = ROLE_SORT[b.role] ?? 9;
+          if (ra !== rb) return ra - rb;
+          return a.joinedAt.localeCompare(b.joinedAt);
+        });
+        setMembers(sorted);
+      })
+      .catch((e) => {
+        if (cancelled || onAuthError(e)) return;
+        setError(userMessageForApiError(e));
+        setMembers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, onAuthError]);
+
+  const reviewers = (members ?? []).filter(
+    (m) => m.role === "OWNER" || m.role === "ADMIN"
+  );
+
+  return (
+    <section
+      id="overview-participants"
+      aria-labelledby="overview-participants-title"
+      className="scroll-mt-24"
+    >
+      <h2
+        id="overview-participants-title"
+        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+      >
+        参与家人
+      </h2>
+      <div className="alpha-panel space-y-3 px-4 py-4">
+        <p className="text-sm text-[color:var(--a-muted)]">
+          确认资料、恢复已移除记录或生成邀请，需由创建者或管理员操作。需要帮助时可联系下方账号。
+        </p>
+        {error ? (
+          <p className="alpha-alert alpha-alert-error" role="alert">
+            {error}
+          </p>
+        ) : null}
+        {members === null ? (
+          <p className="text-sm text-[color:var(--a-muted)]" role="status">
+            正在读取参与家人…
+          </p>
+        ) : members.length === 0 ? (
+          <p className="text-sm text-[color:var(--a-muted)]">暂无参与账号。</p>
+        ) : (
+          <ul
+            className="divide-y divide-[color:var(--a-brand-line)] text-sm"
+            aria-label="参与家人"
+          >
+            {members.map((m) => {
+              const role =
+                ROLE_LABEL[m.role as keyof typeof ROLE_LABEL] ?? m.role;
+              const label = m.isYou
+                ? "你"
+                : m.maskedEmail ?? `账号 · ${role}`;
+              return (
+                <li
+                  key={m.membershipId}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="font-semibold text-[color:var(--a-ink)]">
+                      {label}
+                      {m.isYou && m.maskedEmail ? (
+                        <span className="ml-2 font-normal text-[color:var(--a-muted)]">
+                          {m.maskedEmail}
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="text-xs text-[color:var(--a-muted)]">
+                      {role}
+                      {" · "}
+                      {relativeTimeLabel(m.joinedAt)}加入
+                    </p>
+                  </div>
+                  {m.role === "OWNER" || m.role === "ADMIN" ? (
+                    <span className="alpha-chip alpha-chip-proposed">
+                      可确认 / 恢复
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {reviewers.length === 0 && members && members.length > 0 ? (
+          <p className="text-sm text-[color:var(--a-muted)]">
+            当前名单里还没有创建者或管理员，请稍后再试或向家人确认。
           </p>
         ) : null}
       </div>

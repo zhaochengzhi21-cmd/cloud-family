@@ -329,6 +329,18 @@ export const v1api = {
       invitableRoles: Array<"ADMIN" | "EDITOR" | "VIEWER">;
     }>(`/api/v1/families/${familyId}/invites`),
 
+  listFamilyMembers: (familyId: string) =>
+    v1Fetch<{
+      members: Array<{
+        membershipId: string;
+        role: string;
+        isYou: boolean;
+        joinedAt: string;
+        maskedEmail: string | null;
+      }>;
+      actorRole: string;
+    }>(`/api/v1/families/${familyId}/members`),
+
   updateFamilyMemberRole: (
     familyId: string,
     membershipId: string,

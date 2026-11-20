@@ -3763,17 +3763,16 @@ test("明经胡氏：编辑者打开已移除人物页可去概览", async ({
 
   await page.goto(`/alpha/families/${familyId}/people/${personId}`);
   await expect(
-    page.getByText(/请联系创建者或管理员在概览「最近动态」中恢复/)
+    page.getByText(/请联系创建者或管理员在概览「参与家人」中找到可恢复的人/)
   ).toBeVisible({ timeout: 60_000 });
   await expect(
     page.getByRole("button", { name: "恢复这位家人" })
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "去概览最近动态" }).click();
+  await page.getByRole("button", { name: "去概览参与家人" }).click();
   await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
-  await expect(
-    page.getByRole("heading", { name: "最近动态" })
-  ).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("需创建者或管理员恢复").first()).toBeVisible({
+  const roster = page.getByRole("region", { name: "参与家人" });
+  await expect(roster).toBeVisible({ timeout: 60_000 });
+  await expect(roster.getByText("可确认 / 恢复").first()).toBeVisible({
     timeout: 60_000,
   });
 });
@@ -4285,6 +4284,12 @@ test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseU
   await expect(
     page.getByRole("region", { name: "邀请家人" })
   ).toHaveCount(0, { timeout: 60_000 });
+  await expect(
+    page.getByRole("region", { name: "参与家人" })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("region", { name: "参与家人" }).getByText("可确认 / 恢复")
+  ).toBeVisible();
   const next = page.getByRole("region", { name: "下一步" }).or(
     page.locator("section").filter({ has: page.getByRole("heading", { name: "下一步" }) })
   );

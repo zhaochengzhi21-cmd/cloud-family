@@ -781,10 +781,38 @@ export function FamilyWorkspace({
         {!canEdit ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
             当前为只读。如需添加成员或资料，请联系创建者或管理员。
+            <button
+              type="button"
+              className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setTab("overview");
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("overview-participants")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+              }}
+            >
+              查看参与家人
+            </button>
           </p>
         ) : !canReview ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
             你可以编辑资料；确认或不采用需由创建者或管理员操作。
+            <button
+              type="button"
+              className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setTab("overview");
+                requestAnimationFrame(() => {
+                  document
+                    .getElementById("overview-participants")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+              }}
+            >
+              查看参与家人
+            </button>
           </p>
         ) : null}
       </header>

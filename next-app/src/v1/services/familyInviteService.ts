@@ -141,15 +141,27 @@ export type FamilyAccessSummary = {
   invitableRoles: InviteRole[];
 };
 
-export async function getFamilyAccessSummary(
+export type FamilyMemberRosterItem = {
+  membershipId: string;
+  role: string;
+  isYou: boolean;
+  joinedAt: Date;
+  maskedEmail: string | null;
+};
+
+async function loadActiveMembers(
+  db: V1Db,
   familyId: string,
-  actorUserId: string,
-  options?: { db?: V1Db; now?: Date }
-): Promise<FamilyAccessSummary> {
-  const db = dbOrDefault(options?.db);
-  const actorRole = await requireManager(db, familyId, actorUserId);
-  const now = options?.now ?? new Date();
-  const invites = await inviteRepo.listOpenInvites(db, familyId, now);
+  actorUserId: string
+): Promise<
+  Array<{
+    membershipId: string;
+    role: string;
+    isYou: boolean;
+    joinedAt: Date;
+    maskedEmail: string | null;
+  }>
+> {
   const rows = await db
     .select({
       id: familyMemberships.id,
@@ -189,18 +201,58 @@ export async function getFamilyAccessSummary(
       emailByUser.set(u.id, masked);
     }
   }
+  return rows
+    .map((r) => ({
+      membershipId: r.id,
+      role: r.role,
+      isYou: r.userId === actorUserId,
+      joinedAt: r.createdAt,
+      maskedEmail: emailByUser.get(r.userId) ?? null,
+    }))
+    .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime());
+}
+
+/** Any active member may see who participates (roles + masked email). */
+export async function getFamilyMembersRoster(
+  familyId: string,
+  actorUserId: string,
+  options?: { db?: V1Db }
+): Promise<{ members: FamilyMemberRosterItem[]; actorRole: MembershipRole }> {
+  const db = dbOrDefault(options?.db);
+  let auth;
+  try {
+    auth = await authorizeFamilyAction(
+      familyId,
+      { kind: "USER", userId: actorUserId },
+      "READ_FAMILY",
+      { db }
+    );
+  } catch {
+    throw new InviteDomainError("FAMILY_NOT_FOUND");
+  }
+  if (auth.decision !== "ALLOW" || !auth.activeRole) {
+    throw new InviteDomainError("FORBIDDEN");
+  }
+  const members = await loadActiveMembers(db, familyId, actorUserId);
+  return { members, actorRole: auth.activeRole };
+}
+
+export async function getFamilyAccessSummary(
+  familyId: string,
+  actorUserId: string,
+  options?: { db?: V1Db; now?: Date }
+): Promise<FamilyAccessSummary> {
+  const db = dbOrDefault(options?.db);
+  const actorRole = await requireManager(db, familyId, actorUserId);
+  const now = options?.now ?? new Date();
+  const invites = await inviteRepo.listOpenInvites(db, familyId, now);
+  const members = await loadActiveMembers(db, familyId, actorUserId);
   return {
     invites,
-    members: rows
-      .map((r) => ({
-        membershipId: r.id,
-        role: r.role,
-        isYou: r.userId === actorUserId,
-        joinedAt: r.createdAt,
-        maskedEmail: emailByUser.get(r.userId) ?? null,
-        manageable: canManageMember(actorRole, r.role as MembershipRole),
-      }))
-      .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime()),
+    members: members.map((m) => ({
+      ...m,
+      manageable: canManageMember(actorRole, m.role as MembershipRole),
+    })),
     actorRole,
     invitableRoles: INVITE_ROLES.filter((r) => canInviteRole(actorRole, r)),
   };

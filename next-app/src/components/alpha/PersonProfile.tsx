@@ -473,7 +473,7 @@ export function PersonProfile({
             (canReview
               ? "找不到这份资料。若刚移除了这位家人，可在下方恢复。"
               : canEdit
-                ? "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「最近动态」中恢复。"
+                ? "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「参与家人」中找到可恢复的人。"
                 : "找不到这份资料。若刚被移除，请联系创建者或管理员恢复。")}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -511,7 +511,7 @@ export function PersonProfile({
                   sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
                   sessionStorage.setItem(
                     `alpha-overview-scroll:${familyId}`,
-                    "overview-activity"
+                    "overview-participants"
                   );
                 } catch {
                   /* private mode */
@@ -519,7 +519,7 @@ export function PersonProfile({
                 router.push(workspaceHref);
               }}
             >
-              去概览最近动态
+              去概览参与家人
             </button>
           ) : null}
           <Link
