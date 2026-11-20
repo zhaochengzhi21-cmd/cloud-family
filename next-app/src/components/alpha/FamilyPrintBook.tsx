@@ -81,6 +81,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
   const [personFocusMiss, setPersonFocusMiss] = useState(false);
+  const [copyFlash, setCopyFlash] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -367,13 +368,33 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         >
           ← {book.family.displayName || PRODUCT.family}
         </Link>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
-        >
-          打印或保存为 PDF
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+            onClick={() => {
+              const url = window.location.href;
+              void (async () => {
+                try {
+                  await navigator.clipboard.writeText(url);
+                  setCopyFlash("已复制本页链接");
+                } catch {
+                  setCopyFlash("请手动复制地址栏");
+                }
+                window.setTimeout(() => setCopyFlash(""), 2500);
+              })();
+            }}
+          >
+            {copyFlash || "复制本页链接"}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+          >
+            打印或保存为 PDF
+          </button>
+        </div>
       </div>
 
       {personFocusMiss ? (
