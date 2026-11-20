@@ -3829,44 +3829,64 @@ function RecordsTab({
                   {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
                   {c.value?.text ?? "—"}（不采用）
                 </span>
-                {canReview ? (
+                <span className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
                   <button
                     type="button"
-                    className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                    onClick={async () => {
-                      try {
-                        await v1api.reopenClaim(familyId, c.id, {
-                          idempotencyKey: crypto.randomUUID(),
-                        });
-                        setFlash("已重新打开这条资料，可再次确认或不采用");
-                        setRejectedOpen(false);
-                        setStatusFilter("PROPOSED");
-                        await loadClaims();
-                      } catch (e) {
-                        if (onAuthError(e)) return;
-                        setError(userMessageForApiError(e));
-                      }
+                    className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: personId,
+                        claim: c.id,
+                      });
+                      const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () => setFlash("已复制不采用资料的链接"),
+                        () => setFlash("请手动复制地址栏链接")
+                      );
                     }}
                   >
-                    恢复待确认
+                    复制链接
                   </button>
-                ) : (
-                  <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
-                    需{REVIEWER_CONTACT}重新打开
-                    {onOpenParticipants ? (
-                      <>
-                        {" · "}
-                        <button
-                          type="button"
-                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                          onClick={onOpenParticipants}
-                        >
-                          查看参与家人
-                        </button>
-                      </>
-                    ) : null}
-                  </span>
-                )}
+                  {canReview ? (
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={async () => {
+                        try {
+                          await v1api.reopenClaim(familyId, c.id, {
+                            idempotencyKey: crypto.randomUUID(),
+                          });
+                          setFlash("已重新打开这条资料，可再次确认或不采用");
+                          setRejectedOpen(false);
+                          setStatusFilter("PROPOSED");
+                          await loadClaims();
+                        } catch (e) {
+                          if (onAuthError(e)) return;
+                          setError(userMessageForApiError(e));
+                        }
+                      }}
+                    >
+                      恢复待确认
+                    </button>
+                  ) : (
+                    <span className="text-[color:var(--a-muted)]">
+                      需{REVIEWER_CONTACT}重新打开
+                      {onOpenParticipants ? (
+                        <>
+                          {" · "}
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                            onClick={onOpenParticipants}
+                          >
+                            查看参与家人
+                          </button>
+                        </>
+                      ) : null}
+                    </span>
+                  )}
+                </span>
               </li>
             ))}
           </ul>
@@ -7448,57 +7468,77 @@ function PersonDrawer({
                       {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
                       {c.value?.text ?? "—"}（不采用）
                     </span>
-                    {canReview ? (
+                    <span className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
                       <button
                         type="button"
-                        className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                        onClick={async () => {
-                          try {
-                            await v1api.reopenClaim(familyId, c.id, {
-                              idempotencyKey: crypto.randomUUID(),
-                            });
-                            setLocalFlash(
-                              "已重新打开这条资料，可再次确认或不采用"
-                            );
-                            setRejectedOpen(false);
-                            await loadClaims();
-                            requestAnimationFrame(() => {
-                              document
-                                .querySelector(
-                                  `[data-claim-id="${c.id}"]`
-                                )
-                                ?.scrollIntoView({
-                                  block: "nearest",
-                                  behavior: "smooth",
-                                });
-                            });
-                          } catch (e) {
-                            if (onAuth(e)) return;
-                            const msg = userMessageForApiError(e);
-                            setLocalError(msg);
-                            onError(msg);
-                          }
+                        className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={() => {
+                          const qs = new URLSearchParams({
+                            tab: "records",
+                            person: person.id,
+                            claim: c.id,
+                          });
+                          const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                          void navigator.clipboard.writeText(url).then(
+                            () => flashLocal("已复制不采用资料的链接"),
+                            () => flashLocal("请手动复制地址栏链接")
+                          );
                         }}
                       >
-                        恢复待确认
+                        复制链接
                       </button>
-                    ) : (
-                      <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
-                        需{REVIEWER_CONTACT}重新打开
-                        {onOpenParticipants ? (
-                          <>
-                            {" · "}
-                            <button
-                              type="button"
-                              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                              onClick={onOpenParticipants}
-                            >
-                              查看参与家人
-                            </button>
-                          </>
-                        ) : null}
-                      </span>
-                    )}
+                      {canReview ? (
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={async () => {
+                            try {
+                              await v1api.reopenClaim(familyId, c.id, {
+                                idempotencyKey: crypto.randomUUID(),
+                              });
+                              setLocalFlash(
+                                "已重新打开这条资料，可再次确认或不采用"
+                              );
+                              setRejectedOpen(false);
+                              await loadClaims();
+                              requestAnimationFrame(() => {
+                                document
+                                  .querySelector(
+                                    `[data-claim-id="${c.id}"]`
+                                  )
+                                  ?.scrollIntoView({
+                                    block: "nearest",
+                                    behavior: "smooth",
+                                  });
+                              });
+                            } catch (e) {
+                              if (onAuth(e)) return;
+                              const msg = userMessageForApiError(e);
+                              setLocalError(msg);
+                              onError(msg);
+                            }
+                          }}
+                        >
+                          恢复待确认
+                        </button>
+                      ) : (
+                        <span className="text-[color:var(--a-muted)]">
+                          需{REVIEWER_CONTACT}重新打开
+                          {onOpenParticipants ? (
+                            <>
+                              {" · "}
+                              <button
+                                type="button"
+                                className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                                onClick={onOpenParticipants}
+                              >
+                                查看参与家人
+                              </button>
+                            </>
+                          ) : null}
+                        </span>
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>
