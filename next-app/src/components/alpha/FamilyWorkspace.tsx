@@ -1731,6 +1731,29 @@ export function FamilyWorkspace({
                 </button>
               </>
             ) : null}
+            {error === ERROR_COPY.familyConflict ? (
+              <button
+                type="button"
+                className="text-sm font-semibold underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = window.location.href;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setError("");
+                      setFlash(
+                        "已复制当前页面链接，可发给家人一起核对最新内容"
+                      );
+                    },
+                    () => {
+                      setError("");
+                      setFlash("请手动复制地址栏链接");
+                    }
+                  );
+                }}
+              >
+                复制当前链接发给家人
+              </button>
+            ) : null}
             {error === ERROR_COPY.notFound ||
             error === ERROR_COPY.forbidden ? (
               <Link
