@@ -1538,18 +1538,39 @@ export function FamilyWorkspace({
                           undo.id,
                           { idempotencyKey: crypto.randomUUID() }
                         );
+                        const qs = new URLSearchParams({
+                          tab: "lineage",
+                          person: r.person.id,
+                        });
+                        setFlashCopyUrl(
+                          `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                        );
                         setFlash(
                           `已恢复「${r.person.preferredName}」${
                             r.relationshipsRestoredCount > 0
                               ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
                               : ""
-                          }`
+                          }。可复制链接发给家人一起看世系。`
                         );
                       } else if (undo.kind === "relationship") {
                         await v1api.restoreRelationship(familyId, undo.id, {
                           idempotencyKey: crypto.randomUUID(),
                         });
-                        setFlash(`已恢复${undo.label}`);
+                        if (undo.personId) {
+                          const qs = new URLSearchParams({
+                            tab: "lineage",
+                            person: undo.personId,
+                          });
+                          setFlashCopyUrl(
+                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                          );
+                          setFlash(
+                            `已恢复${undo.label}。可复制链接发给家人一起看世系。`
+                          );
+                        } else {
+                          setFlashCopyUrl(null);
+                          setFlash(`已恢复${undo.label}`);
+                        }
                       } else if (undo.kind === "evidence") {
                         const r = await v1api.restoreEvidence(
                           familyId,
@@ -1558,7 +1579,15 @@ export function FamilyWorkspace({
                         );
                         const label =
                           r.evidence.title?.trim() || undo.label || "资料来源";
-                        setFlash(`已恢复「${label}」`);
+                        const qs = new URLSearchParams({
+                          evidence: r.evidence.id,
+                        });
+                        setFlashCopyUrl(
+                          `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                        );
+                        setFlash(
+                          `已恢复「${label}」。可复制链接发给家人一起看。`
+                        );
                         setSourcesFocusEvidenceId(r.evidence.id);
                       } else if (
                         undo.kind === "evidence-link" &&
@@ -1574,7 +1603,23 @@ export function FamilyWorkspace({
                           },
                           { idempotencyKey: crypto.randomUUID() }
                         );
-                        setFlash(`已恢复「${undo.label}」的挂接`);
+                        if (undo.personId) {
+                          const qs = new URLSearchParams({
+                            tab: "records",
+                            person: undo.personId,
+                            claim: undo.claimId,
+                            openEvidence: "1",
+                          });
+                          setFlashCopyUrl(
+                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                          );
+                          setFlash(
+                            `已恢复「${undo.label}」的挂接。可复制链接发给家人一起看。`
+                          );
+                        } else {
+                          setFlashCopyUrl(null);
+                          setFlash(`已恢复「${undo.label}」的挂接`);
+                        }
                       } else if (undo.kind === "claim") {
                         await v1api.reopenClaim(familyId, undo.id, {
                           idempotencyKey: crypto.randomUUID(),
@@ -1722,12 +1767,19 @@ export function FamilyWorkspace({
                 const r = await v1api.restorePerson(familyId, personId, {
                   idempotencyKey: crypto.randomUUID(),
                 });
+                const qs = new URLSearchParams({
+                  tab: "lineage",
+                  person: r.person.id,
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
                 setFlash(
                   `已恢复「${r.person.preferredName}」${
                     r.relationshipsRestoredCount > 0
                       ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
                       : ""
-                  }`
+                  }。可复制链接发给家人一起看世系。`
                 );
                 await load();
               } catch (e) {
@@ -1748,7 +1800,16 @@ export function FamilyWorkspace({
                 const to =
                   persons.find((p) => p.id === r.relationship.toPersonId)
                     ?.preferredName ?? "成员";
-                setFlash(`已恢复「${from}」与「${to}」的家庭关系`);
+                const qs = new URLSearchParams({
+                  tab: "lineage",
+                  person: r.relationship.fromPersonId,
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
+                setFlash(
+                  `已恢复「${from}」与「${to}」的家庭关系。可复制链接发给家人一起看世系。`
+                );
                 await load();
               } catch (e) {
                 if (authRedirect(e)) return;
@@ -1761,7 +1822,15 @@ export function FamilyWorkspace({
                   idempotencyKey: crypto.randomUUID(),
                 });
                 const label = r.evidence.title?.trim() || "资料来源";
-                setFlash(`已恢复「${label}」`);
+                const qs = new URLSearchParams({
+                  evidence: r.evidence.id,
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
+                setFlash(
+                  `已恢复「${label}」。可复制链接发给家人一起看。`
+                );
                 setPendingUndo(null);
                 await load();
                 setSourcesFocusEvidenceId(r.evidence.id);
@@ -2028,6 +2097,7 @@ export function FamilyWorkspace({
                 claimId: args.claimId,
                 evidenceId: args.evidenceId,
                 relation: args.relation,
+                personId: recordsUrlPerson ?? undefined,
               });
               const qs = new URLSearchParams({
                 tab: "records",
@@ -2315,6 +2385,7 @@ export function FamilyWorkspace({
               kind: "relationship",
               id: relationshipId,
               label,
+              personId: selectedPersonId ?? undefined,
             });
             if (selectedPersonId) {
               const qs = new URLSearchParams({
@@ -2352,6 +2423,7 @@ export function FamilyWorkspace({
               claimId: args.claimId,
               evidenceId: args.evidenceId,
               relation: args.relation,
+              personId: selectedPersonId ?? undefined,
             });
             if (selectedPersonId) {
               const qs = new URLSearchParams({
