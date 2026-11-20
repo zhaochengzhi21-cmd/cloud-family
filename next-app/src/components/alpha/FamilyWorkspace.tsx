@@ -626,10 +626,12 @@ export function FamilyWorkspace({
     const params = new URLSearchParams(searchParams.toString());
     if (tab === "overview") params.delete("tab");
     else params.set("tab", tab);
+    if (selectedPersonId) params.set("person", selectedPersonId);
+    else params.delete("person");
     const next = params.toString();
     if (next === searchParams.toString()) return;
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
-  }, [familyId, tab, pathname, router, searchParams]);
+  }, [familyId, tab, selectedPersonId, pathname, router, searchParams]);
 
   useEffect(() => {
     if (!tabReady.current) return;
@@ -639,7 +641,25 @@ export function FamilyWorkspace({
         ? (fromUrl as Tab)
         : "overview";
     setTab((prev) => (prev === desired ? prev : desired));
+    const person = searchParams.get("person");
+    setSelectedPersonId((prev) => {
+      if (!person) return prev ? null : prev;
+      return prev === person ? prev : person;
+    });
   }, [searchParams]);
+
+  useEffect(() => {
+    if (loading) return;
+    const person = searchParams.get("person");
+    if (!person) return;
+    if (persons.some((p) => p.id === person)) {
+      setSelectedPersonId(person);
+    } else {
+      setSelectedPersonId(null);
+    }
+    // Only when graph finishes loading for this family.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: hydrate once per load
+  }, [loading, familyId, persons]);
 
   useEffect(() => {
     if (!flash || pendingUndo) return;

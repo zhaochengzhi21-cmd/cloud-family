@@ -4286,6 +4286,34 @@ test("明经胡氏：工作区 URL tab 可直达资料页", async ({ page, baseU
   await expect(page.getByRole("tab", { selected: true })).toHaveText("世系");
 });
 
+test("明经胡氏：工作区 URL person 可打开成员抽屉", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·URL person（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(
+    `/alpha/families/${familyId}?tab=members&person=${personId}`
+  );
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible({ timeout: 60_000 });
+  await expect(
+    drawer.getByRole("heading", { name: sample.wenGuang.preferredName })
+  ).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`person=${personId}`));
+  await drawer.getByRole("button", { name: "关闭" }).click();
+  await expect(drawer).toHaveCount(0);
+  await expect(page).not.toHaveURL(/person=/);
+});
+
 test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
