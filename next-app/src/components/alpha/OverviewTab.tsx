@@ -1266,6 +1266,13 @@ export function OverviewTab({
           {smartPendingIds.length > 0 && !canReview ? (
             <p className="mb-2 text-sm text-[color:var(--a-muted)]">
               其中有智能整理或导入写入的资料，需{REVIEWER_CONTACT}确认后才会成为正式记载。
+              <button
+                type="button"
+                className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={scrollToParticipants}
+              >
+                查看参与家人
+              </button>
             </p>
           ) : null}
           <ul className="space-y-2">
