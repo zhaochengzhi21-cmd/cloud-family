@@ -247,6 +247,21 @@ function capabilitiesForRole(
       policy: ["Then propose facts / relationships as needed"],
     },
     {
+      id: "create_persons_batch",
+      summary: "Add up to 20 family members in one call (OCR / import)",
+      method: "POST",
+      path: `${base}/persons/batch`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        persons: "array of { preferredName, gender?, livingStatus?, clientItemId? }",
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
+      policy: [
+        "Partial success — check results[].ok",
+        "Then propose facts via /claims/batch and edges via /relationships",
+      ],
+    },
+    {
       id: "create_relationship",
       summary: "Record parent or spouse edge",
       method: "POST",

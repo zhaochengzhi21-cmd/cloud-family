@@ -488,7 +488,39 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   });
   expect(fam.status, JSON.stringify(fam.body)).toBe(201);
   const familyId = (fam.body as { family: { id: string } }).family.id;
-  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  const personsBatch = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/batch`,
+    {
+      method: "POST",
+      body: {
+        persons: [
+          {
+            preferredName: sample.wenGuang.preferredName,
+            gender: sample.wenGuang.gender,
+            livingStatus: sample.wenGuang.livingStatus,
+            clientItemId: "wg",
+          },
+          {
+            preferredName: "胡氏侧证（批量测试）",
+            gender: "UNKNOWN",
+            livingStatus: "DECEASED",
+            clientItemId: "side",
+          },
+        ],
+      },
+      headers: { "Idempotency-Key": `e2e-persons-${Date.now()}` },
+    }
+  );
+  expect(personsBatch.status, JSON.stringify(personsBatch.body)).toBe(201);
+  const personsBody = personsBatch.body as {
+    created: number;
+    results: Array<{ ok: boolean; person?: { id: string }; clientItemId?: string }>;
+  };
+  expect(personsBody.created).toBe(2);
+  const personId = personsBody.results.find((r) => r.clientItemId === "wg")!
+    .person!.id;
   const idem = `e2e-batch-${Date.now()}`;
 
   const body = {
@@ -611,6 +643,9 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   ).toBe(true);
   expect(
     channel.capabilities.some((c) => c.id === "link_evidence_batch")
+  ).toBe(true);
+  expect(
+    channel.capabilities.some((c) => c.id === "create_persons_batch")
   ).toBe(true);
 
   const ev = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {

@@ -402,6 +402,48 @@ export const v1api = {
       },
     }),
 
+  createPersonsBatch: (
+    familyId: string,
+    body: {
+      persons: Array<{
+        preferredName: string;
+        gender?: string;
+        livingStatus?: string;
+        clientItemId?: string;
+      }>;
+    },
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{
+      results: Array<
+        | {
+            index: number;
+            ok: true;
+            person: { id: string; preferredName: string };
+            clientItemId?: string;
+          }
+        | { index: number; ok: false; code: string; clientItemId?: string }
+      >;
+      created: number;
+      failed: number;
+      familyVersion: number | null;
+    }>(`/api/v1/families/${familyId}/persons/batch`, {
+      method: "POST",
+      body: {
+        persons: body.persons.map((p) => ({
+          preferredName: p.preferredName,
+          gender: p.gender ?? "UNKNOWN",
+          livingStatus: p.livingStatus ?? "UNKNOWN",
+          privacyLevel: "INHERIT",
+          clientItemId: p.clientItemId,
+        })),
+      },
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
+
   patchPerson: (
     familyId: string,
     personId: string,

@@ -34,6 +34,23 @@ export const createPersonBodySchema = z
   })
   .strict();
 
+const createPersonBatchItemSchema = z
+  .object({
+    preferredName: z.string().min(1).max(120),
+    gender: z.enum(["MALE", "FEMALE", "UNKNOWN", "OTHER"]).optional(),
+    livingStatus: z.enum(["LIVING", "DECEASED", "UNKNOWN"]).optional(),
+    privacyLevel: z.enum(["INHERIT", "PRIVATE", "FAMILY", "PUBLIC"]).optional(),
+    clientItemId: z.string().min(1).max(64).optional(),
+  })
+  .strict();
+
+/** Batch create persons — AI/import friendly; max 20. */
+export const createPersonsBatchBodySchema = z
+  .object({
+    persons: z.array(createPersonBatchItemSchema).min(1).max(20),
+  })
+  .strict();
+
 export const patchPersonBodySchema = z
   .object({
     expectedRevision: z.number().int().positive(),
