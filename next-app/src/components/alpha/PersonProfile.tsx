@@ -721,6 +721,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onProposeAlternate={openRecords}
               onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
@@ -744,6 +745,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onProposeAlternate={openRecords}
               onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
@@ -767,6 +769,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onProposeAlternate={openRecords}
               onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
@@ -790,6 +793,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onProposeAlternate={openRecords}
               onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
@@ -820,6 +824,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onProposeAlternate={openRecords}
               onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
