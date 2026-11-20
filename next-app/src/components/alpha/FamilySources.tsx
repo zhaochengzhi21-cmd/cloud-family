@@ -138,6 +138,13 @@ export function FamilySources({
   const [linksLoadingId, setLinksLoadingId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [attachingId, setAttachingId] = useState<string | null>(null);
+  const [attachFlash, setAttachFlash] = useState<{
+    message: string;
+    url: string;
+    personId: string;
+    claimId: string;
+  } | null>(null);
+  const [attachCopyFlash, setAttachCopyFlash] = useState("");
   const [focusMissId, setFocusMissId] = useState<string | null>(null);
   const [focusRestoreBusy, setFocusRestoreBusy] = useState(false);
   const [copyFlash, setCopyFlash] = useState<{
@@ -409,6 +416,57 @@ export function FamilySources({
               onCreated?.();
             }}
           />
+        ) : null}
+        {attachFlash ? (
+          <div
+            className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3"
+            role="status"
+          >
+            <p className="text-sm text-[color:var(--a-muted)]">
+              {attachFlash.message}
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                if (onOpenRecords) {
+                  onOpenRecords(attachFlash.personId, {
+                    focusClaimId: attachFlash.claimId,
+                  });
+                  setAttachFlash(null);
+                  return;
+                }
+                window.location.assign(attachFlash.url);
+              }}
+            >
+              打开人物资料
+            </button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                void navigator.clipboard.writeText(attachFlash.url).then(
+                  () => {
+                    setAttachCopyFlash("已复制链接");
+                    window.setTimeout(() => setAttachCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setAttachCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setAttachCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {attachCopyFlash || "复制链接"}
+            </button>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-muted)] underline-offset-2 hover:underline"
+              onClick={() => setAttachFlash(null)}
+            >
+              关闭
+            </button>
+          </div>
         ) : null}
         {focusMissId ? (
           <div
@@ -740,8 +798,21 @@ export function FamilySources({
                     onAuthError={onAuthError}
                     onOpenRecords={onOpenRecords}
                     onCancel={() => setAttachingId(null)}
-                    onDone={async () => {
+                    onDone={async ({ personId: pid, claimId: cid }) => {
                       setAttachingId(null);
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: pid,
+                        claim: cid,
+                      });
+                      setAttachFlash({
+                        message:
+                          "已挂接到人物资料。可打开查看，或复制链接发给家人。",
+                        url: `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`,
+                        personId: pid,
+                        claimId: cid,
+                      });
+                      setAttachCopyFlash("");
                       await load();
                       onLinked?.();
                     }}
@@ -1209,7 +1280,7 @@ function LibraryAttachForm({
     }
   ) => void;
   onCancel: () => void;
-  onDone: () => Promise<void>;
+  onDone: (result: { personId: string; claimId: string }) => Promise<void>;
 }) {
   const sorted = useMemo(
     () =>
@@ -1291,13 +1362,15 @@ function LibraryAttachForm({
     setBusy(true);
     setLocalError("");
     try {
+      const linkedClaimId = claimId;
+      const linkedPersonId = personId;
       await v1api.linkEvidence(
         familyId,
-        claimId,
+        linkedClaimId,
         { evidenceId, relation: "SUPPORTS" },
         { idempotencyKey: crypto.randomUUID() }
       );
-      await onDone();
+      await onDone({ personId: linkedPersonId, claimId: linkedClaimId });
     } catch (err) {
       if (onAuthError(err)) return;
       setLocalError(userMessageForApiError(err));
