@@ -171,7 +171,7 @@ export function FamilyWorkspace({
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
-    kind: "person";
+    kind: "person" | "relationship";
     id: string;
     label: string;
   }>(null);
@@ -670,7 +670,7 @@ export function FamilyWorkspace({
         >
           <p className="min-w-0 flex-1">{flash}</p>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {pendingUndo?.kind === "person" ? (
+            {pendingUndo ? (
               <button
                 type="button"
                 className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -680,18 +680,25 @@ export function FamilyWorkspace({
                   setFlash("");
                   void (async () => {
                     try {
-                      const r = await v1api.restorePerson(
-                        familyId,
-                        undo.id,
-                        { idempotencyKey: crypto.randomUUID() }
-                      );
-                      setFlash(
-                        `已恢复「${r.person.preferredName}」${
-                          r.relationshipsRestoredCount > 0
-                            ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
-                            : ""
-                        }`
-                      );
+                      if (undo.kind === "person") {
+                        const r = await v1api.restorePerson(
+                          familyId,
+                          undo.id,
+                          { idempotencyKey: crypto.randomUUID() }
+                        );
+                        setFlash(
+                          `已恢复「${r.person.preferredName}」${
+                            r.relationshipsRestoredCount > 0
+                              ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
+                              : ""
+                          }`
+                        );
+                      } else {
+                        await v1api.restoreRelationship(familyId, undo.id, {
+                          idempotencyKey: crypto.randomUUID(),
+                        });
+                        setFlash(`已恢复${undo.label}`);
+                      }
                       await load();
                     } catch (e) {
                       if (handleAuthRedirect(e, router)) return;
@@ -1117,6 +1124,15 @@ export function FamilyWorkspace({
                 .getElementById("overview-restorable")
                 ?.scrollIntoView({ behavior: "smooth", block: "start" });
             });
+          }}
+          onRelationshipRemoved={(relationshipId, label) => {
+            setError("");
+            setPendingUndo({
+              kind: "relationship",
+              id: relationshipId,
+              label,
+            });
+            setFlash(`已移除${label}。误删可点恢复。`);
           }}
           onError={(msg) => setError(msg)}
           onAuth={(e) => handleAuthRedirect(e, router)}
@@ -4840,6 +4856,7 @@ function PersonDrawer({
   onClose,
   onChanged,
   onDeleted,
+  onRelationshipRemoved,
   onRequestAddRel,
   onRequestAddKin,
   onShowInLineage,
@@ -4864,6 +4881,10 @@ function PersonDrawer({
   onClose: () => void;
   onChanged: () => Promise<void>;
   onDeleted: (name: string, personId: string) => Promise<void>;
+  onRelationshipRemoved: (
+    relationshipId: string,
+    label: string
+  ) => void | Promise<void>;
   onRequestAddRel: () => void;
   onRequestAddKin: (role: KinRole) => void;
   onShowInLineage: () => void;
@@ -5349,7 +5370,13 @@ function PersonDrawer({
                                 { idempotencyKey: crypto.randomUUID() }
                               );
                               setConfirmRelId(null);
-                              setLocalFlash("已移除这条家庭关系");
+                              const otherName =
+                                personMap.get(row.otherId)?.preferredName ??
+                                "成员";
+                              await onRelationshipRemoved(
+                                row.id,
+                                `「${person.preferredName}」与「${otherName}」的${row.kind}关系`
+                              );
                               await onChanged();
                             } catch (err) {
                               if (onAuth(err)) return;
