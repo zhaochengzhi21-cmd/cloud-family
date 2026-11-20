@@ -911,6 +911,9 @@ test("明经胡氏：概览可一键确认智能整理", async ({ page, baseURL 
     name: /确认 \d+ 条智能整理/,
   });
   await expect(confirmBtn).toBeVisible({ timeout: 30_000 });
+  await expect(
+    pending.getByRole("button", { name: "不采用这些" })
+  ).toBeVisible();
   await confirmBtn.click();
   await expect(page.getByRole("status")).toContainText(/已确认 2 条/, {
     timeout: 60_000,

@@ -515,38 +515,42 @@ export function OverviewTab({
       .map((c) => c.claimId);
   }, [overview]);
 
-  const confirmSmartPending = useCallback(async () => {
-    if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
-    setBatchBusy(true);
-    setBatchFlash("");
-    setLoadError("");
-    try {
-      const r = await v1api.reviewClaimsBatch(familyId, {
-        action: "accept",
-        claimIds: smartPendingIds.slice(0, 20),
-      });
-      setBatchFlash(
-        r.failed > 0
-          ? `已确认 ${r.succeeded} 条智能整理，${r.failed} 条未成功`
-          : `已确认 ${r.succeeded} 条智能整理`
-      );
-      await load();
-      await onReload?.();
-    } catch (e) {
-      if (onAuthError(e)) return;
-      setLoadError(userMessageForApiError(e));
-    } finally {
-      setBatchBusy(false);
-    }
-  }, [
-    batchBusy,
-    canReview,
-    familyId,
-    load,
-    onAuthError,
-    onReload,
-    smartPendingIds,
-  ]);
+  const reviewSmartPending = useCallback(
+    async (action: "accept" | "reject") => {
+      if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
+      setBatchBusy(true);
+      setBatchFlash("");
+      setLoadError("");
+      try {
+        const r = await v1api.reviewClaimsBatch(familyId, {
+          action,
+          claimIds: smartPendingIds.slice(0, 20),
+        });
+        const verb = action === "accept" ? "确认" : "不采用";
+        setBatchFlash(
+          r.failed > 0
+            ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功`
+            : `已${verb} ${r.succeeded} 条智能整理`
+        );
+        await load();
+        await onReload?.();
+      } catch (e) {
+        if (onAuthError(e)) return;
+        setLoadError(userMessageForApiError(e));
+      } finally {
+        setBatchBusy(false);
+      }
+    },
+    [
+      batchBusy,
+      canReview,
+      familyId,
+      load,
+      onAuthError,
+      onReload,
+      smartPendingIds,
+    ]
+  );
 
   type Step = {
     key: string;
@@ -1099,16 +1103,26 @@ export function OverviewTab({
                 : `（${overview.pendingTotal}）`}
             </h2>
             {canReview && smartPendingIds.length > 0 ? (
-              <button
-                type="button"
-                disabled={batchBusy}
-                onClick={() => void confirmSmartPending()}
-                className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
-              >
-                {batchBusy
-                  ? "确认中…"
-                  : `确认 ${smartPendingIds.length} 条智能整理`}
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={batchBusy}
+                  onClick={() => void reviewSmartPending("accept")}
+                  className="alpha-btn alpha-btn-primary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
+                >
+                  {batchBusy
+                    ? "处理中…"
+                    : `确认 ${smartPendingIds.length} 条智能整理`}
+                </button>
+                <button
+                  type="button"
+                  disabled={batchBusy}
+                  onClick={() => void reviewSmartPending("reject")}
+                  className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
+                >
+                  不采用这些
+                </button>
+              </div>
             ) : null}
           </div>
           <ul className="space-y-2">
