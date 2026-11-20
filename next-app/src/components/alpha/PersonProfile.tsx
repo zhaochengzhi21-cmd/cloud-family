@@ -1166,7 +1166,7 @@ export function PersonProfile({
             </h2>
             {canReview && smartPendingCount > 0 ? (
               <Link
-                href={`${workspaceHref}?tab=overview`}
+                href={`${workspaceHref}?scroll=pending`}
                 className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
               >
                 去概览批量确认智能整理/导入

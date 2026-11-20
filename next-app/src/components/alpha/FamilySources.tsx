@@ -343,7 +343,7 @@ export function FamilySources({
           type="button"
           className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
           onClick={() => {
-            const url = `${window.location.origin}/alpha/families/${familyId}#overview-sources`;
+            const url = `${window.location.origin}/alpha/families/${familyId}?scroll=sources`;
             void navigator.clipboard.writeText(url).then(
               () => setCopyFlash({ id: "section", ok: true }),
               () => setCopyFlash({ id: "section", ok: false })

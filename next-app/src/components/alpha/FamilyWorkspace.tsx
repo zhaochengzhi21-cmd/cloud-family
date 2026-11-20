@@ -762,6 +762,10 @@ export function FamilyWorkspace({
       const fromUrl = new URLSearchParams(window.location.search).get("scroll");
       if (fromUrl === "participants") {
         target = "overview-participants";
+      } else if (fromUrl === "pending") {
+        target = "overview-pending";
+      } else if (fromUrl === "sources") {
+        target = "overview-sources-section";
       } else {
         target =
           sessionStorage.getItem(`alpha-overview-scroll:${familyId}`) ?? "";
