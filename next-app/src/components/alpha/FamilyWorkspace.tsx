@@ -1088,6 +1088,11 @@ export function FamilyWorkspace({
             setShowAddRel(false);
             setRelFocusPersonId(null);
           }}
+          onNeedMorePeople={() => {
+            setShowAddRel(false);
+            setRelFocusPersonId(null);
+            setShowAddPerson(true);
+          }}
           onDone={async () => {
             setShowAddRel(false);
             setRelFocusPersonId(null);
@@ -1745,10 +1750,10 @@ function LineageTab({
       {canEdit ? (
         <button
           type="button"
-          onClick={onAddRel}
+          onClick={persons.length < 2 ? onGoMembers : onAddRel}
           className="alpha-btn alpha-btn-secondary mb-3 !min-h-[44px] !text-sm"
         >
-          + 添加家庭关系
+          {persons.length < 2 ? "去添加成员" : "+ 添加家庭关系"}
         </button>
       ) : null}
 
@@ -5011,6 +5016,7 @@ function AddRelationshipModal({
   persons,
   focusPersonId,
   onClose,
+  onNeedMorePeople,
   onDone,
   onError,
   onAuth,
@@ -5019,6 +5025,7 @@ function AddRelationshipModal({
   persons: GraphPerson[];
   focusPersonId?: string | null;
   onClose: () => void;
+  onNeedMorePeople?: () => void;
   onDone: () => Promise<void>;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
@@ -5114,10 +5121,13 @@ function AddRelationshipModal({
         </p>
         <button
           type="button"
-          onClick={onClose}
+          onClick={() => {
+            if (onNeedMorePeople) onNeedMorePeople();
+            else onClose();
+          }}
           className="alpha-btn alpha-btn-primary mt-5 w-full"
         >
-          知道了
+          {onNeedMorePeople ? "去添加成员" : "知道了"}
         </button>
       </ModalShell>
     );
