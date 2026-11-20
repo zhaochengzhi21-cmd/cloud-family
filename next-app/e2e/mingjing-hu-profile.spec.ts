@@ -4578,6 +4578,42 @@ test("明经胡氏：工作区 URL claim 可直达资料卡片", async ({
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
+test("明经胡氏：资料卡可复制本条深链", async ({ page, baseURL, context }) => {
+  test.skip(!baseURL, "baseURL required");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·复制资料链（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "OCCUPATION", text: "万载知县，后升胶州刺史" },
+  ]);
+  const listed = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}/claims`
+  );
+  expect(listed.status).toBe(200);
+  const claims = (listed.body as { claims: { id: string; claimType: string }[] })
+    .claims;
+  const claim = claims.find((c) => c.claimType === "OCCUPATION");
+  expect(claim?.id).toBeTruthy();
+
+  await page.goto(
+    `/alpha/families/${familyId}?tab=records&person=${personId}&claim=${claim!.id}`
+  );
+  const card = page.locator(`[data-claim-id="${claim!.id}"]`);
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await card.getByRole("button", { name: "复制本条链接" }).click();
+  await expect(card.getByText("已复制链接")).toBeVisible({ timeout: 10_000 });
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toContain(`claim=${claim!.id}`);
+  expect(copied).toContain(`person=${personId}`);
+  expect(copied).toContain("tab=records");
+});
+
 test("明经胡氏：工作区 URL scroll=participants 可直达参与家人", async ({
   page,
   baseURL,
