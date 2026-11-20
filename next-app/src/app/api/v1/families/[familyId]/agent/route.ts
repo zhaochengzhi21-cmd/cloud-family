@@ -27,6 +27,13 @@ export async function GET(
 
   const limitRaw = req.nextUrl.searchParams.get("limit");
   const limit = limitRaw ? Number(limitRaw) : undefined;
+  const sinceRaw = req.nextUrl.searchParams.get("since");
+  let since: Date | null = null;
+  if (sinceRaw) {
+    const d = new Date(sinceRaw);
+    if (Number.isNaN(d.getTime())) return invalidRequest();
+    since = d;
+  }
 
   try {
     const channel = await getFamilyAgentChannel(
@@ -35,6 +42,7 @@ export async function GET(
       {
         db: ctx.db,
         limit: Number.isFinite(limit) ? limit : undefined,
+        since,
       }
     );
     return okJson({ agent: channel });

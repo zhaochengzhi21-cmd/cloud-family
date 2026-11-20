@@ -644,6 +644,20 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   };
   expect(linkBody.linked).toBe(2);
   expect(linkBody.failed).toBe(0);
+
+  const farFuture = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/agent?since=${encodeURIComponent(
+      new Date(Date.now() + 60_000).toISOString()
+    )}`
+  );
+  expect(farFuture.status).toBe(200);
+  const futureDecisions = (
+    farFuture.body as {
+      agent: { recentDecisions: unknown[] };
+    }
+  ).agent.recentDecisions;
+  expect(futureDecisions).toEqual([]);
 });
 
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({

@@ -577,8 +577,14 @@ export const v1api = {
     });
   },
 
-  getAgentChannel: (familyId: string, limit = 40) =>
-    v1Fetch<{
+  getAgentChannel: (
+    familyId: string,
+    opts?: { limit?: number; since?: string }
+  ) => {
+    const limit = opts?.limit ?? 40;
+    const q = new URLSearchParams({ limit: String(limit) });
+    if (opts?.since) q.set("since", opts.since);
+    return v1Fetch<{
       agent: {
         principles: string[];
         claimTypes: Array<{
@@ -619,7 +625,8 @@ export const v1api = {
         }>;
         taskTotal: number;
       };
-    }>(`/api/v1/families/${familyId}/agent?limit=${limit}`),
+    }>(`/api/v1/families/${familyId}/agent?${q.toString()}`);
+  },
 
   listPersonClaims: (familyId: string, personId: string) =>
     v1Fetch<{

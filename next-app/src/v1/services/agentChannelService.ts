@@ -127,8 +127,13 @@ function capabilitiesForRole(
       method: "GET",
       path: `${base}/agent`,
       roles: ["OWNER", "ADMIN", "EDITOR", "VIEWER"],
+      bodyHints: {
+        limit: "1..80 optional",
+        since: "ISO timestamp — only decisions at/after this time",
+      },
       policy: [
         "recentDecisions lists human ACCEPTED/REJECTED/REOPENED — do not invent",
+        "Pass since= last seen decision.at to avoid replaying old reviews",
       ],
     },
     {
@@ -263,10 +268,14 @@ function capabilitiesForRole(
 export async function getFamilyAgentChannel(
   familyId: string,
   actorContext: AccessContext,
-  options?: { db?: V1Db; limit?: number }
+  options?: { db?: V1Db; limit?: number; since?: Date | null }
 ): Promise<AgentChannel> {
   const database = dbOrDefault(options?.db);
   const limit = Math.min(Math.max(options?.limit ?? 40, 1), 80);
+  const since =
+    options?.since instanceof Date && !Number.isNaN(options.since.getTime())
+      ? options.since
+      : null;
 
   let auth;
   try {
@@ -421,6 +430,7 @@ export async function getFamilyAgentChannel(
   const recentDecisions: AgentDecision[] = [];
   for (const r of decisionRows) {
     if (!r.entityId) continue;
+    if (since && r.createdAt < since) continue;
     const c = subjectById.get(r.entityId);
     if (!c || c.subjectType !== "PERSON") continue;
     if (!visiblePersons.has(c.subjectId)) continue;
