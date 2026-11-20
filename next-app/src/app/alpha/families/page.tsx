@@ -29,6 +29,7 @@ export default function AlphaFamiliesPage() {
   const [lastFamilyId, setLastFamilyId] = useState("");
   const [leftNote, setLeftNote] = useState("");
   const [leftNoteCopyFlash, setLeftNoteCopyFlash] = useState("");
+  const [emptyCopyFlash, setEmptyCopyFlash] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const createDialogRef = useRef<HTMLDivElement>(null);
 
@@ -235,6 +236,25 @@ export default function AlphaFamiliesPage() {
           <p className="mt-4 text-sm text-[color:var(--a-muted)]">
             已有邀请？打开家人发来的邀请链接即可加入（登录页邀请码用于内测注册，不是家族邀请）。
           </p>
+          <button
+            type="button"
+            className="mt-3 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              const url = `${window.location.origin}/alpha/families`;
+              void navigator.clipboard.writeText(url).then(
+                () => {
+                  setEmptyCopyFlash("已复制「我的家族」链接，可发给家人对照");
+                  window.setTimeout(() => setEmptyCopyFlash(""), 2500);
+                },
+                () => {
+                  setEmptyCopyFlash("请手动复制地址栏链接");
+                  window.setTimeout(() => setEmptyCopyFlash(""), 2500);
+                }
+              );
+            }}
+          >
+            {emptyCopyFlash || "复制本页链接发给家人"}
+          </button>
         </div>
       ) : null}
 
