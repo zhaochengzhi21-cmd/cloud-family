@@ -1340,6 +1340,36 @@ export function FamilyWorkspace({
               setTab("members");
               if (canEdit) setShowAddPerson(true);
             }}
+            onOpenParticipants={
+              canReview
+                ? undefined
+                : () => {
+                    try {
+                      sessionStorage.setItem(
+                        `alpha-overview-scroll:${familyId}`,
+                        "overview-participants"
+                      );
+                    } catch {
+                      /* private mode */
+                    }
+                    setTab("overview");
+                    let tries = 0;
+                    const tick = () => {
+                      const el = document.getElementById(
+                        "overview-participants"
+                      );
+                      if (el) {
+                        el.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                        return;
+                      }
+                      if (tries++ < 20) window.setTimeout(tick, 100);
+                    };
+                    window.setTimeout(tick, 50);
+                  }
+            }
             onOpen={(id) => setSelectedPersonId(id)}
             personMap={personMap}
             familyId={familyId}
@@ -1379,6 +1409,36 @@ export function FamilyWorkspace({
               setTab("members");
               if (canEdit) setShowAddPerson(true);
             }}
+            onOpenParticipants={
+              canReview
+                ? undefined
+                : () => {
+                    try {
+                      sessionStorage.setItem(
+                        `alpha-overview-scroll:${familyId}`,
+                        "overview-participants"
+                      );
+                    } catch {
+                      /* private mode */
+                    }
+                    setTab("overview");
+                    let tries = 0;
+                    const tick = () => {
+                      const el = document.getElementById(
+                        "overview-participants"
+                      );
+                      if (el) {
+                        el.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                        return;
+                      }
+                      if (tries++ < 20) window.setTimeout(tick, 100);
+                    };
+                    window.setTimeout(tick, 50);
+                  }
+            }
             setFlash={setFlash}
             setPendingUndo={(undo) => setPendingUndo(undo)}
             setError={setError}
@@ -1852,6 +1912,7 @@ function LineageTab({
   onAddRel,
   onAddKin,
   onGoMembers,
+  onOpenParticipants,
   onOpen,
   personMap,
   familyId,
@@ -1866,6 +1927,7 @@ function LineageTab({
   onAddRel: () => void;
   onAddKin: (personId: string, role: KinRole) => void;
   onGoMembers: () => void;
+  onOpenParticipants?: () => void;
   onOpen: (id: string) => void;
   personMap: Map<string, GraphPerson>;
   familyId: string;
@@ -2338,6 +2400,14 @@ function LineageTab({
                 >
                   查看成员
                 </button>
+              ) : onOpenParticipants ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                  onClick={onOpenParticipants}
+                >
+                  查看参与家人
+                </button>
               ) : null}
             </div>
           )}
@@ -2653,6 +2723,7 @@ function RecordsTab({
   onAuthError,
   onOpenPerson,
   onGoMembers,
+  onOpenParticipants,
   setFlash,
   setPendingUndo,
   setError,
@@ -2687,6 +2758,7 @@ function RecordsTab({
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
   onGoMembers: () => void;
+  onOpenParticipants?: () => void;
   setFlash: (s: string) => void;
   setPendingUndo: (
     undo: null | {
@@ -2956,6 +3028,14 @@ function RecordsTab({
             onClick={onGoMembers}
           >
             去添加成员
+          </button>
+        ) : onOpenParticipants ? (
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary mt-6"
+            onClick={onOpenParticipants}
+          >
+            查看参与家人
           </button>
         ) : (
           <button
