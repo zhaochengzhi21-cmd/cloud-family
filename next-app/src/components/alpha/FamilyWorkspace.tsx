@@ -2830,7 +2830,15 @@ function RecordsTab({
           >
             去添加成员
           </button>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            className="alpha-btn alpha-btn-secondary mt-6"
+            onClick={onGoMembers}
+          >
+            查看成员
+          </button>
+        )}
       </div>
     );
   }
