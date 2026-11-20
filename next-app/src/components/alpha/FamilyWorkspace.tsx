@@ -2263,8 +2263,15 @@ export function FamilyWorkspace({
             setDrawerBasicsFocus(null);
             setError("");
             setPendingUndo({ kind: "person", id: personId, label: name });
+            const qs = new URLSearchParams({
+              tab: "overview",
+              scroll: "participants",
+            });
+            setFlashCopyUrl(
+              `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+            );
             setFlash(
-              `已移除「${name}」。误删可点恢复，或稍后在概览「最近动态」找回。`
+              `已移除「${name}」。误删可点恢复，或稍后在概览「最近动态」找回。可复制链接发给家人核对。`
             );
             setTab("overview");
             await load();
