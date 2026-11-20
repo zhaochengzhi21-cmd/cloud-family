@@ -2948,12 +2948,12 @@ test("明经胡氏：无成员时打印版家谱为空态", async ({ page, baseU
   await expect(
     page.getByRole("heading", { name: "西递明经胡氏·打印空态（测试）" })
   ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("还没有成员可排进家谱")).toBeVisible();
+  await page.getByRole("link", { name: "去添加成员" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
   await expect(
-    page.getByText("还没有成员可排进家谱。先回到家族档案添加家人。")
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "返回家族档案" })
-  ).toBeVisible();
+    page.getByRole("dialog").getByRole("heading", { name: /添加/ })
+  ).toBeVisible({ timeout: 60_000 });
   await expect(
     page.getByRole("button", { name: "打印或保存为 PDF" })
   ).toHaveCount(0);

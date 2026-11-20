@@ -306,13 +306,24 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             {book.family.displayName}
           </h1>
           <p className="mt-3 text-[color:var(--a-muted)]">
-            还没有成员可排进家谱。先回到家族档案添加家人。
+            {canEdit
+              ? "还没有成员可排进家谱。先添加家人后再回来查看。"
+              : "还没有成员可排进家谱。有编辑权限的家人添加后，这里会出现。"}
           </p>
           <Link
             href={`/alpha/families/${familyId}`}
+            onClick={() => {
+              if (!canEdit) return;
+              try {
+                sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
+                sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
+              } catch {
+                /* private mode */
+              }
+            }}
             className="alpha-btn alpha-btn-primary mt-6 inline-flex !min-h-[40px] !text-sm"
           >
-            返回家族档案
+            {canEdit ? "去添加成员" : "返回家族档案"}
           </Link>
         </div>
       </div>
