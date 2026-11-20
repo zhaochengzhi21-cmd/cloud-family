@@ -1042,6 +1042,7 @@ export function PersonProfile({
             ]}
             sources={sources}
             familyId={familyId}
+            personId={personId}
             canEdit={canEdit}
             canReview={canReview}
             onFill={openRecords}
@@ -1090,6 +1091,7 @@ export function PersonProfile({
               ]}
               sources={sources}
               familyId={familyId}
+              personId={personId}
               canEdit={canEdit}
               canReview={canReview}
               onFill={openRecords}
@@ -1120,6 +1122,7 @@ export function PersonProfile({
               ]}
               sources={sources}
               familyId={familyId}
+              personId={personId}
               canEdit={canEdit}
               canReview={canReview}
               onFill={openRecords}
@@ -1150,6 +1153,7 @@ export function PersonProfile({
               ]}
               sources={sources}
               familyId={familyId}
+              personId={personId}
               canEdit={canEdit}
               canReview={canReview}
               onFill={openRecords}
@@ -1176,6 +1180,7 @@ export function PersonProfile({
               ]}
               sources={sources}
               familyId={familyId}
+              personId={personId}
               canEdit={canEdit}
               canReview={canReview}
               onFill={openRecords}
@@ -1214,6 +1219,7 @@ export function PersonProfile({
               ]}
               sources={sources}
               familyId={familyId}
+              personId={personId}
               canEdit={canEdit}
               canReview={canReview}
               onFill={openRecords}
@@ -1440,6 +1446,7 @@ export function PersonProfile({
                       claims={rows}
                       sources={sources}
                       familyId={familyId}
+                      personId={personId}
                       canEdit={canEdit}
                       canReview={canReview}
                       onAddSource={openEvidence}
@@ -1807,6 +1814,7 @@ function TimelineEvent({
   rows,
   sources,
   familyId,
+  personId,
   canEdit = false,
   canReview = false,
   onFill,
@@ -1819,6 +1827,7 @@ function TimelineEvent({
   rows: TimelineRow[];
   sources: SourcesByClaim;
   familyId: string;
+  personId: string;
   canEdit?: boolean;
   canReview?: boolean;
   onFill?: (claimType: string) => void;
@@ -1855,6 +1864,7 @@ function TimelineEvent({
                   claims={r.claims}
                   sources={sources}
                   familyId={familyId}
+                  personId={personId}
                   canEdit={canEdit}
                   canReview={canReview}
                   onAddSource={onAddSource}
@@ -2415,6 +2425,7 @@ function ClaimValues({
   claims,
   sources,
   familyId,
+  personId,
   canEdit = false,
   canReview = false,
   onAddSource,
@@ -2425,6 +2436,7 @@ function ClaimValues({
   claims: Claim[];
   sources: SourcesByClaim;
   familyId: string;
+  personId: string;
   canEdit?: boolean;
   canReview?: boolean;
   onAddSource?: (claimId: string) => void;
@@ -2432,6 +2444,7 @@ function ClaimValues({
   onProposeAlternate?: (claimType: string) => void;
   onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
+  const [conflictCopyFlash, setConflictCopyFlash] = useState("");
   if (claims.length === 0) {
     return <span className="text-sm text-[color:var(--a-muted)]">未记录</span>;
   }
@@ -2448,21 +2461,53 @@ function ClaimValues({
   return (
     <div>
       {differs ? (
-        onFocusClaim && differTarget ? (
-          <button
-            type="button"
-            className="alpha-print-hide text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            onClick={() => onFocusClaim(differTarget.id, differTarget.status)}
-          >
-            {canReview ? "存在不同说法" : "存在不同说法 · 查看"}
-          </button>
-        ) : (
-          <p className="text-xs font-semibold text-[color:var(--a-brand)]">
-            {canReview
-              ? "存在不同说法"
-              : `存在不同说法（需${REVIEWER_CONTACT}选用）`}
-          </p>
-        )
+        <div className="alpha-print-hide mb-1 flex flex-wrap items-center gap-2">
+          {onFocusClaim && differTarget ? (
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => onFocusClaim(differTarget.id, differTarget.status)}
+            >
+              {canReview ? "存在不同说法" : "存在不同说法 · 查看"}
+            </button>
+          ) : (
+            <p className="text-xs font-semibold text-[color:var(--a-brand)]">
+              {canReview
+                ? "存在不同说法"
+                : `存在不同说法（需${REVIEWER_CONTACT}选用）`}
+            </p>
+          )}
+          {!canReview && differTarget ? (
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const qs = new URLSearchParams({
+                  tab: "records",
+                  person: personId,
+                  claim: differTarget.id,
+                  claimStatus:
+                    differTarget.status === "CONFLICTED"
+                      ? "CONFLICTED"
+                      : "PROPOSED",
+                });
+                const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setConflictCopyFlash("已复制链接");
+                    window.setTimeout(() => setConflictCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setConflictCopyFlash("请手动复制");
+                    window.setTimeout(() => setConflictCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {conflictCopyFlash || `复制链接发给${REVIEWER_CONTACT}`}
+            </button>
+          ) : null}
+        </div>
       ) : null}
       <ul className="space-y-0.5">
         {claims.map((c) => (
