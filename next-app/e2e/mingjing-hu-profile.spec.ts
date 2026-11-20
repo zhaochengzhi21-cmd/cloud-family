@@ -987,15 +987,26 @@ test("明经胡氏：概览可一键不采用智能整理", async ({ page, baseU
   const rejectBtn = pending.getByRole("button", { name: "不采用这些" });
   await expect(rejectBtn).toBeVisible({ timeout: 30_000 });
   await rejectBtn.click();
-  await expect(page.getByRole("status")).toContainText(/已不采用 2 条/, {
-    timeout: 60_000,
+  const batchStatus = page.getByRole("status").filter({
+    hasText: /已不采用 2 条/,
   });
+  await expect(batchStatus).toBeVisible({ timeout: 60_000 });
+  await expect(batchStatus).toContainText("误标可点恢复");
   await expect(
     page.getByRole("button", { name: /确认 \d+ 条智能整理/ })
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "不采用这些" })
   ).toHaveCount(0);
+  await batchStatus.getByRole("button", { name: "恢复" }).click();
+  await expect(
+    page.getByRole("status").filter({
+      hasText: /已重新打开 2 条资料/,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    pending.getByRole("button", { name: /确认 \d+ 条智能整理/ })
+  ).toBeVisible({ timeout: 60_000 });
 });
 
 test("明经胡氏：不采用后可立即恢复待确认", async ({ page, baseURL }) => {

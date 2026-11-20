@@ -221,6 +221,9 @@ export function OverviewTab({
   const [loadError, setLoadError] = useState("");
   const [batchBusy, setBatchBusy] = useState(false);
   const [batchFlash, setBatchFlash] = useState("");
+  const [batchUndoClaimIds, setBatchUndoClaimIds] = useState<string[] | null>(
+    null
+  );
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -537,6 +540,7 @@ export function OverviewTab({
       if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
       setBatchBusy(true);
       setBatchFlash("");
+      setBatchUndoClaimIds(null);
       setLoadError("");
       try {
         const claimIds = smartPendingIds.slice(0, 20);
@@ -550,11 +554,26 @@ export function OverviewTab({
           smartPendingIds.length > claimIds.length
             ? `；列表内还有 ${smartPendingIds.length - claimIds.length} 条可再点一次`
             : "";
-        setBatchFlash(
-          r.failed > 0
-            ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功${more}`
-            : `已${verb} ${r.succeeded} 条智能整理${more}`
-        );
+        const succeededIds = r.results
+          .filter(
+            (row): row is { index: number; ok: true; claim: { id: string; status: string } } =>
+              row.ok
+          )
+          .map((row) => row.claim.id);
+        if (action === "reject" && succeededIds.length > 0) {
+          setBatchUndoClaimIds(succeededIds);
+          setBatchFlash(
+            r.failed > 0
+              ? `已不采用 ${r.succeeded} 条智能整理，${r.failed} 条未成功。误标可点恢复。${more}`
+              : `已不采用 ${r.succeeded} 条智能整理。误标可点恢复。${more}`
+          );
+        } else {
+          setBatchFlash(
+            r.failed > 0
+              ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功${more}`
+              : `已${verb} ${r.succeeded} 条智能整理${more}`
+          );
+        }
         await load();
         await onReload?.();
       } catch (e) {
@@ -574,6 +593,46 @@ export function OverviewTab({
       smartPendingIds,
     ]
   );
+
+  const undoBatchReject = useCallback(async () => {
+    const ids = batchUndoClaimIds;
+    if (!ids?.length || batchBusy) return;
+    setBatchBusy(true);
+    setBatchUndoClaimIds(null);
+    setLoadError("");
+    try {
+      let ok = 0;
+      for (const claimId of ids) {
+        try {
+          await v1api.reopenClaim(familyId, claimId, {
+            idempotencyKey: crypto.randomUUID(),
+          });
+          ok += 1;
+        } catch {
+          /* continue remaining */
+        }
+      }
+      setBatchFlash(
+        ok > 0
+          ? `已重新打开 ${ok} 条资料，可再次确认或不采用`
+          : "恢复失败，请稍后在「可恢复」或最近动态中逐条找回"
+      );
+      await load();
+      await onReload?.();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setLoadError(userMessageForApiError(e));
+    } finally {
+      setBatchBusy(false);
+    }
+  }, [
+    batchBusy,
+    batchUndoClaimIds,
+    familyId,
+    load,
+    onAuthError,
+    onReload,
+  ]);
 
   type Step = {
     key: string;
@@ -1102,12 +1161,32 @@ export function OverviewTab({
       </section>
 
       {batchFlash ? (
-        <p
-          className="text-sm text-[color:var(--a-brand)]"
+        <div
+          className="flex flex-wrap items-center gap-3 text-sm text-[color:var(--a-brand)]"
           role="status"
         >
-          {batchFlash}
-        </p>
+          <p className="min-w-0 flex-1">{batchFlash}</p>
+          {batchUndoClaimIds?.length ? (
+            <button
+              type="button"
+              disabled={batchBusy}
+              className="shrink-0 font-semibold underline-offset-2 hover:underline disabled:opacity-60"
+              onClick={() => void undoBatchReject()}
+            >
+              恢复
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="shrink-0 text-[color:var(--a-muted)] underline-offset-2 hover:underline"
+            onClick={() => {
+              setBatchFlash("");
+              setBatchUndoClaimIds(null);
+            }}
+          >
+            关闭
+          </button>
+        </div>
       ) : null}
 
       {overview && overview.pending.length > 0 ? (
