@@ -227,13 +227,15 @@ export function OverviewTab({
   const [batchUndo, setBatchUndo] = useState<null | {
     kind: "accept" | "reject";
     claimIds: string[];
+    /** First succeeded claim's person — used for reopen deep-link handoff. */
+    firstPersonId?: string;
   }>(null);
-  /** After batch accept/reject — jump/copy deep link for the first succeeded claim. */
+  /** After batch accept/reject/reopen — jump/copy deep link for the first succeeded claim. */
   const [batchEvidenceHandoff, setBatchEvidenceHandoff] = useState<null | {
     personId: string;
     claimId: string;
     url: string;
-    kind: "evidence" | "reject";
+    kind: "evidence" | "reject" | "reopen";
   }>(null);
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
   const [activityCopyFlash, setActivityCopyFlash] = useState("");
@@ -698,7 +700,14 @@ export function OverviewTab({
                 .find((c): c is NonNullable<typeof c> => Boolean(c))
             : undefined;
         if (succeededIds.length > 0) {
-          setBatchUndo({ kind: action, claimIds: succeededIds });
+          const firstForUndo = succeededIds
+            .map((id) => pendingById.get(id))
+            .find((c): c is NonNullable<typeof c> => Boolean(c));
+          setBatchUndo({
+            kind: action,
+            claimIds: succeededIds,
+            firstPersonId: firstForUndo?.personId,
+          });
           if (action === "accept" && canEdit && firstAccepted) {
             const qs = new URLSearchParams({
               tab: "records",
@@ -720,9 +729,7 @@ export function OverviewTab({
                 : `已确认 ${r.succeeded} 条待确认资料。接着可补来源；可复制链接发给家人一起补。误操作可点恢复。${more}`
             );
           } else if (action === "reject") {
-            const firstRejected = succeededIds
-              .map((id) => pendingById.get(id))
-              .find((c): c is NonNullable<typeof c> => Boolean(c));
+            const firstRejected = firstForUndo;
             if (firstRejected) {
               const qs = new URLSearchParams({
                 tab: "records",
@@ -793,6 +800,7 @@ export function OverviewTab({
     setLoadError("");
     try {
       let ok = 0;
+      let firstOkClaimId: string | null = null;
       for (const claimId of undo.claimIds) {
         try {
           if (undo.kind === "accept") {
@@ -803,16 +811,36 @@ export function OverviewTab({
           await v1api.reopenClaim(familyId, claimId, {
             idempotencyKey: crypto.randomUUID(),
           });
+          if (!firstOkClaimId) firstOkClaimId = claimId;
           ok += 1;
         } catch {
           /* continue remaining */
         }
       }
-      setBatchFlash(
-        ok > 0
-          ? `已重新打开 ${ok} 条资料，可再次确认或不采用`
-          : "恢复失败，请稍后在「可恢复」或最近动态中逐条找回"
-      );
+      if (ok > 0 && firstOkClaimId && undo.firstPersonId) {
+        const qs = new URLSearchParams({
+          tab: "records",
+          person: undo.firstPersonId,
+          claim: firstOkClaimId,
+          claimStatus: "PROPOSED",
+        });
+        const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+        setBatchEvidenceHandoff({
+          personId: undo.firstPersonId,
+          claimId: firstOkClaimId,
+          url,
+          kind: "reopen",
+        });
+        setBatchFlash(
+          `已重新打开 ${ok} 条资料，可再次确认或不采用。可复制链接发给家人核对。`
+        );
+      } else {
+        setBatchFlash(
+          ok > 0
+            ? `已重新打开 ${ok} 条资料，可再次确认或不采用`
+            : "恢复失败，请稍后在「可恢复」或最近动态中逐条找回"
+        );
+      }
       await load();
       await onReload?.();
     } catch (e) {
@@ -1603,10 +1631,7 @@ export function OverviewTab({
           role="status"
         >
           <p className="min-w-0 flex-1">{batchFlash}</p>
-          {batchEvidenceHandoff &&
-          (batchEvidenceHandoff.kind === "evidence" ||
-            batchEvidenceHandoff.kind === "reject") &&
-          batchFlash.includes("可复制链接") ? (
+          {batchEvidenceHandoff && batchFlash.includes("可复制链接") ? (
             <>
               {batchEvidenceHandoff.kind === "evidence" ? (
                 <button
@@ -1631,6 +1656,8 @@ export function OverviewTab({
                     const h = batchEvidenceHandoff;
                     onOpenRecords(h.personId, {
                       focusClaimId: h.claimId,
+                      statusFilter:
+                        h.kind === "reopen" ? "PROPOSED" : undefined,
                     });
                   }}
                 >
@@ -1645,7 +1672,9 @@ export function OverviewTab({
                   const okMsg =
                     batchEvidenceHandoff.kind === "evidence"
                       ? "已复制补来源链接，可发给家人一起补"
-                      : "已复制不采用资料的链接，可发给家人核对";
+                      : batchEvidenceHandoff.kind === "reopen"
+                        ? "已复制待确认资料链接，可发给家人核对"
+                        : "已复制不采用资料的链接，可发给家人核对";
                   void navigator.clipboard.writeText(url).then(
                     () => setBatchFlash(okMsg),
                     () => setBatchFlash("请手动复制地址栏链接")
