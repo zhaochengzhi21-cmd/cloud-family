@@ -747,13 +747,21 @@ export function PersonProfile({
                   const undo = pendingUndo;
                   setPendingUndo(null);
                   setFlash("");
-                  setFlashCopyUrl(null);
                   void (async () => {
                     try {
                       await v1api.restoreRelationship(familyId, undo.id, {
                         idempotencyKey: crypto.randomUUID(),
                       });
-                      setFlash(`已恢复${undo.label}`);
+                      const qs = new URLSearchParams({
+                        tab: "lineage",
+                        person: personId,
+                      });
+                      setFlashCopyUrl(
+                        `${window.location.origin}${workspaceHref}?${qs.toString()}`
+                      );
+                      setFlash(
+                        `已恢复${undo.label}。可复制链接发给家人一起看世系。`
+                      );
                       await load();
                     } catch (e) {
                       if (handleAuthRedirect(e, router)) return;

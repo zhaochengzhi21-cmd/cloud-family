@@ -2137,16 +2137,32 @@ export function FamilyWorkspace({
         <AddPersonModal
           familyId={familyId}
           existingNames={persons.map((p) => p.preferredName)}
-          onFinished={(count) => {
+          onFinished={(count, lastPersonId) => {
             setShowAddPerson(false);
             if (count > 0) {
               if (tab === "overview") setTab("members");
               setError("");
-              setFlash(
-                count === 1
-                  ? "已添加家族成员"
-                  : `已添加 ${count} 位家族成员`
-              );
+              if (lastPersonId) {
+                const qs = new URLSearchParams({
+                  tab: "lineage",
+                  person: lastPersonId,
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
+                setFlash(
+                  count === 1
+                    ? "已添加家族成员。可复制链接发给家人一起看世系。"
+                    : `已添加 ${count} 位家族成员。可复制链接发给家人一起看世系。`
+                );
+              } else {
+                setFlashCopyUrl(null);
+                setFlash(
+                  count === 1
+                    ? "已添加家族成员"
+                    : `已添加 ${count} 位家族成员`
+                );
+              }
             }
           }}
           onAdded={async () => {
@@ -6876,7 +6892,7 @@ function AddPersonModal({
 }: {
   familyId: string;
   existingNames: string[];
-  onFinished: (addedCount: number) => void;
+  onFinished: (addedCount: number, lastPersonId?: string) => void;
   onAdded: () => Promise<void>;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
@@ -6934,7 +6950,9 @@ function AddPersonModal({
   return (
     <ModalShell
       title="添加成员"
-      onClose={() => onFinished(addedNames.length)}
+      onClose={() =>
+        onFinished(addedNames.length, lastAddedId ?? undefined)
+      }
       allowClose={!busy}
     >
       <form onSubmit={submit} className="space-y-4">
@@ -7029,7 +7047,9 @@ function AddPersonModal({
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => onFinished(addedNames.length)}
+            onClick={() =>
+              onFinished(addedNames.length, lastAddedId ?? undefined)
+            }
             disabled={busy}
             className="alpha-btn alpha-btn-secondary flex-1"
           >
