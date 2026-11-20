@@ -408,6 +408,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                 person={p}
                 kin={layout.kin.get(p.id)}
                 sourceNo={layout.sourceNo}
+                canEdit={canEdit}
               />
             ))}
           </div>
@@ -517,6 +518,7 @@ function BookEntry({
   person,
   kin,
   sourceNo,
+  canEdit = false,
 }: {
   familyId: string;
   person: BookPerson;
@@ -526,6 +528,7 @@ function BookEntry({
     children: BookPerson[];
   };
   sourceNo: Map<string, number>;
+  canEdit?: boolean;
 }) {
   const meta = [
     person.gender !== "UNKNOWN"
@@ -624,7 +627,17 @@ function BookEntry({
           ))}
         </dl>
       ) : (
-        <p className="mt-1 text-sm text-[color:var(--a-muted)]">暂无更多记录</p>
+        <div className="mt-1">
+          <p className="text-sm text-[color:var(--a-muted)]">暂无更多记录</p>
+          {canEdit ? (
+            <Link
+              href={`/alpha/families/${familyId}/people/${person.id}`}
+              className="alpha-print-hide mt-2 inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+            >
+              补充资料
+            </Link>
+          ) : null}
+        </div>
       )}
       {stories.length > 0 ? (
         <div className="mt-3 space-y-3 border-t border-[color:var(--a-brand-line)] pt-3">

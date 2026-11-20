@@ -3564,6 +3564,33 @@ test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：打印版空条目可去补充资料", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印补充（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  const entry = page.locator(`#print-person-${personId}`);
+  await expect(entry).toBeVisible({ timeout: 60_000 });
+  await expect(entry.getByText("暂无更多记录")).toBeVisible();
+  await entry.getByRole("link", { name: "补充资料" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/alpha/families/${familyId}/people/${personId}$`)
+  );
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：资料来源库可直接收录来源", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
