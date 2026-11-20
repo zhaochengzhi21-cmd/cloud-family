@@ -750,7 +750,9 @@ export function FamilyWorkspace({
             }}
             onRestorePerson={async (personId) => {
               try {
-                const r = await v1api.restorePerson(familyId, personId);
+                const r = await v1api.restorePerson(familyId, personId, {
+                  idempotencyKey: crypto.randomUUID(),
+                });
                 setFlash(
                   `已恢复「${r.person.preferredName}」${
                     r.relationshipsRestoredCount > 0
@@ -768,7 +770,8 @@ export function FamilyWorkspace({
               try {
                 const r = await v1api.restoreRelationship(
                   familyId,
-                  relationshipId
+                  relationshipId,
+                  { idempotencyKey: crypto.randomUUID() }
                 );
                 const from =
                   persons.find((p) => p.id === r.relationship.fromPersonId)
@@ -785,7 +788,9 @@ export function FamilyWorkspace({
             }}
             onRestoreEvidence={async (evidenceId) => {
               try {
-                const r = await v1api.restoreEvidence(familyId, evidenceId);
+                const r = await v1api.restoreEvidence(familyId, evidenceId, {
+                  idempotencyKey: crypto.randomUUID(),
+                });
                 const label = r.evidence.title?.trim() || "资料来源";
                 setFlash(`已恢复「${label}」`);
                 await load();

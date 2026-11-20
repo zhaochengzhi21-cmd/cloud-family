@@ -259,11 +259,31 @@ function capabilitiesForRole(
       ],
     },
     {
+      id: "list_evidence",
+      summary: "List family 资料来源 before attaching or inventing a new one",
+      method: "GET",
+      path: `${base}/evidence`,
+      roles: ["OWNER", "ADMIN", "EDITOR", "VIEWER"],
+      bodyHints: { limit: "1..200 optional" },
+      policy: ["Prefer reuse over creating duplicate sources"],
+    },
+    {
+      id: "get_claim",
+      summary: "Read one claim plus linked evidence",
+      method: "GET",
+      path: `${base}/claims/{claimId}`,
+      roles: ["OWNER", "ADMIN", "EDITOR", "VIEWER"],
+      policy: ["Privacy-filtered; 404 if not visible"],
+    },
+    {
       id: "accept_claim",
       summary: "Confirm a proposed fact (human review)",
       method: "POST",
       path: `${base}/claims/{claimId}/accept`,
       roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
       policy: ["REVIEW_CLAIM only — agents must not auto-call without user intent"],
     },
     {
@@ -272,7 +292,35 @@ function capabilitiesForRole(
       method: "POST",
       path: `${base}/claims/{claimId}/reject`,
       roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
       policy: ["Reopenable via …/reopen"],
+    },
+    {
+      id: "reopen_claim",
+      summary: "Return a rejected/accepted fact to 待确认",
+      method: "POST",
+      path: `${base}/claims/{claimId}/reopen`,
+      roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: ["Human only — after explicit user intent"],
+    },
+    {
+      id: "prefer_claim",
+      summary: "Choose one 不同说法 as the preferred accepted fact",
+      method: "POST",
+      path: `${base}/claims/{claimId}/prefer`,
+      roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: [
+        "Use for CONFLICTED claims — not plain /accept",
+        "Human REVIEW_CLAIM only",
+      ],
     },
     {
       id: "review_claims_batch",
@@ -289,6 +337,39 @@ function capabilitiesForRole(
         "Human REVIEW_CLAIM only — do not auto-call from agents",
         "Partial success — check results[].ok",
       ],
+    },
+    {
+      id: "restore_person",
+      summary: "Undo soft-delete for a person",
+      method: "POST",
+      path: `${base}/persons/{personId}/restore`,
+      roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: ["Restores kin edges removed with that delete when known"],
+    },
+    {
+      id: "restore_relationship",
+      summary: "Undo soft-delete for a parent/spouse edge",
+      method: "POST",
+      path: `${base}/relationships/{relationshipId}/restore`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: ["Same ACL as delete"],
+    },
+    {
+      id: "restore_evidence",
+      summary: "Undo soft-delete for a 资料来源",
+      method: "POST",
+      path: `${base}/evidence/{evidenceId}/restore`,
+      roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: ["Links remain; restore source visibility only"],
     },
     {
       id: "create_person",
@@ -442,11 +523,18 @@ export async function getFamilyAgentChannel(
           claimType: c.claimType,
           originType: c.originType,
           text: typeof value?.text === "string" ? value.text : null,
-          suggest: {
-            method: "POST",
-            path: `/api/v1/families/${familyId}/claims/${c.id}/accept`,
-            note: "Human OWNER/ADMIN confirms; or /reject",
-          },
+          suggest:
+            c.status === "CONFLICTED"
+              ? {
+                  method: "POST" as const,
+                  path: `/api/v1/families/${familyId}/claims/${c.id}/prefer`,
+                  note: "Human OWNER/ADMIN chooses 不同说法; or /reject",
+                }
+              : {
+                  method: "POST" as const,
+                  path: `/api/v1/families/${familyId}/claims/${c.id}/accept`,
+                  note: "Human OWNER/ADMIN confirms; or /reject",
+                },
         });
       } else if (c.status === "ACCEPTED") {
         acceptedIds.push(c.id);
@@ -504,7 +592,7 @@ export async function getFamilyAgentChannel(
       suggest: {
         method: "POST",
         path: `/api/v1/families/${familyId}/evidence`,
-        note: "Then POST …/evidence/{evidenceId}/links with claimIds[] (or single claim link)",
+        note: "Prefer GET …/evidence to reuse; then POST …/evidence/{id}/links with claimIds[]",
       },
     });
   }

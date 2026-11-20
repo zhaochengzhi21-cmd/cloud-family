@@ -515,6 +515,8 @@ export function OverviewTab({
       .map((c) => c.claimId);
   }, [overview]);
 
+  const smartBatchCount = Math.min(20, smartPendingIds.length);
+
   const reviewSmartPending = useCallback(
     async (action: "accept" | "reject") => {
       if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
@@ -522,15 +524,21 @@ export function OverviewTab({
       setBatchFlash("");
       setLoadError("");
       try {
-        const r = await v1api.reviewClaimsBatch(familyId, {
-          action,
-          claimIds: smartPendingIds.slice(0, 20),
-        });
+        const claimIds = smartPendingIds.slice(0, 20);
+        const r = await v1api.reviewClaimsBatch(
+          familyId,
+          { action, claimIds },
+          { idempotencyKey: crypto.randomUUID() }
+        );
         const verb = action === "accept" ? "确认" : "不采用";
+        const more =
+          smartPendingIds.length > claimIds.length
+            ? `；列表内还有 ${smartPendingIds.length - claimIds.length} 条可再点一次`
+            : "";
         setBatchFlash(
           r.failed > 0
-            ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功`
-            : `已${verb} ${r.succeeded} 条智能整理`
+            ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功${more}`
+            : `已${verb} ${r.succeeded} 条智能整理${more}`
         );
         await load();
         await onReload?.();
@@ -1112,7 +1120,9 @@ export function OverviewTab({
                 >
                   {batchBusy
                     ? "处理中…"
-                    : `确认 ${smartPendingIds.length} 条智能整理`}
+                    : smartPendingIds.length > 20
+                      ? `确认前 ${smartBatchCount} 条智能整理`
+                      : `确认 ${smartBatchCount} 条智能整理`}
                 </button>
                 <button
                   type="button"
@@ -1120,7 +1130,9 @@ export function OverviewTab({
                   onClick={() => void reviewSmartPending("reject")}
                   className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
                 >
-                  不采用这些
+                  {smartPendingIds.length > 20
+                    ? `不采用前 ${smartBatchCount} 条`
+                    : "不采用这些"}
                 </button>
               </div>
             ) : null}

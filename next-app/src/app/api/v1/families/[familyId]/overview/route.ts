@@ -3,9 +3,11 @@ import { beginWorkspaceRequest } from "@/v1/http/workspaceContext";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { okJson } from "@/v1/http/response";
 import { getFamilyGraph } from "@/v1/services/familyGraphService";
-import { getClaimsForSubject } from "@/v1/services/claimService";
+import { canReadClaim } from "@/v1/services/claimService";
 import { listClaimIdsWithActiveEvidence } from "@/v1/repositories/evidenceRepository";
+import * as claimRepo from "@/v1/repositories/claimRepository";
 import { mapPool } from "@/v1/util/pool";
+import type { ClaimDto } from "@/v1/domain/claim/types";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -53,25 +55,39 @@ export async function GET(
       db: ctx.db,
     });
 
+    const personIds = graph.persons.map((person) => person.id);
+    const claimRows = await claimRepo.listActiveClaimsForPersonSubjects(
+      ctx.db,
+      p.data.familyId,
+      personIds
+    );
+    const readableClaims = (
+      await mapPool(claimRows, 16, async (row) => {
+        const ok = await canReadClaim(row, ctx.actorContext, { db: ctx.db });
+        return ok ? claimRepo.mapClaimDto(row) : null;
+      })
+    ).filter((c): c is ClaimDto => c !== null);
+
+    const claimsByPerson = new Map<string, ClaimDto[]>();
+    for (const c of readableClaims) {
+      if (c.subjectType !== "PERSON") continue;
+      const list = claimsByPerson.get(c.subjectId) ?? [];
+      list.push(c);
+      claimsByPerson.set(c.subjectId, list);
+    }
+
     const pending: ClaimSummary[] = [];
     const acceptedSummaries: ClaimSummary[] = [];
+    const personStats: Record<string, PersonStats> = {};
 
-    const rows = await mapPool(graph.persons, 8, async (person) => {
-      const claims = await getClaimsForSubject(
-        p.data.familyId,
-        "PERSON",
-        person.id,
-        ctx.actorContext,
-        { db: ctx.db }
-      );
+    for (const person of graph.persons) {
+      const claims = claimsByPerson.get(person.id) ?? [];
       const stats: PersonStats = {
         proposed: 0,
         accepted: 0,
         conflicted: 0,
         claimTypes: [],
       };
-      const pendingForPerson: ClaimSummary[] = [];
-      const acceptedForPerson: ClaimSummary[] = [];
       for (const c of claims) {
         if (c.status === "REJECTED") continue;
         if (!stats.claimTypes.includes(c.claimType)) {
@@ -91,24 +107,12 @@ export async function GET(
           createdAt: c.createdAt.toISOString(),
         };
         if (c.status === "PROPOSED" || c.status === "CONFLICTED") {
-          pendingForPerson.push(summary);
+          pending.push(summary);
         } else if (c.status === "ACCEPTED") {
-          acceptedForPerson.push(summary);
+          acceptedSummaries.push(summary);
         }
       }
-      return {
-        personId: person.id,
-        stats,
-        pendingForPerson,
-        acceptedForPerson,
-      };
-    });
-
-    const personStats: Record<string, PersonStats> = {};
-    for (const row of rows) {
-      personStats[row.personId] = row.stats;
-      pending.push(...row.pendingForPerson);
-      acceptedSummaries.push(...row.acceptedForPerson);
+      personStats[person.id] = stats;
     }
 
     const sourcedIds = await listClaimIdsWithActiveEvidence(

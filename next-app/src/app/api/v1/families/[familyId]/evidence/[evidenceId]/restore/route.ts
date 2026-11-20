@@ -3,6 +3,7 @@ import { beginWorkspaceRequest } from "@/v1/http/workspaceContext";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { okJson } from "@/v1/http/response";
 import { restoreEvidence } from "@/v1/services/evidenceService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -27,22 +28,31 @@ export async function POST(
   const p = paramsSchema.safeParse(params);
   if (!p.success) return invalidRequest();
 
-  try {
-    const result = await restoreEvidence(
-      p.data.familyId,
-      p.data.evidenceId,
-      ctx.actorContext,
-      { db: ctx.db }
-    );
-    return okJson({
-      evidence: result.evidence,
-      familyVersion: result.familyVersion,
-    });
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "evidence.restore",
+    body: { evidenceId: p.data.evidenceId },
+    run: async () => {
+      try {
+        const result = await restoreEvidence(
+          p.data.familyId,
+          p.data.evidenceId,
+          ctx.actorContext,
+          { db: ctx.db }
+        );
+        return okJson({
+          evidence: result.evidence,
+          familyVersion: result.familyVersion,
+        });
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }
