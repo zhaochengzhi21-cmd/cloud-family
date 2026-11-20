@@ -764,7 +764,14 @@ function BookEntry({
             >
               补充资料
             </Link>
-          ) : null}
+          ) : (
+            <Link
+              href={`/alpha/families/${familyId}?scroll=participants`}
+              className="alpha-print-hide mt-2 inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+            >
+              查看参与家人
+            </Link>
+          )}
         </div>
       )}
       {stories.length > 0 ? (
