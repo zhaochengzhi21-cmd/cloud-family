@@ -2681,7 +2681,8 @@ function LineageTab({
                 >
                   查看成员
                 </button>
-              ) : onOpenParticipants ? (
+              ) : null}
+              {onOpenParticipants ? (
                 <button
                   type="button"
                   className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
