@@ -233,6 +233,7 @@ export function OverviewTab({
     url: string;
   }>(null);
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
+  const [activityCopyFlash, setActivityCopyFlash] = useState("");
 
   useEffect(() => {
     if (!externalFocusEvidenceId) return;
@@ -1632,6 +1633,11 @@ export function OverviewTab({
           >
             最近动态
           </h2>
+          {activityCopyFlash ? (
+            <p className="mb-2 text-sm text-[color:var(--a-muted)]" role="status">
+              {activityCopyFlash}
+            </p>
+          ) : null}
           <ol className="alpha-panel divide-y divide-[color:var(--a-brand-line)]">
             {activity.map((item) => {
               const pieces = activityPieces(item);
@@ -1681,6 +1687,38 @@ export function OverviewTab({
                         >
                           查看
                         </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const qs = new URLSearchParams({
+                              tab: "records",
+                              person: claimFocus.personId,
+                              claim: claimFocus.claimId,
+                              claimStatus: claimFocus.statusFilter,
+                            });
+                            const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash("已复制资料链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash("请手动复制地址栏链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          复制链接
+                        </button>
                       </>
                     ) : null}
                     {item.eventType === "CLAIM_REJECTED" &&
@@ -1727,6 +1765,32 @@ export function OverviewTab({
                           onClick={() => setFocusEvidenceId(item.evidenceId!)}
                         >
                           查看
+                        </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const url = `${window.location.origin}/alpha/families/${familyId}?evidence=${encodeURIComponent(item.evidenceId!)}`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash("已复制来源链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash("请手动复制地址栏链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          复制链接
                         </button>
                       </>
                     ) : null}
@@ -1775,6 +1839,36 @@ export function OverviewTab({
                           onClick={() => onOpenLineage(item.personId!)}
                         >
                           查看
+                        </button>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => {
+                            const qs = new URLSearchParams({
+                              tab: "lineage",
+                              person: item.personId!,
+                            });
+                            const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                            void navigator.clipboard.writeText(url).then(
+                              () => {
+                                setActivityCopyFlash("已复制世系链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              },
+                              () => {
+                                setActivityCopyFlash("请手动复制地址栏链接");
+                                window.setTimeout(
+                                  () => setActivityCopyFlash(""),
+                                  2500
+                                );
+                              }
+                            );
+                          }}
+                        >
+                          复制链接
                         </button>
                       </>
                     ) : null}
