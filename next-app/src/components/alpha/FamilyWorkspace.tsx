@@ -4428,7 +4428,7 @@ function RecordsTab({
                 canEdit={canEdit}
                 onChanged={loadClaims}
                 onError={setError}
-                onFlash={(msg, undoClaimId) => {
+                onFlash={(msg, undoClaimId, handoff) => {
                   setFlash(msg);
                   if (
                     undoClaimId &&
@@ -4446,6 +4446,21 @@ function RecordsTab({
                     if (!msg.includes("可复制链接")) {
                       setFlash(`${msg}可复制链接发给家人核对。`);
                     }
+                  } else if (
+                    handoff?.claimId &&
+                    personId &&
+                    msg.includes("可复制链接")
+                  ) {
+                    const qs = new URLSearchParams({
+                      tab: "records",
+                      person: personId,
+                      claim: handoff.claimId,
+                      claimStatus: "ALL",
+                    });
+                    if (handoff.openEvidence) qs.set("openEvidence", "1");
+                    setFlashCopyUrl(
+                      `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                    );
                   } else if (!msg.includes("可复制链接")) {
                     setFlashCopyUrl(null);
                   }
@@ -4537,7 +4552,7 @@ function RecordsTab({
                     onAuthError={onAuthError}
                     onChanged={loadClaims}
                     onError={setError}
-                    onFlash={(msg, undoClaimId) => {
+                    onFlash={(msg, undoClaimId, handoff) => {
                       setFlash(msg);
                       if (
                         undoClaimId &&
@@ -4555,6 +4570,21 @@ function RecordsTab({
                         if (!msg.includes("可复制链接")) {
                           setFlash(`${msg}可复制链接发给家人核对。`);
                         }
+                      } else if (
+                        handoff?.claimId &&
+                        personId &&
+                        msg.includes("可复制链接")
+                      ) {
+                        const qs = new URLSearchParams({
+                          tab: "records",
+                          person: personId,
+                          claim: handoff.claimId,
+                          claimStatus: "ALL",
+                        });
+                        if (handoff.openEvidence) qs.set("openEvidence", "1");
+                        setFlashCopyUrl(
+                          `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                        );
                       } else if (!msg.includes("可复制链接")) {
                         setFlashCopyUrl(null);
                       }
@@ -5261,7 +5291,11 @@ function ConflictChooser({
   canEdit: boolean;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
-  onFlash: (s: string, undoClaimId?: string) => void;
+  onFlash: (
+    s: string,
+    undoClaimId?: string,
+    handoff?: { claimId: string; openEvidence?: boolean }
+  ) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
   onOpenParticipants?: () => void;
@@ -5455,7 +5489,11 @@ function ClaimCard({
   onOpenParticipants?: () => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
-  onFlash: (s: string, undoClaimId?: string) => void;
+  onFlash: (
+    s: string,
+    undoClaimId?: string,
+    handoff?: { claimId: string; openEvidence?: boolean }
+  ) => void;
   onEvidenceRemoved?: (evidenceId: string, label: string) => void;
   onEvidenceUnlinked?: (args: {
     claimId: string;
@@ -6007,7 +6045,11 @@ function ClaimCard({
             setShowEvidence(false);
             setForcedEvidenceType(null);
             onShareOpenEvidence?.(false);
-            onFlash("已添加资料来源");
+            onFlash(
+              "已添加资料来源。可复制链接发给家人一起看。",
+              undefined,
+              { claimId: claim.id, openEvidence: true }
+            );
             const b = await v1api.getClaim(familyId, claim.id);
             setBundle(b);
             await onChanged();
@@ -7754,7 +7796,11 @@ function PersonDrawer({
     return () => window.clearTimeout(t);
   }, [localFlash, localUndoClaimId]);
 
-  function flashLocal(msg: string, undoClaimId?: string) {
+  function flashLocal(
+    msg: string,
+    undoClaimId?: string,
+    handoff?: { claimId: string; openEvidence?: boolean }
+  ) {
     if (
       undoClaimId &&
       (msg.includes("不采用") || msg.includes("不同说法"))
@@ -7773,6 +7819,21 @@ function PersonDrawer({
           : `${msg}可复制链接发给家人核对。`
       );
       setLocalUndoClaimId(undoClaimId);
+      return;
+    }
+    if (handoff?.claimId && msg.includes("可复制链接")) {
+      const qs = new URLSearchParams({
+        tab: "records",
+        person: person.id,
+        claim: handoff.claimId,
+        claimStatus: "ALL",
+      });
+      if (handoff.openEvidence) qs.set("openEvidence", "1");
+      setLocalFlashCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+      );
+      setLocalFlash(msg);
+      setLocalUndoClaimId(undoClaimId ?? null);
       return;
     }
     if (!msg.includes("可复制链接")) setLocalFlashCopyUrl(null);
