@@ -76,6 +76,7 @@ export function FamilySources({
   onOpenRecords?: (
     personId: string,
     opts?: {
+      claimType?: string;
       focusClaimId?: string;
       statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     }
@@ -500,6 +501,7 @@ export function FamilySources({
                     evidenceId={e.id}
                     persons={persons}
                     onAuthError={onAuthError}
+                    onOpenRecords={onOpenRecords}
                     onCancel={() => setAttachingId(null)}
                     onDone={async () => {
                       setAttachingId(null);
@@ -915,6 +917,7 @@ function LibraryAttachForm({
   evidenceId,
   persons,
   onAuthError,
+  onOpenRecords,
   onCancel,
   onDone,
 }: {
@@ -922,6 +925,14 @@ function LibraryAttachForm({
   evidenceId: string;
   persons: Array<{ id: string; preferredName: string }>;
   onAuthError: (e: unknown) => boolean;
+  onOpenRecords?: (
+    personId: string,
+    opts?: {
+      focusClaimId?: string;
+      statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+      claimType?: string;
+    }
+  ) => void;
   onCancel: () => void;
   onDone: () => Promise<void>;
 }) {
@@ -1034,9 +1045,22 @@ function LibraryAttachForm({
         {loadingClaims ? (
           <p className="text-sm text-[color:var(--a-muted)]">正在加载…</p>
         ) : claims.length === 0 ? (
-          <p className="text-sm text-[color:var(--a-muted)]">
-            这位家人还没有可挂接的资料，请先在资料页添加一条。
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              这位家人还没有可挂接的资料。
+            </p>
+            {onOpenRecords && personId ? (
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+                onClick={() =>
+                  onOpenRecords(personId, { claimType: "BIRTH_DATE" })
+                }
+              >
+                去添加人物资料
+              </button>
+            ) : null}
+          </div>
         ) : (
           <select
             id={`lib-attach-claim-${evidenceId}`}
