@@ -237,6 +237,7 @@ export function OverviewTab({
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
   const [activityCopyFlash, setActivityCopyFlash] = useState("");
   const [pendingHandoffFlash, setPendingHandoffFlash] = useState("");
+  const [nextStepCopyFlash, setNextStepCopyFlash] = useState("");
 
   useEffect(() => {
     if (!externalFocusEvidenceId) return;
@@ -800,6 +801,22 @@ export function OverviewTab({
     peopleAria?: string;
     /** When true, people chips open the person (read) instead of capture actions. */
     browsePeople?: boolean;
+    secondaryAction?: { label: string; onClick: () => void };
+  };
+
+  const copyAddPersonHandoff = () => {
+    const qs = new URLSearchParams({ tab: "members", add: "person" });
+    const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+    void navigator.clipboard.writeText(url).then(
+      () => {
+        setNextStepCopyFlash("已复制添加成员链接");
+        window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+      },
+      () => {
+        setNextStepCopyFlash("请手动复制地址栏链接");
+        window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+      }
+    );
   };
 
   const steps: Step[] = [];
@@ -815,10 +832,16 @@ export function OverviewTab({
       title: canEdit ? "添加第一位家人" : "还没有家族成员",
       body: canEdit
         ? "从你最熟悉的长辈开始，姓名或常用称呼就够了。"
-        : "有编辑权限的家人添加成员后，名单会出现在这里。",
+        : "有编辑权限的家人添加成员后，名单会出现在这里。可复制添加链接发给对方。",
       action: canEdit
         ? { label: "添加成员", onClick: onAddPerson }
         : { label: "查看参与家人", onClick: scrollToParticipants },
+      secondaryAction: canEdit
+        ? undefined
+        : {
+            label: nextStepCopyFlash || "复制添加成员链接",
+            onClick: copyAddPersonHandoff,
+          },
     });
   } else if (total === 1) {
     steps.push({
@@ -826,10 +849,16 @@ export function OverviewTab({
       title: canEdit ? "再添加一位家人" : "档案里只有一位成员",
       body: canEdit
         ? "有两位成员后，就能建立父母或配偶关系，世系开始成形。"
-        : "有编辑权限的家人再补一位后，才能建立关系、排进世代。",
+        : "有编辑权限的家人再补一位后，才能建立关系、排进世代。可复制添加链接发给对方。",
       action: canEdit
         ? { label: "添加成员", onClick: onAddPerson }
         : { label: "查看参与家人", onClick: scrollToParticipants },
+      secondaryAction: canEdit
+        ? undefined
+        : {
+            label: nextStepCopyFlash || "复制添加成员链接",
+            onClick: copyAddPersonHandoff,
+          },
     });
   }
   if (total >= 2 && unconnected.length > 0) {
@@ -1335,14 +1364,27 @@ export function OverviewTab({
                       ))}
                     </div>
                   ) : null}
-                  {s.action ? (
-                    <button
-                      type="button"
-                      onClick={s.action.onClick}
-                      className="alpha-btn alpha-btn-primary mt-3 !min-h-[40px] !text-sm"
-                    >
-                      {s.action.label}
-                    </button>
+                  {s.action || s.secondaryAction ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {s.action ? (
+                        <button
+                          type="button"
+                          onClick={s.action.onClick}
+                          className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+                        >
+                          {s.action.label}
+                        </button>
+                      ) : null}
+                      {s.secondaryAction ? (
+                        <button
+                          type="button"
+                          onClick={s.secondaryAction.onClick}
+                          className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                        >
+                          {s.secondaryAction.label}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </li>
