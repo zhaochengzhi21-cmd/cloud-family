@@ -631,7 +631,10 @@ export function FamilyWorkspace({
     }
     const params = new URLSearchParams(searchParams.toString());
     if (tab === "overview") params.delete("tab");
-    else params.set("tab", tab);
+    else {
+      params.set("tab", tab);
+      params.delete("evidence");
+    }
     if (selectedPersonId) params.set("person", selectedPersonId);
     else params.delete("person");
     const next = params.toString();
