@@ -455,11 +455,22 @@ export function FamilySources({
           </div>
         ) : null}
         {items.length === 0 && !adding ? (
-          <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-            {canEdit
-              ? "还没有资料来源。点「收录来源」先放入谱页、照片或口述出处；之后挂到人物资料时不必重复上传。"
-              : "还没有资料来源。有编辑权限的家人收录后，会汇总到这里。"}
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              {canEdit
+                ? "还没有资料来源。点「收录来源」先放入谱页、照片或口述出处；之后挂到人物资料时不必重复上传。"
+                : "还没有资料来源。有编辑权限的家人收录后，会汇总到这里。"}
+            </p>
+            {!canEdit && onOpenParticipants ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={onOpenParticipants}
+              >
+                查看参与家人
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {items.length > 0 ? (
         <>
