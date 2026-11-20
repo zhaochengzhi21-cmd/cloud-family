@@ -681,6 +681,7 @@ export function PersonProfile({
   const pendingClaims = claims.filter(
     (c) => c.status === "PROPOSED" || c.status === "CONFLICTED"
   );
+  const rejectedClaims = claims.filter((c) => c.status === "REJECTED");
   const smartPendingCount = pendingClaims.filter(
     (c) =>
       c.status === "PROPOSED" &&
@@ -1543,6 +1544,99 @@ export function PersonProfile({
             })}
           </ul>
         </section>
+      ) : null}
+
+      {rejectedClaims.length > 0 ? (
+        <details
+          className="alpha-print-hide mb-8 rounded-xl border border-[color:var(--a-brand-line)]/25 bg-[color:var(--a-surface)] p-3"
+        >
+          <summary className="cursor-pointer font-semibold text-[color:var(--a-muted)]">
+            查看不采用的记录（{rejectedClaims.length}）
+          </summary>
+          <ul className="mt-2 space-y-2 text-sm text-[color:var(--a-muted)]">
+            {rejectedClaims.map((c) => (
+              <li
+                key={c.id}
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg px-1 py-0.5"
+              >
+                <span>
+                  {CLAIM_TYPE_UI[c.claimType]?.label ?? c.claimType}：
+                  {c.value?.text ?? "—"}（不采用）
+                </span>
+                <span className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => openRecordsFocus(c.id, c.status)}
+                  >
+                    去资料页查看
+                  </button>
+                  {canReview ? (
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => {
+                        void (async () => {
+                          try {
+                            await v1api.reopenClaim(familyId, c.id, {
+                              idempotencyKey: crypto.randomUUID(),
+                            });
+                            setFlash(
+                              "已重新打开这条资料，可再次确认或不采用。"
+                            );
+                            await load();
+                            openRecordsFocus(c.id, "PROPOSED");
+                          } catch (e) {
+                            if (handleAuthRedirect(e, router)) return;
+                            setError(userMessageForApiError(e));
+                          }
+                        })();
+                      }}
+                    >
+                      恢复待确认
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => {
+                        const qs = new URLSearchParams({
+                          tab: "records",
+                          person: personId,
+                          claim: c.id,
+                        });
+                        const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                        void navigator.clipboard.writeText(url).then(
+                          () => {
+                            setPendingCopyFlash(
+                              `已复制链接，可发给${REVIEWER_CONTACT}重新打开`
+                            );
+                            window.setTimeout(
+                              () => setPendingCopyFlash(""),
+                              2500
+                            );
+                          },
+                          () => {
+                            setPendingCopyFlash("请手动复制地址栏链接");
+                            window.setTimeout(
+                              () => setPendingCopyFlash(""),
+                              2500
+                            );
+                          }
+                        );
+                      }}
+                    >
+                      {pendingCopyFlash.includes("重新打开") ||
+                      pendingCopyFlash.startsWith("请手动")
+                        ? pendingCopyFlash
+                        : `复制链接发给${REVIEWER_CONTACT}`}
+                    </button>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
 
       {FACT_TYPES.some((t) => pickShown(claims, t).length > 0) ? (
