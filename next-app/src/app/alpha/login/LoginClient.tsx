@@ -43,7 +43,9 @@ export default function AlphaLoginPage() {
       ? nextPath
         ? `${ERROR_COPY.unauthenticated}登录后将回到刚才的页面。`
         : ERROR_COPY.unauthenticated
-      : ""
+      : nextPath
+        ? "登录后将回到刚才的页面。"
+        : ""
   );
   const [busy, setBusy] = useState(false);
   const [cooldown, setCooldown] = useState(0);

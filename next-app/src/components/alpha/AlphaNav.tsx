@@ -36,7 +36,19 @@ export function AlphaNav() {
       /* still leave */
     }
     clearAlphaSessionStorage();
-    router.replace("/alpha/login");
+    const q = new URLSearchParams();
+    try {
+      const next = `${window.location.pathname}${window.location.search}`;
+      if (
+        next.startsWith("/alpha/") &&
+        !next.startsWith("/alpha/login")
+      ) {
+        q.set("next", next);
+      }
+    } catch {
+      /* non-browser */
+    }
+    router.replace(q.toString() ? `/alpha/login?${q.toString()}` : "/alpha/login");
   }
 
   return (
