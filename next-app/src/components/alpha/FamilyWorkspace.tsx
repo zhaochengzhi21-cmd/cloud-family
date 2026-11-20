@@ -644,6 +644,34 @@ export function FamilyWorkspace({
                 编辑档案
               </button>
             ) : null}
+            {role !== "OWNER" ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      "确认退出这个家族？退出后需再次受邀才能加入。"
+                    )
+                  ) {
+                    return;
+                  }
+                  void (async () => {
+                    try {
+                      await v1api.leaveFamily(familyId, {
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                      router.push("/alpha/families");
+                    } catch (e) {
+                      if (handleAuthRedirect(e, router)) return;
+                      setError(userMessageForApiError(e));
+                    }
+                  })();
+                }}
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm text-[color:var(--a-danger)]"
+              >
+                退出家族
+              </button>
+            ) : null}
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
