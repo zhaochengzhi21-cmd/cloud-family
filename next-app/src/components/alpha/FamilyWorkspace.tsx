@@ -233,6 +233,8 @@ export function FamilyWorkspace({
   const [flash, setFlash] = useState("");
   /** Optional CTA next to flash (e.g. deep-link person miss → 参与家人). */
   const [flashParticipantsCta, setFlashParticipantsCta] = useState(false);
+  /** Optional CTA: empty pending scroll miss → 去资料页. */
+  const [flashRecordsCta, setFlashRecordsCta] = useState(false);
   /** Optional copy URL offered next to flash (e.g. after EDITOR saves a claim). */
   const [flashCopyUrl, setFlashCopyUrl] = useState<string | null>(null);
   const [roleBannerCopyFlash, setRoleBannerCopyFlash] = useState("");
@@ -263,6 +265,7 @@ export function FamilyWorkspace({
   const openParticipantsFromFlash = useCallback(() => {
     setFlash("");
     setFlashParticipantsCta(false);
+    setFlashRecordsCta(false);
     setFlashRestorePersonId(null);
     try {
       sessionStorage.setItem(
@@ -278,6 +281,15 @@ export function FamilyWorkspace({
       el?.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 80);
   }, [familyId]);
+
+  const openRecordsFromFlash = useCallback(() => {
+    setFlash("");
+    setFlashRecordsCta(false);
+    setFlashParticipantsCta(false);
+    setFlashCopyUrl(null);
+    setFlashRestorePersonId(null);
+    setTab("records");
+  }, []);
 
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [lineageFocusId, setLineageFocusId] = useState<string | null>(null);
@@ -538,6 +550,7 @@ export function FamilyWorkspace({
               "当前为只读，无法添加家庭关系。可复制链接发给有编辑权限的家人，或查看参与家人。"
             );
             setFlashCopyUrl(handoff.toString());
+            setFlashRecordsCta(false);
             setFlashParticipantsCta(true);
             setShareKinHandoff(kin);
             setShareAddHandoff(null);
@@ -564,6 +577,7 @@ export function FamilyWorkspace({
             setFlash(
               `链接指向的成员已不在名单中，可能刚被移除。可复制链接发给${REVIEWER_CONTACT}恢复后再补关系。`
             );
+            setFlashRecordsCta(false);
             setFlashParticipantsCta(true);
           }
           setFlashCopyUrl(
@@ -627,7 +641,8 @@ export function FamilyWorkspace({
             "当前为只读，无法添加家庭关系。可复制链接发给有编辑权限的家人，或查看参与家人。"
           );
           setFlashCopyUrl(handoff.toString());
-          setFlashParticipantsCta(true);
+          setFlashRecordsCta(false);
+            setFlashParticipantsCta(true);
           setShareAddHandoff("rel");
           setShareKinHandoff(null);
           setTab("lineage");
@@ -664,7 +679,8 @@ export function FamilyWorkspace({
             "当前为只读，无法添加成员。可复制链接发给有编辑权限的家人，或查看参与家人。"
           );
           setFlashCopyUrl(handoff.toString());
-          setFlashParticipantsCta(true);
+          setFlashRecordsCta(false);
+            setFlashParticipantsCta(true);
           setShareAddHandoff("person");
           setShareKinHandoff(null);
           setTab("members");
@@ -926,8 +942,10 @@ export function FamilyWorkspace({
       }
       if (missKind === "pending") {
         setFlashCopyUrl(
-          `${window.location.origin}/alpha/families/${familyId}?scroll=pending`
+          `${window.location.origin}/alpha/families/${familyId}?tab=records`
         );
+        setFlashRecordsCta(true);
+        setFlashParticipantsCta(false);
         setFlash(
           "当前没有待确认资料。可复制链接发给家人，或到资料页继续整理。"
         );
@@ -935,6 +953,7 @@ export function FamilyWorkspace({
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=sources`
         );
+        setFlashRecordsCta(false);
         setFlash(
           "资料来源段暂时打不开，可能还在加载。可复制链接稍后重试，或到概览查看。"
         );
@@ -942,6 +961,8 @@ export function FamilyWorkspace({
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
         );
+        setFlashRecordsCta(false);
+        setFlashParticipantsCta(true);
         setFlash(
           "参与家人段暂时打不开，可能还在加载。可复制链接稍后重试，或刷新页面。"
         );
@@ -1302,7 +1323,8 @@ export function FamilyWorkspace({
           setFlash(
             `链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
           );
-          setFlashParticipantsCta(true);
+          setFlashRecordsCta(false);
+            setFlashParticipantsCta(true);
         }
         setRecordsUrlPerson(null);
       }
@@ -1332,7 +1354,8 @@ export function FamilyWorkspace({
           setFlash(
             `链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
           );
-          setFlashParticipantsCta(true);
+          setFlashRecordsCta(false);
+            setFlashParticipantsCta(true);
         }
         setLineageUrlPerson(null);
       }
@@ -1361,7 +1384,8 @@ export function FamilyWorkspace({
         setFlash(
           `链接指向的成员已不在名单中，可能刚被移除。可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
         );
-        setFlashParticipantsCta(true);
+        setFlashRecordsCta(false);
+            setFlashParticipantsCta(true);
       }
     }
     // Hydrate drawer from URL after graph load.
@@ -1373,6 +1397,7 @@ export function FamilyWorkspace({
     const t = window.setTimeout(() => {
       setFlash("");
       setFlashParticipantsCta(false);
+      setFlashRecordsCta(false);
       setFlashCopyUrl(null);
       setFlashRestorePersonId(null);
     }, 8000);
@@ -1505,9 +1530,11 @@ export function FamilyWorkspace({
                     await navigator.clipboard.writeText(url);
                     setFlash("已复制当前页面链接");
                     setFlashParticipantsCta(false);
+                    setFlashRecordsCta(false);
                   } catch {
                     setFlash("请手动复制地址栏链接");
                     setFlashParticipantsCta(false);
+                    setFlashRecordsCta(false);
                   }
                 })();
               }}
@@ -1698,6 +1725,15 @@ export function FamilyWorkspace({
                 查看参与家人
               </button>
             ) : null}
+            {flashRecordsCta ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={openRecordsFromFlash}
+              >
+                去资料页
+              </button>
+            ) : null}
             {flashRestorePersonId && canReview ? (
               <button
                 type="button"
@@ -1707,6 +1743,7 @@ export function FamilyWorkspace({
                   setFlashRestorePersonId(null);
                   setFlash("");
                   setFlashParticipantsCta(false);
+                  setFlashRecordsCta(false);
                   void (async () => {
                     try {
                       await v1api.restorePerson(familyId, id, {
@@ -1761,6 +1798,7 @@ export function FamilyWorkspace({
                   setPendingUndo(null);
                   setFlash("");
                   setFlashParticipantsCta(false);
+                  setFlashRecordsCta(false);
                   setFlashRestorePersonId(null);
                   void (async () => {
                     try {
@@ -1928,6 +1966,7 @@ export function FamilyWorkspace({
               onClick={() => {
                 setFlash("");
                 setFlashParticipantsCta(false);
+                setFlashRecordsCta(false);
                 setFlashCopyUrl(null);
                 setFlashRestorePersonId(null);
                 setPendingUndo(null);
