@@ -1196,7 +1196,11 @@ export function OverviewTab({
                         {statusLabel}
                       </span>
                       <span className="text-sm font-semibold text-[color:var(--a-brand)]">
-                        {canReview ? "去确认" : "查看"}
+                        {canReview
+                          ? c.status === "CONFLICTED"
+                            ? "去选用说法"
+                            : "去确认"
+                          : "查看"}
                       </span>
                     </span>
                   </button>

@@ -595,6 +595,39 @@ export async function getFamilyAgentChannel(
         },
       });
     }
+    if (
+      person.livingStatus === "DECEASED" &&
+      !types.has("DEATH_DATE")
+    ) {
+      tasks.push({
+        id: `propose-death:${person.id}`,
+        kind: "PROPOSE_FACT",
+        priority: 55,
+        personId: person.id,
+        personName: person.preferredName,
+        claimType: "DEATH_DATE",
+        suggest: {
+          method: "POST",
+          path: `/api/v1/families/${familyId}/claims`,
+          note: "Deceased member — propose DEATH_DATE from sources when known",
+        },
+      });
+    }
+    if (!types.has("STORY")) {
+      tasks.push({
+        id: `propose-story:${person.id}`,
+        kind: "PROPOSE_FACT",
+        priority: 70,
+        personId: person.id,
+        personName: person.preferredName,
+        claimType: "STORY",
+        suggest: {
+          method: "POST",
+          path: `/api/v1/families/${familyId}/claims`,
+          note: "Optional life note / 生平 — only when a real source or oral account exists",
+        },
+      });
+    }
   }
 
   const sourced = await listClaimIdsWithActiveEvidence(database, acceptedIds);

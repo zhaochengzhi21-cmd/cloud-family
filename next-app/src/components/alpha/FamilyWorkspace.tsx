@@ -3488,10 +3488,12 @@ function AddEvidenceForm({
     setBusy(true);
     setLocalError("");
     try {
-      await v1api.linkEvidence(familyId, claimId, {
-        evidenceId: pickedId,
-        relation: "SUPPORTS",
-      });
+      await v1api.linkEvidence(
+        familyId,
+        claimId,
+        { evidenceId: pickedId, relation: "SUPPORTS" },
+        { idempotencyKey: crypto.randomUUID() }
+      );
       await onDone();
     } catch (err) {
       if (onAuthError(err)) return;
@@ -3533,11 +3535,15 @@ function AddEvidenceForm({
         }
         phase = "准备上传";
         setPhase(phase, 12);
-        const reserved = await v1api.reserveMedia(familyId, {
-          originalFilename: file.name,
-          mimeType: mime,
-          byteSize: file.size,
-        });
+        const reserved = await v1api.reserveMedia(
+          familyId,
+          {
+            originalFilename: file.name,
+            mimeType: mime,
+            byteSize: file.size,
+          },
+          { idempotencyKey: crypto.randomUUID() }
+        );
         phase = "正在上传文件…";
         setPhase(phase, 45);
         const handleUploadUrl = reserved.upload.handleUploadUrl.startsWith(
@@ -3587,17 +3593,23 @@ function AddEvidenceForm({
 
       phase = file ? "正在保存来源…" : "";
       if (phase) setPhase(phase, 92);
-      const ev = await v1api.createEvidence(familyId, {
-        evidenceType,
-        title: title.trim() || null,
-        description: description.trim() || null,
-        sourceLocator: sourceLocator.trim() || null,
-        mediaObjectId,
-      });
-      await v1api.linkEvidence(familyId, claimId, {
-        evidenceId: ev.evidence.id,
-        relation: "SUPPORTS",
-      });
+      const ev = await v1api.createEvidence(
+        familyId,
+        {
+          evidenceType,
+          title: title.trim() || null,
+          description: description.trim() || null,
+          sourceLocator: sourceLocator.trim() || null,
+          mediaObjectId,
+        },
+        { idempotencyKey: crypto.randomUUID() }
+      );
+      await v1api.linkEvidence(
+        familyId,
+        claimId,
+        { evidenceId: ev.evidence.id, relation: "SUPPORTS" },
+        { idempotencyKey: crypto.randomUUID() }
+      );
       setPhase("", 0);
       await onDone();
     } catch (err) {
