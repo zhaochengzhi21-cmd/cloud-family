@@ -446,6 +446,12 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const fromUrl = new URLSearchParams(window.location.search).get("add");
+      if (fromUrl === "rel") {
+        setShowAddRel(true);
+        setTab("lineage");
+        return;
+      }
       const flag = sessionStorage.getItem(`alpha-add-rel:${familyId}`);
       if (!flag) return;
       sessionStorage.removeItem(`alpha-add-rel:${familyId}`);
@@ -458,6 +464,12 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const fromUrl = new URLSearchParams(window.location.search).get("add");
+      if (fromUrl === "person") {
+        setShowAddPerson(true);
+        setTab("members");
+        return;
+      }
       const flag = sessionStorage.getItem(`alpha-add-person:${familyId}`);
       if (!flag) return;
       sessionStorage.removeItem(`alpha-add-person:${familyId}`);
@@ -764,6 +776,9 @@ export function FamilyWorkspace({
     } else {
       params.delete("basics");
     }
+    if (showAddPerson && tab === "members") params.set("add", "person");
+    else if (showAddRel && tab === "lineage") params.set("add", "rel");
+    else params.delete("add");
     if (tab !== "overview") params.delete("scroll");
     const next = params.toString();
     if (next === searchParams.toString()) return;
@@ -777,6 +792,8 @@ export function FamilyWorkspace({
     lineageUrlPerson,
     drawerBasicsFocus,
     showAddKin,
+    showAddPerson,
+    showAddRel,
     relFocusPersonId,
     kinRole,
     pathname,

@@ -322,7 +322,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
           <Link
             href={
               canEdit
-                ? `/alpha/families/${familyId}?tab=members`
+                ? `/alpha/families/${familyId}?tab=members&add=person`
                 : `/alpha/families/${familyId}?scroll=participants`
             }
             onClick={() => {
@@ -425,8 +425,10 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             <Link
               href={
                 canEdit && book.persons.length < 2
-                  ? `/alpha/families/${familyId}?tab=members`
-                  : `/alpha/families/${familyId}?tab=lineage`
+                  ? `/alpha/families/${familyId}?tab=members&add=person`
+                  : canEdit
+                    ? `/alpha/families/${familyId}?tab=lineage&add=rel`
+                    : `/alpha/families/${familyId}?tab=lineage`
               }
               onClick={() => {
                 try {
