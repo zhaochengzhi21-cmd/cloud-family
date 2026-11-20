@@ -2581,6 +2581,10 @@ function LineageTab({
   const [query, setQuery] = useState("");
   const [branchRoot, setBranchRoot] = useState<string | null>(null);
   const [focusMiss, setFocusMiss] = useState(false);
+  const [focusMissPersonId, setFocusMissPersonId] = useState<string | null>(
+    null
+  );
+  const [focusMissCopyFlash, setFocusMissCopyFlash] = useState("");
   const [copyFlash, setCopyFlash] = useState("");
   const [collapsed, setCollapsed] = useState<Set<number>>(() => {
     if (persons.length <= LINEAGE_FOLD_THRESHOLD) return new Set();
@@ -2750,10 +2754,12 @@ function LineageTab({
     if (!focusPersonId) return;
     if (persons.length === 0) return;
     if (!persons.some((p) => p.id === focusPersonId)) {
+      setFocusMissPersonId(focusPersonId);
       setFocusMiss(true);
       return;
     }
     setFocusMiss(false);
+    setFocusMissPersonId(null);
     jumpTo(focusPersonId);
     // jumpTo reads latest branch/collapse state; re-run when the graph
     // finishes loading so a deep-link focus is not a silent no-op.
@@ -2843,12 +2849,49 @@ function LineageTab({
           role="status"
         >
           <p className="text-sm text-[color:var(--a-muted)]">
-            要定位的家人已不在世系名单中，可能刚被移除。
+            要定位的家人已不在世系名单中，可能刚被移除。可复制链接发给有编辑权限的家人核对，或查看参与家人。
           </p>
+          {focusMissPersonId ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?tab=lineage&person=${encodeURIComponent(focusMissPersonId)}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setFocusMissCopyFlash("已复制链接");
+                    window.setTimeout(() => setFocusMissCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setFocusMissCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setFocusMissCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {focusMissCopyFlash || "复制链接发给家人"}
+            </button>
+          ) : null}
+          {onOpenParticipants ? (
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setFocusMiss(false);
+                setFocusMissPersonId(null);
+                onOpenParticipants();
+              }}
+            >
+              查看参与家人
+            </button>
+          ) : null}
           <button
             type="button"
-            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            onClick={() => setFocusMiss(false)}
+            className="text-sm font-semibold text-[color:var(--a-muted)] underline-offset-2 hover:underline"
+            onClick={() => {
+              setFocusMiss(false);
+              setFocusMissPersonId(null);
+            }}
           >
             知道了
           </button>

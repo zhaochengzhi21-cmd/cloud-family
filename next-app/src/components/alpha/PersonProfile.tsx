@@ -560,24 +560,54 @@ export function PersonProfile({
             </button>
           ) : null}
           {!canReview && !error ? (
-            <button
-              type="button"
-              className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
-              onClick={() => {
-                try {
-                  sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
-                  sessionStorage.setItem(
-                    `alpha-overview-scroll:${familyId}`,
-                    "overview-participants"
+            <>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
+                    sessionStorage.setItem(
+                      `alpha-overview-scroll:${familyId}`,
+                      "overview-participants"
+                    );
+                  } catch {
+                    /* private mode */
+                  }
+                  router.push(`${workspaceHref}?scroll=participants`);
+                }}
+              >
+                去概览参与家人
+              </button>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "overview",
+                    scroll: "participants",
+                  });
+                  const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setCopyPageFlash(
+                        `已复制链接，可发给${REVIEWER_CONTACT}恢复`
+                      );
+                      window.setTimeout(() => setCopyPageFlash(""), 2500);
+                    },
+                    () => {
+                      setCopyPageFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setCopyPageFlash(""), 2500);
+                    }
                   );
-                } catch {
-                  /* private mode */
-                }
-                router.push(`${workspaceHref}?scroll=participants`);
-              }}
-            >
-              去概览参与家人
-            </button>
+                }}
+              >
+                {copyPageFlash.includes("恢复") ||
+                copyPageFlash.startsWith("请手动")
+                  ? copyPageFlash
+                  : `复制链接发给${REVIEWER_CONTACT}`}
+              </button>
+            </>
           ) : null}
           <Link
             href={workspaceHref}
