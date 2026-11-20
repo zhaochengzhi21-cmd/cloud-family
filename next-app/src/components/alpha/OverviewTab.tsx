@@ -1968,6 +1968,8 @@ function ParticipantsRoster({
                     <span className="alpha-chip alpha-chip-proposed">
                       可确认 / 恢复
                     </span>
+                  ) : m.role === "EDITOR" ? (
+                    <span className="alpha-chip">可补充资料</span>
                   ) : null}
                 </li>
               );
