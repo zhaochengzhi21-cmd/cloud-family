@@ -16,6 +16,7 @@ import {
 } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api, V1ApiError } from "@/v1/client/api";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
+import { listMultiClaimTypes } from "@/v1/domain/claim/registry";
 
 type Person = Awaited<
   ReturnType<typeof v1api.getGraph>
@@ -685,6 +686,7 @@ export function PersonProfile({
             onFill={openRecords}
             onAddSource={openEvidence}
             onFocusClaim={openRecordsFocus}
+            onProposeAlternate={openRecords}
             onOpenSourcesLibrary={openSourcesLibrary}
           />
           {generationWord.length > 0 ||
@@ -907,6 +909,7 @@ export function PersonProfile({
                       canEdit={canEdit}
                       onAddSource={openEvidence}
                       onFocusClaim={openRecordsFocus}
+                      onProposeAlternate={openRecords}
                       onOpenSourcesLibrary={openSourcesLibrary}
                     />
                     {canAddAnother ? (
@@ -1224,6 +1227,7 @@ function TimelineEvent({
   onFill,
   onAddSource,
   onFocusClaim,
+  onProposeAlternate,
   onOpenSourcesLibrary,
 }: {
   title: string;
@@ -1234,6 +1238,7 @@ function TimelineEvent({
   onFill?: (claimType: string) => void;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
+  onProposeAlternate?: (claimType: string) => void;
   onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
   const visible = rows.filter(
@@ -1265,6 +1270,7 @@ function TimelineEvent({
                   canEdit={canEdit}
                   onAddSource={onAddSource}
                   onFocusClaim={onFocusClaim}
+                  onProposeAlternate={onProposeAlternate}
                   onOpenSourcesLibrary={onOpenSourcesLibrary}
                 />
               ) : r.fill && onFill ? (
@@ -1704,6 +1710,7 @@ function ClaimValues({
   canEdit = false,
   onAddSource,
   onFocusClaim,
+  onProposeAlternate,
   onOpenSourcesLibrary,
 }: {
   claims: Claim[];
@@ -1712,6 +1719,7 @@ function ClaimValues({
   canEdit?: boolean;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
+  onProposeAlternate?: (claimType: string) => void;
   onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
   if (claims.length === 0) {
@@ -1722,6 +1730,11 @@ function ClaimValues({
     claims.find((c) => c.status === "CONFLICTED") ??
     claims.find((c) => c.status === "PROPOSED") ??
     claims[0];
+  const multi = new Set(listMultiClaimTypes() as readonly string[]);
+  const acceptedSingleton =
+    !differs &&
+    claims[0]?.status === "ACCEPTED" &&
+    !multi.has(claims[0].claimType);
   return (
     <div>
       {differs ? (
@@ -1792,6 +1805,15 @@ function ClaimValues({
           </li>
         ))}
       </ul>
+      {canEdit && acceptedSingleton && onProposeAlternate ? (
+        <button
+          type="button"
+          className="alpha-print-hide mt-1 text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          onClick={() => onProposeAlternate(claims[0].claimType)}
+        >
+          记下另一种说法
+        </button>
+      ) : null}
     </div>
   );
 }
