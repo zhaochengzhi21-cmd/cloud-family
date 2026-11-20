@@ -4504,7 +4504,7 @@ function RecordsTab({
           </p>
           <p className="mt-1 text-sm text-[color:var(--a-muted)]">
             {role === "VIEWER"
-              ? "有编辑权限的家人补充后，会显示在这里。"
+              ? "有编辑权限的家人补充后，会显示在这里。可复制链接发给对方。"
               : "可以从出生信息、祖籍等开始记录，以后再补来源。"}
           </p>
           {canEdit ? (
@@ -4514,15 +4514,40 @@ function RecordsTab({
                 setLocalSeed({ claimType, nonce: Date.now() })
               }
             />
-          ) : onOpenParticipants ? (
-            <button
-              type="button"
-              className="alpha-btn alpha-btn-secondary mt-4 !min-h-[40px] !text-sm"
-              onClick={onOpenParticipants}
-            >
-              查看参与家人
-            </button>
-          ) : null}
+          ) : (
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {personId ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                  onClick={() => {
+                    const qs = new URLSearchParams({
+                      tab: "records",
+                      person: personId,
+                      claimType: "BIRTH_DATE",
+                    });
+                    const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                    void navigator.clipboard.writeText(url).then(
+                      () =>
+                        setFlash("已复制链接，可发给有编辑权限的家人"),
+                      () => setFlash("请手动复制地址栏链接")
+                    );
+                  }}
+                >
+                  复制补充资料链接
+                </button>
+              ) : null}
+              {onOpenParticipants ? (
+                <button
+                  type="button"
+                  className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                  onClick={onOpenParticipants}
+                >
+                  查看参与家人
+                </button>
+              ) : null}
+            </div>
+          )}
         </div>
       ) : null}
 
