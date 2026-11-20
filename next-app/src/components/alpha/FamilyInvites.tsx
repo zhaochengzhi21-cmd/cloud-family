@@ -75,6 +75,11 @@ export function FamilyInvites({
   const [messageCopyUrl, setMessageCopyUrl] = useState<string | null>(null);
   const [messageCopyFlash, setMessageCopyFlash] = useState("");
   const [sectionCopyFlash, setSectionCopyFlash] = useState("");
+  const [roleUndo, setRoleUndo] = useState<null | {
+    membershipId: string;
+    previous: InviteRole;
+    label: string;
+  }>(null);
 
   const load = useCallback(async () => {
     try {
@@ -250,12 +255,23 @@ export function FamilyInvites({
 
   async function changeRole(
     membershipId: string,
-    next: "ADMIN" | "EDITOR" | "VIEWER"
+    next: InviteRole,
+    previous: InviteRole,
+    memberLabel: string
   ) {
+    if (next === previous) return;
+    if (
+      !window.confirm(
+        `确认将「${memberLabel}」的权限改为${roleLabel(next)}？`
+      )
+    ) {
+      return;
+    }
     setBusy(true);
     setMessage("");
     setMessageCopyUrl(null);
     setMessageCopyFlash("");
+    setRoleUndo(null);
     setFailed(false);
     try {
       await v1api.updateFamilyMemberRole(familyId, membershipId, next, {
@@ -265,7 +281,44 @@ export function FamilyInvites({
         `${window.location.origin}/alpha/families/${familyId}`
       );
       setMessage(
-        `已改为${roleLabel(next)}。可复制链接发给对方打开家族。`
+        `已改为${roleLabel(next)}。误操作可点改回。可复制链接发给对方打开家族。`
+      );
+      setRoleUndo({
+        membershipId,
+        previous,
+        label: memberLabel,
+      });
+      await load();
+      onMembershipChanged?.();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessageCopyUrl(null);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function undoRoleChange() {
+    const undo = roleUndo;
+    if (!undo || busy) return;
+    setBusy(true);
+    setRoleUndo(null);
+    setMessageCopyFlash("");
+    setFailed(false);
+    try {
+      await v1api.updateFamilyMemberRole(
+        familyId,
+        undo.membershipId,
+        undo.previous,
+        { idempotencyKey: crypto.randomUUID() }
+      );
+      setMessageCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}`
+      );
+      setMessage(
+        `已改回「${undo.label}」为${roleLabel(undo.previous)}。可复制链接发给对方打开家族。`
       );
       await load();
       onMembershipChanged?.();
@@ -431,12 +484,19 @@ export function FamilyInvites({
                             : roleOptions[0] ?? "VIEWER"
                         }
                         disabled={busy}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const previous = (
+                            roleOptions.includes(m.role as InviteRole)
+                              ? m.role
+                              : roleOptions[0] ?? "VIEWER"
+                          ) as InviteRole;
                           void changeRole(
                             m.membershipId,
-                            e.target.value as InviteRole
-                          )
-                        }
+                            e.target.value as InviteRole,
+                            previous,
+                            label
+                          );
+                        }}
                         className="alpha-input !min-h-[32px] !w-auto !px-2 !text-xs"
                       >
                         {roleOptions.map((r) => (
@@ -673,6 +733,16 @@ export function FamilyInvites({
             <p role={failed ? "alert" : "status"} className="min-w-0">
               {message}
             </p>
+            {roleUndo && !failed ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                disabled={busy}
+                onClick={() => void undoRoleChange()}
+              >
+                改回
+              </button>
+            ) : null}
             {messageCopyUrl &&
             !failed &&
             message.includes("可复制") ? (
