@@ -397,7 +397,7 @@ export function FamilySources({
               这条来源已不在资料来源库中
               {canManage
                 ? "，可能刚被移除。"
-                : `。若需找回，请联系${REVIEWER_CONTACT}恢复。`}
+                : `。若需找回，可复制链接发给${REVIEWER_CONTACT}恢复。`}
             </p>
             {canManage ? (
               <button
@@ -448,6 +448,19 @@ export function FamilySources({
                 }}
               >
                 {focusRestoreBusy ? "恢复中…" : "恢复这条来源"}
+              </button>
+            ) : null}
+            {!canManage ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => void copyEvidenceLink(focusMissId)}
+              >
+                {copyFlash?.id === focusMissId
+                  ? copyFlash.ok
+                    ? "已复制链接"
+                    : "请手动复制地址栏"
+                  : "复制链接发给家人"}
               </button>
             ) : null}
             {!canManage && onOpenParticipants ? (
