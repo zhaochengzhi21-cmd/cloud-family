@@ -917,7 +917,7 @@ export function OverviewTab({
         : `${pendingTotal} 条资料等待确认`,
       body: canReview
         ? "确认或标记不采用后，资料会在人物档案中正式生效。"
-        : "创建者或管理员确认后，资料会正式生效。",
+        : `${REVIEWER_CONTACT}确认后，资料会正式生效。`,
       action: {
         label: canReview ? "去确认" : "查看待确认",
         onClick: () => {
@@ -1000,7 +1000,7 @@ export function OverviewTab({
                   {canReview
                     ? "成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。可以邀请家人一起维护，或打开打印版家谱。"
                     : canEdit
-                      ? "成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。需要新成员加入时，请联系创建者或管理员生成邀请；也可打开打印版家谱。"
+                      ? `成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。需要新成员加入时，请联系${REVIEWER_CONTACT}生成邀请；也可打开打印版家谱。`
                       : "成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。可以浏览资料来源，或打开打印版家谱。"}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -1255,7 +1255,7 @@ export function OverviewTab({
           </div>
           {smartPendingIds.length > 0 && !canReview ? (
             <p className="mb-2 text-sm text-[color:var(--a-muted)]">
-              其中有智能整理写入的资料，需创建者或管理员确认后才会成为正式记载。
+              其中有智能整理写入的资料，需{REVIEWER_CONTACT}确认后才会成为正式记载。
             </p>
           ) : null}
           <ul className="space-y-2">
@@ -1503,7 +1503,7 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需创建者或管理员重新打开
+                        · 需{REVIEWER_CONTACT}重新打开
                       </span>
                     ) : null}
                     {(item.eventType === "EVIDENCE_CREATED" ||
@@ -1542,7 +1542,7 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需创建者或管理员恢复
+                        · 需{REVIEWER_CONTACT}恢复
                       </span>
                     ) : null}
                     {(item.eventType === "RELATIONSHIP_CREATED" ||
@@ -1606,7 +1606,7 @@ export function OverviewTab({
                       !canReview ? (
                       <span className="text-[color:var(--a-muted)]">
                         {" "}
-                        · 需创建者或管理员恢复
+                        · 需{REVIEWER_CONTACT}恢复
                       </span>
                     ) : null}
                   </p>
@@ -1854,7 +1854,7 @@ function ParticipantsRoster({
       </h2>
       <div className="alpha-panel space-y-3 px-4 py-4">
         <p className="text-sm text-[color:var(--a-muted)]">
-          确认资料、恢复已移除记录或生成邀请，需由创建者或管理员操作。需要帮助时可联系下方账号。
+          确认资料、恢复已移除记录或生成邀请，需由{REVIEWER_CONTACT}操作。需要帮助时可联系下方账号。
         </p>
         {error ? (
           <p className="alpha-alert alpha-alert-error" role="alert">
@@ -1910,7 +1910,7 @@ function ParticipantsRoster({
         )}
         {reviewers.length === 0 && members && members.length > 0 ? (
           <p className="text-sm text-[color:var(--a-muted)]">
-            当前名单里还没有创建者或管理员，请稍后再试或向家人确认。
+            当前名单里还没有{REVIEWER_CONTACT}，请稍后再试或向家人确认。
           </p>
         ) : null}
       </div>

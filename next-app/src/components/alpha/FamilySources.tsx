@@ -9,7 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import { upload } from "@vercel/blob/client";
-import { CLAIM_TYPE_UI, EVIDENCE_TYPE_UI } from "@/v1/ui/copy";
+import { CLAIM_TYPE_UI, EVIDENCE_TYPE_UI, REVIEWER_CONTACT } from "@/v1/ui/copy";
 import { userMessageForApiError, v1api } from "@/v1/client/api";
 import { MEDIA_MAX_BYTES } from "@/v1/domain/media/types";
 
@@ -371,7 +371,7 @@ export function FamilySources({
               这条来源已不在资料来源库中
               {canManage
                 ? "，可能刚被移除。"
-                : "。若需找回，请联系创建者或管理员恢复。"}
+                : `。若需找回，请联系${REVIEWER_CONTACT}恢复。`}
             </p>
             {canManage ? (
               <button

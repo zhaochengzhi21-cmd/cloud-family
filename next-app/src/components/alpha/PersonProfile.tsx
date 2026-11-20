@@ -475,7 +475,7 @@ export function PersonProfile({
           {error ||
             (canReview
               ? "找不到这份资料。若刚移除了这位家人，可在下方恢复。"
-              : "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「参与家人」中找到可恢复的人。")}
+              : `找不到这份资料。若刚被移除，请联系${REVIEWER_CONTACT}在概览「参与家人」中找到可恢复的人。`)}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {canReview && !error ? (
@@ -756,7 +756,7 @@ export function PersonProfile({
               <p className="mt-2 text-sm text-[color:var(--a-muted)]">
                 另有{" "}
                 {claims.filter((c) => c.status === "REJECTED").length}{" "}
-                条不采用的记录，需创建者或管理员重新打开后才会显示在生平中。
+                条不采用的记录，需{REVIEWER_CONTACT}重新打开后才会显示在生平中。
               </p>
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2">

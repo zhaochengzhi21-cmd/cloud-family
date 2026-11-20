@@ -22,6 +22,7 @@ import {
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
+  REVIEWER_CONTACT,
   ROLE_LABEL,
   generationLabel,
   generationSongChars,
@@ -831,7 +832,7 @@ export function FamilyWorkspace({
         </div>
         {!canEdit ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-            当前为只读。如需添加成员或资料，请联系创建者或管理员。
+            当前为只读。如需添加成员或资料，请联系{REVIEWER_CONTACT}。
             <button
               type="button"
               className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -862,7 +863,7 @@ export function FamilyWorkspace({
           </p>
         ) : !canReview ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-            你可以编辑资料；确认或不采用需由创建者或管理员操作。
+            你可以编辑资料；确认或不采用需由{REVIEWER_CONTACT}操作。
             <button
               type="button"
               className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -3167,7 +3168,7 @@ function RecordsTab({
                   </button>
                 ) : (
                   <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
-                    需创建者或管理员重新打开
+                    需{REVIEWER_CONTACT}重新打开
                   </span>
                 )}
               </li>
@@ -3638,7 +3639,7 @@ function AddClaimForm({
         <p className="text-xs text-[color:var(--a-muted)]">
           {canReview
             ? "保存后为「待确认」，可继续添加资料来源后再确认。"
-            : "保存后为「待确认」。你可以先补上资料来源；确认或不采用需由创建者或管理员操作。"}
+            : `保存后为「待确认」。你可以先补上资料来源；确认或不采用需由${REVIEWER_CONTACT}操作。`}
         </p>
         <button
           type="submit"
@@ -3730,7 +3731,7 @@ function ConflictChooser({
       <p className="mt-1 text-sm text-[color:var(--a-muted)]">
         {canReview
           ? "请选用一种说法作为正式记载，或标记不采用。"
-          : "目前资料中记录不一致，需创建者或管理员选用一种说法。"}
+          : `目前资料中记录不一致，需${REVIEWER_CONTACT}选用一种说法。`}
       </p>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2">
         {claims.map((c, i) => {
@@ -3976,7 +3977,7 @@ function ClaimCard({
           </div>
         ) : !canReview && claim.status === "PROPOSED" ? (
           <p className="text-xs text-[color:var(--a-muted)]">
-            需创建者或管理员确认后才会成为正式记载
+            需{REVIEWER_CONTACT}确认后才会成为正式记载
           </p>
         ) : null}
         {canReview && claim.status === "CONFLICTED" ? (
@@ -4045,7 +4046,7 @@ function ClaimCard({
           </div>
         ) : !canReview && claim.status === "CONFLICTED" ? (
           <p className="text-xs text-[color:var(--a-muted)]">
-            需创建者或管理员选用一种说法
+            需{REVIEWER_CONTACT}选用一种说法
           </p>
         ) : null}
         {claim.status === "ACCEPTED" ? (
@@ -6655,7 +6656,7 @@ function PersonDrawer({
                       </button>
                     ) : (
                       <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
-                        需创建者或管理员重新打开
+                        需{REVIEWER_CONTACT}重新打开
                       </span>
                     )}
                   </li>
