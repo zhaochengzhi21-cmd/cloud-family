@@ -6448,7 +6448,7 @@ function PersonDrawer({
             />
           ) : null}
 
-          {canEdit ? (
+          {canReview ? (
             <div className="mt-10 border-t border-[color:var(--a-brand-line)] pt-5">
               {!confirmDelete ? (
                 <button

@@ -4002,6 +4002,35 @@ test("明经胡氏：唯一成员添加亲属提示新建", async ({ page, baseU
   await expect(dialog.locator("#kin-name")).toBeVisible();
 });
 
+test("明经胡氏：编辑者抽屉不可移除成员", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·编辑者不可删人（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  const editorId = await insertFakeUser();
+  await insertMembership(familyId, editorId, "EDITOR");
+  await loginAs(page, editorId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "成员" }).click();
+  await page
+    .getByRole("button", { name: sample.wenGuang.preferredName })
+    .click();
+  const drawer = page.getByRole("dialog");
+  await expect(drawer).toBeVisible({ timeout: 60_000 });
+  await expect(
+    drawer.getByRole("button", { name: "移除这位成员" })
+  ).toHaveCount(0);
+  await expect(
+    drawer.getByRole("button", { name: "查看人物页" })
+  ).toBeVisible();
+});
+
 test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
