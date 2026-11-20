@@ -394,7 +394,7 @@ export async function getFamilyAgentChannel(
       suggest: {
         method: "POST",
         path: `/api/v1/families/${familyId}/evidence`,
-        note: "Then POST …/claims/{claimId}/evidence to link",
+        note: "Then POST …/evidence/{evidenceId}/links with claimIds[] (or single claim link)",
       },
     });
   }
