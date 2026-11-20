@@ -1125,6 +1125,11 @@ export function OverviewTab({
               </div>
             ) : null}
           </div>
+          {smartPendingIds.length > 0 && !canReview ? (
+            <p className="mb-2 text-sm text-[color:var(--a-muted)]">
+              其中有智能整理写入的资料，需管理员确认后才会成为正式记载。
+            </p>
+          ) : null}
           <ul className="space-y-2">
             {overview.pending.map((c) => {
               const name = personName.get(c.personId) ?? "成员";
