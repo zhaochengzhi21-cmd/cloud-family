@@ -149,6 +149,7 @@ export function OverviewTab({
   onRestoreEvidence,
   onReopenClaim,
   onReload,
+  onEvidenceRemoved,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -197,6 +198,8 @@ export function OverviewTab({
   ) => void | Promise<void>;
   /** After batch review — refresh graph/claims elsewhere in the workspace. */
   onReload?: () => void | Promise<void>;
+  /** Immediate undo flash after removing a source from the library. */
+  onEvidenceRemoved?: (evidenceId: string, label: string) => void;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -1488,7 +1491,8 @@ export function OverviewTab({
           onAuthError={onAuthError}
           onOpenRecords={onOpenRecords}
           canManage={canReview}
-          onRemoved={() => {
+          onRemoved={(evidenceId, label) => {
+            onEvidenceRemoved?.(evidenceId, label);
             void load();
             void onReload?.();
           }}

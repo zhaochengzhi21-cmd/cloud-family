@@ -171,7 +171,7 @@ export function FamilyWorkspace({
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
-    kind: "person" | "relationship";
+    kind: "person" | "relationship" | "evidence";
     id: string;
     label: string;
   }>(null);
@@ -693,11 +693,21 @@ export function FamilyWorkspace({
                               : ""
                           }`
                         );
-                      } else {
+                      } else if (undo.kind === "relationship") {
                         await v1api.restoreRelationship(familyId, undo.id, {
                           idempotencyKey: crypto.randomUUID(),
                         });
                         setFlash(`已恢复${undo.label}`);
+                      } else {
+                        const r = await v1api.restoreEvidence(
+                          familyId,
+                          undo.id,
+                          { idempotencyKey: crypto.randomUUID() }
+                        );
+                        const label =
+                          r.evidence.title?.trim() || undo.label || "资料来源";
+                        setFlash(`已恢复「${label}」`);
+                        setSourcesFocusEvidenceId(r.evidence.id);
                       }
                       await load();
                     } catch (e) {
@@ -843,12 +853,18 @@ export function FamilyWorkspace({
                 });
                 const label = r.evidence.title?.trim() || "资料来源";
                 setFlash(`已恢复「${label}」`);
+                setPendingUndo(null);
                 await load();
                 setSourcesFocusEvidenceId(r.evidence.id);
               } catch (e) {
                 if (authRedirect(e)) return;
                 setError(userMessageForApiError(e));
               }
+            }}
+            onEvidenceRemoved={(evidenceId, label) => {
+              setError("");
+              setPendingUndo({ kind: "evidence", id: evidenceId, label });
+              setFlash(`已移除「${label}」。误删可点恢复。`);
             }}
             onReopenClaim={async (personId, claimId) => {
               try {
@@ -947,6 +963,11 @@ export function FamilyWorkspace({
             onGoMembers={() => setTab("members")}
             setFlash={setFlash}
             setError={setError}
+            onEvidenceRemoved={(evidenceId, label) => {
+              setError("");
+              setPendingUndo({ kind: "evidence", id: evidenceId, label });
+              setFlash(`已移除「${label}」。误删可点恢复。`);
+            }}
           />
         </div>
       ) : null}
@@ -1133,6 +1154,11 @@ export function FamilyWorkspace({
               label,
             });
             setFlash(`已移除${label}。误删可点恢复。`);
+          }}
+          onEvidenceRemoved={(evidenceId, label) => {
+            setError("");
+            setPendingUndo({ kind: "evidence", id: evidenceId, label });
+            setFlash(`已移除「${label}」。误删可点恢复。`);
           }}
           onError={(msg) => setError(msg)}
           onAuth={(e) => handleAuthRedirect(e, router)}
@@ -2020,6 +2046,7 @@ function RecordsTab({
   onGoMembers,
   setFlash,
   setError,
+  onEvidenceRemoved,
 }: {
   familyId: string;
   persons: GraphPerson[];
@@ -2049,6 +2076,7 @@ function RecordsTab({
   onGoMembers: () => void;
   setFlash: (s: string) => void;
   setError: (s: string) => void;
+  onEvidenceRemoved: (evidenceId: string, label: string) => void;
 }) {
   const [personId, setPersonId] = useState("");
   const [claims, setClaims] = useState<ClaimRow[]>([]);
@@ -2527,6 +2555,7 @@ function RecordsTab({
                   onChanged={loadClaims}
                   onError={setError}
                   onFlash={setFlash}
+                  onEvidenceRemoved={onEvidenceRemoved}
                 />
               ))}
             </ul>
@@ -2994,6 +3023,7 @@ function ClaimCard({
   onChanged,
   onError,
   onFlash,
+  onEvidenceRemoved,
   onAuthError,
 }: {
   familyId: string;
@@ -3008,6 +3038,7 @@ function ClaimCard({
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
   onFlash: (s: string) => void;
+  onEvidenceRemoved?: (evidenceId: string, label: string) => void;
   onAuthError: (e: unknown) => boolean;
 }) {
   const [bundle, setBundle] = useState<Awaited<
@@ -3304,9 +3335,17 @@ function ClaimCard({
                             l.evidence.id,
                             { idempotencyKey: crypto.randomUUID() }
                           );
-                          onFlash(
-                            "已从家族来源库移除。误删可在概览「最近动态」恢复。"
-                          );
+                          const label =
+                            l.evidence.title?.trim() ||
+                            EVIDENCE_TYPE_UI[l.evidence.evidenceType] ||
+                            "资料来源";
+                          if (onEvidenceRemoved) {
+                            onEvidenceRemoved(l.evidence.id, label);
+                          } else {
+                            onFlash(
+                              `已移除「${label}」。误删可在概览「可恢复」找回。`
+                            );
+                          }
                           setRemovingEvidenceId(null);
                           setRemovingEvidenceShared(0);
                           const b = await v1api.getClaim(familyId, claim.id);
@@ -4857,6 +4896,7 @@ function PersonDrawer({
   onChanged,
   onDeleted,
   onRelationshipRemoved,
+  onEvidenceRemoved,
   onRequestAddRel,
   onRequestAddKin,
   onShowInLineage,
@@ -4885,6 +4925,7 @@ function PersonDrawer({
     relationshipId: string,
     label: string
   ) => void | Promise<void>;
+  onEvidenceRemoved: (evidenceId: string, label: string) => void;
   onRequestAddRel: () => void;
   onRequestAddKin: (role: KinRole) => void;
   onShowInLineage: () => void;
@@ -5550,6 +5591,7 @@ function PersonDrawer({
                         onError(msg);
                       }}
                       onFlash={setLocalFlash}
+                      onEvidenceRemoved={onEvidenceRemoved}
                     />
                   ))}
                 </ul>

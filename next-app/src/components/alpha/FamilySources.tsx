@@ -38,7 +38,7 @@ export function FamilySources({
   ) => void;
   /** OWNER/ADMIN — soft-delete from the library. */
   canManage?: boolean;
-  onRemoved?: () => void;
+  onRemoved?: (evidenceId: string, label: string) => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
   /** Bumps when the workspace reloads so the library stays in sync. */
@@ -377,8 +377,12 @@ export function FamilySources({
                                   idempotencyKey: crypto.randomUUID(),
                                 });
                                 setRemovingId(null);
+                                const label =
+                                  e.title?.trim() ||
+                                  EVIDENCE_TYPE_UI[e.evidenceType] ||
+                                  "资料来源";
+                                onRemoved?.(e.id, label);
                                 await load();
-                                onRemoved?.();
                               } catch (err) {
                                 if (onAuthError(err)) return;
                                 setError(userMessageForApiError(err));
