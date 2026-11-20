@@ -249,9 +249,23 @@ export function FamilyInvites({
 
   if (!access) {
     return message ? (
-      <p role="alert" className="text-sm text-[color:var(--a-danger)]">
-        {message}
-      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <p role="alert" className="text-sm text-[color:var(--a-danger)]">
+          {message}
+        </p>
+        <button
+          type="button"
+          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          disabled={busy}
+          onClick={() => {
+            setMessage("");
+            setFailed(false);
+            void load();
+          }}
+        >
+          重试
+        </button>
+      </div>
     ) : null;
   }
 
@@ -530,14 +544,31 @@ export function FamilyInvites({
         ) : null}
 
         {message ? (
-          <p
-            role={failed ? "alert" : "status"}
-            className={`text-sm ${
-              failed ? "text-[color:var(--a-danger)]" : "text-[color:var(--a-brand)]"
+          <div
+            className={`flex flex-wrap items-center gap-3 text-sm ${
+              failed
+                ? "text-[color:var(--a-danger)]"
+                : "text-[color:var(--a-brand)]"
             }`}
           >
-            {message}
-          </p>
+            <p role={failed ? "alert" : "status"} className="min-w-0">
+              {message}
+            </p>
+            {failed ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                disabled={busy}
+                onClick={() => {
+                  setMessage("");
+                  setFailed(false);
+                  void load();
+                }}
+              >
+                重试
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </section>
