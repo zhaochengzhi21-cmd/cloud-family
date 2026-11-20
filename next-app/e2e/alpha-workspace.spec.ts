@@ -58,6 +58,10 @@ async function runCoreJourney(
   await expect(
     page.getByText("从两三个你熟悉的家人开始就可以")
   ).toBeVisible();
+  await expect(
+    page.getByText("打开家人发来的邀请链接即可加入", { exact: false })
+  ).toBeVisible();
+  await expect(page.getByText("登录页填写邀请码")).toHaveCount(0);
 
   // Flow 02 — create family
   await page.getByRole("button", { name: "创建第一个家族档案" }).click();
