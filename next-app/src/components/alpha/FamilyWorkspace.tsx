@@ -3741,6 +3741,18 @@ function RecordsTab({
                 ) : (
                   <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
                     需{REVIEWER_CONTACT}重新打开
+                    {onOpenParticipants ? (
+                      <>
+                        {" · "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={onOpenParticipants}
+                        >
+                          查看参与家人
+                        </button>
+                      </>
+                    ) : null}
                   </span>
                 )}
               </li>
@@ -7324,6 +7336,18 @@ function PersonDrawer({
                     ) : (
                       <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
                         需{REVIEWER_CONTACT}重新打开
+                        {onOpenParticipants ? (
+                          <>
+                            {" · "}
+                            <button
+                              type="button"
+                              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                              onClick={onOpenParticipants}
+                            >
+                              查看参与家人
+                            </button>
+                          </>
+                        ) : null}
                       </span>
                     )}
                   </li>
