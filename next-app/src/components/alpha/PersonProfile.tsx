@@ -1527,6 +1527,10 @@ function ClaimSources({
     title: string;
   } | null>(null);
   const [mediaError, setMediaError] = useState("");
+  const [mediaRetry, setMediaRetry] = useState<{
+    link: EvidenceLink;
+    kind: "photo" | "audio" | "file";
+  } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
   async function openMedia(
@@ -1536,6 +1540,7 @@ function ClaimSources({
     const mediaId = l.evidence.mediaObjectId;
     if (!mediaId) return;
     setMediaError("");
+    setMediaRetry(null);
     try {
       const r = await v1api.mediaRead(familyId, mediaId);
       const mime = r.media.mimeType ?? "";
@@ -1565,6 +1570,7 @@ function ClaimSources({
         setViewer({ url: r.read.url, title });
       }
     } catch (e) {
+      setMediaRetry({ link: l, kind });
       setMediaError(userMessageForApiError(e));
     }
   }
@@ -1693,9 +1699,33 @@ function ClaimSources({
         </div>
       ) : null}
       {mediaError ? (
-        <p role="alert" className="mt-1 text-[color:var(--a-danger)]">
-          {mediaError}
-        </p>
+        <div
+          className="mt-1 flex flex-wrap items-center gap-3 text-[color:var(--a-danger)]"
+          role="alert"
+        >
+          <p className="min-w-0">{mediaError}</p>
+          {mediaRetry ? (
+            <button
+              type="button"
+              className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() =>
+                void openMedia(mediaRetry.link, mediaRetry.kind)
+              }
+            >
+              重试
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              setMediaError("");
+              setMediaRetry(null);
+            }}
+          >
+            关闭
+          </button>
+        </div>
       ) : null}
     </div>
   );
