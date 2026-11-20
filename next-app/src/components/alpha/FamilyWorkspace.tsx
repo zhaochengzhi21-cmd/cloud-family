@@ -4587,6 +4587,14 @@ function RecordsTab({
       );
     } else if (focused.status === "CONFLICTED") {
       setStatusFilter("CONFLICTED");
+    } else if (focused.status === "ACCEPTED") {
+      // Stale ?claimStatus=PROPOSED after confirm must not hide the row.
+      setStatusFilter(
+        recordsFocus.statusFilter === "ACCEPTED" ||
+          recordsFocus.statusFilter === "ALL"
+          ? (recordsFocus.statusFilter as "ACCEPTED" | "ALL")
+          : "ALL"
+      );
     } else if (recordsFocus.statusFilter) {
       setStatusFilter(recordsFocus.statusFilter);
     } else {

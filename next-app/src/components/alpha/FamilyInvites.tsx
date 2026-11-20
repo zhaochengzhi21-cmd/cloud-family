@@ -332,7 +332,11 @@ export function FamilyInvites({
     }
   }
 
-  async function removeMember(membershipId: string, label: string) {
+  async function removeMember(
+    membershipId: string,
+    label: string,
+    previousRole: InviteRole
+  ) {
     if (!window.confirm(`确认移除「${label}」？对方将无法再打开这个家族。`)) {
       return;
     }
@@ -340,16 +344,20 @@ export function FamilyInvites({
     setMessage("");
     setMessageCopyUrl(null);
     setMessageCopyFlash("");
+    setRoleUndo(null);
     setFailed(false);
     try {
       await v1api.removeFamilyMember(familyId, membershipId, {
         idempotencyKey: crypto.randomUUID(),
       });
+      if (access?.invitableRoles.includes(previousRole)) {
+        setRole(previousRole);
+      }
       setMessageCopyUrl(
         `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
       );
       setMessage(
-        "已移除。若需对方再加入，在下方生成一条新邀请（同一邮箱会再次加入）。可复制本段链接发给有邀请权限的家人核对。"
+        `已移除「${label}」。若需对方再加入，下方已选回${roleLabel(previousRole)}，填写同一邮箱生成邀请即可再次加入。可复制本段链接发给有邀请权限的家人核对。`
       );
       await load();
       onMembershipChanged?.();
@@ -508,9 +516,18 @@ export function FamilyInvites({
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() =>
-                          void removeMember(m.membershipId, label)
-                        }
+                        onClick={() => {
+                          const previousRole = (
+                            roleOptions.includes(m.role as InviteRole)
+                              ? m.role
+                              : roleOptions[0] ?? "VIEWER"
+                          ) as InviteRole;
+                          void removeMember(
+                            m.membershipId,
+                            label,
+                            previousRole
+                          );
+                        }}
                         className="font-semibold text-[color:var(--a-danger)] underline-offset-2 hover:underline"
                       >
                         移除
