@@ -690,6 +690,9 @@ export function OverviewTab({
       people: unconnected.slice(0, 6),
       peopleAria: canEdit ? "建立关系" : "查看",
       browsePeople: !canEdit,
+      action: canEdit
+        ? { label: "添加家庭关系", onClick: onAddRel }
+        : { label: "查看参与家人", onClick: scrollToParticipants },
     });
   } else if (componentCount > 1) {
     steps.push({
