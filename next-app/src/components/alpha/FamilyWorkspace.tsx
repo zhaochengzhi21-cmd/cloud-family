@@ -1562,6 +1562,16 @@ function LineageTab({
         : [],
     [q, scopedPersons, generationByPerson]
   );
+  const outsideMatches = useMemo(() => {
+    if (!q || !branchRoot || matches.length > 0) return [];
+    return persons
+      .filter((p) => p.preferredName.includes(q))
+      .sort(
+        (a, b) =>
+          (generationByPerson[a.id] ?? 1) - (generationByPerson[b.id] ?? 1) ||
+          a.preferredName.localeCompare(b.preferredName, "zh-CN")
+      );
+  }, [q, branchRoot, matches.length, persons, generationByPerson]);
   const matchIds = useMemo(() => new Set(matches.map((p) => p.id)), [matches]);
 
   function jumpTo(id: string) {
@@ -1844,22 +1854,47 @@ function LineageTab({
               {q
                 ? matches.length
                   ? `找到 ${matches.length} 位`
-                  : "没有找到这个名字"
+                  : outsideMatches.length
+                    ? `当前分支没有「${q}」，全部世系中有 ${outsideMatches.length} 位`
+                    : "没有找到这个名字"
                 : branchRoot
                   ? `正在查看${personMap.get(branchRoot)?.preferredName ?? ""}一支，共 ${scopedPersons.length} 人`
                   : `共 ${byGen.length} 代 ${persons.length} 人`}
             </p>
-            {allGens.length > 1 ? (
-              <button
-                type="button"
-                className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                onClick={() =>
-                  setCollapsed(allCollapsed ? new Set() : new Set(allGens))
-                }
-              >
-                {allCollapsed ? "全部展开" : "全部收起"}
-              </button>
-            ) : null}
+            <span className="flex flex-wrap items-center gap-3">
+              {q && !matches.length && outsideMatches.length > 0 ? (
+                <button
+                  type="button"
+                  className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setBranchRoot(null);
+                    setJumpId(null);
+                  }}
+                >
+                  在全部世系中查找
+                </button>
+              ) : null}
+              {q && !matches.length && outsideMatches.length === 0 ? (
+                <button
+                  type="button"
+                  className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => setQuery("")}
+                >
+                  清除查找
+                </button>
+              ) : null}
+              {allGens.length > 1 ? (
+                <button
+                  type="button"
+                  className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() =>
+                    setCollapsed(allCollapsed ? new Set() : new Set(allGens))
+                  }
+                >
+                  {allCollapsed ? "全部展开" : "全部收起"}
+                </button>
+              ) : null}
+            </span>
           </div>
           {matches.length > 0 ? (
             <ul className="flex flex-wrap gap-2" aria-label="查找结果">

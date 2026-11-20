@@ -256,6 +256,7 @@ function capabilitiesForRole(
         "Idempotency-Key": "optional header — safe AI retry",
       },
       policy: [
+        "May create a library source with no claim links first (UI: 收录来源), then POST …/claims/{claimId}/evidence",
         "Link one claim: POST …/claims/{claimId}/evidence",
         "Link many claims: POST …/evidence/{evidenceId}/links",
         "Unlink one claim: DELETE …/claims/{claimId}/evidence/{evidenceId} (keeps the source)",
