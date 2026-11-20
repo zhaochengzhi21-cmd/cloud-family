@@ -155,6 +155,8 @@ export function OverviewTab({
           claimType?: string;
           focusClaimId?: string;
           statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+          openEvidence?: boolean;
+          evidenceType?: string;
         }
   ) => void;
   /** Jump to 世系 and highlight a person (relationship feed). */
@@ -443,13 +445,23 @@ export function OverviewTab({
     );
   }, [overview, relationships, sortedPersons]);
 
-  const acceptedTotal = useMemo(() => {
-    if (!overview) return 0;
-    return Object.values(overview.personStats).reduce(
-      (n, s) => n + s.accepted,
-      0
-    );
-  }, [overview]);
+  const acceptedTotal = overview?.acceptedTotal ?? 0;
+  const sourcedAcceptedTotal = overview?.sourcedAcceptedTotal ?? 0;
+  const unsourcedAccepted = overview?.unsourcedAccepted ?? [];
+  const unsourcedAcceptedTotal = overview?.unsourcedAcceptedTotal ?? 0;
+
+  const unsourcedPeople = useMemo(() => {
+    if (!overview || unsourcedAccepted.length === 0) return [] as Person[];
+    const seen = new Set<string>();
+    const out: Person[] = [];
+    for (const c of unsourcedAccepted) {
+      if (seen.has(c.personId)) continue;
+      seen.add(c.personId);
+      const person = sortedPersons.find((p) => p.id === c.personId);
+      if (person) out.push(person);
+    }
+    return out;
+  }, [overview, unsourcedAccepted, sortedPersons]);
 
   const total = persons.length;
   const connectedCount = total - unconnected.length;
@@ -714,6 +726,20 @@ export function OverviewTab({
       ...peopleChips(missingGender, "确认性别"),
     });
   }
+  if (overview && unsourcedAcceptedTotal > 0) {
+    steps.push({
+      key: "source",
+      title: canEdit
+        ? `为 ${unsourcedAcceptedTotal} 条已确认资料补上来源`
+        : `${unsourcedAcceptedTotal} 条已确认资料还没有来源`,
+      body: canEdit
+        ? "有出处的资料才经得起后人核对。点人名打开那条资料并挂上来源；谱页、口述、照片都可以。"
+        : "可先打开人物页查看；有编辑权限的家人补上来源后，这里会更新。",
+      people: unsourcedPeople.slice(0, 6),
+      peopleAria: canEdit ? "补上来源" : "查看",
+      browsePeople: !canEdit,
+    });
+  }
   if (pendingTotal > 0) {
     steps.push({
       key: "review",
@@ -723,6 +749,14 @@ export function OverviewTab({
       body: canReview
         ? "确认或标记不采用后，资料会在人物档案中正式生效。"
         : "创建者或管理员确认后，资料会正式生效。",
+      action: {
+        label: canReview ? "去确认" : "查看待确认",
+        onClick: () => {
+          document
+            .getElementById("overview-pending")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        },
+      },
     });
   }
 
@@ -750,8 +784,19 @@ export function OverviewTab({
             ratio={birthCount !== null && total ? birthCount / total : undefined}
           />
           <ProgressTile
-            label="已确认资料"
-            value={overview ? `${acceptedTotal} 条` : "…"}
+            label="有出处资料"
+            value={
+              overview
+                ? acceptedTotal
+                  ? `${sourcedAcceptedTotal} / ${acceptedTotal}`
+                  : "0 条"
+                : "…"
+            }
+            ratio={
+              overview && acceptedTotal
+                ? sourcedAcceptedTotal / acceptedTotal
+                : undefined
+            }
           />
         </dl>
         {loadError ? (
@@ -781,9 +826,49 @@ export function OverviewTab({
               {overview ? "这份档案很扎实" : "正在汇总档案…"}
             </p>
             {overview ? (
-              <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-                成员都已连入世系，有子女的人也都补了配偶，有配偶的人也都补了子女，有亲人的人也都补了父母，在世状态与性别已确认，出生、出生地、祖籍、职业、字号、故事、字辈、兄弟姐妹排行与已故成员的去世信息也齐了，也没有待确认资料。可以继续补充安葬地和资料来源。
-              </p>
+              <>
+                <p className="mt-1 text-sm text-[color:var(--a-muted)]">
+                  成员都已连入世系，关键事实与已确认资料的来源也齐了，也没有待确认资料。可以邀请家人一起维护，或打开打印版家谱。
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canEdit ? (
+                    <button
+                      type="button"
+                      className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                      onClick={() =>
+                        document
+                          .getElementById("overview-invite")
+                          ?.scrollIntoView({
+                            behavior: "smooth",
+                            block: "start",
+                          })
+                      }
+                    >
+                      邀请家人
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                    onClick={() =>
+                      document
+                        .getElementById("overview-sources")
+                        ?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        })
+                    }
+                  >
+                    资料来源
+                  </button>
+                  <Link
+                    href={`/alpha/families/${familyId}/print`}
+                    className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+                  >
+                    打印版家谱
+                  </Link>
+                </div>
+              </>
             ) : null}
           </div>
         ) : (
@@ -834,6 +919,21 @@ export function OverviewTab({
                             }
                             if (s.key === "gender") {
                               onOpenPerson?.(p.id, "gender");
+                              return;
+                            }
+                            if (s.key === "source") {
+                              const first = unsourcedAccepted.find(
+                                (c) => c.personId === p.id
+                              );
+                              if (first) {
+                                onOpenRecords(p.id, {
+                                  focusClaimId: first.claimId,
+                                  statusFilter: "ALL",
+                                  openEvidence: true,
+                                });
+                              } else {
+                                onOpenPerson?.(p.id);
+                              }
                               return;
                             }
                             onOpenRecords(

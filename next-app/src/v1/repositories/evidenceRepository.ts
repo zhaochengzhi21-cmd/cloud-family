@@ -2,7 +2,7 @@
  * Trusted internal Evidence data access — not a public security boundary.
  */
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
 import { claimEvidence, evidence, mediaObjects } from "@/db/schema";
 import type {
@@ -134,6 +134,25 @@ export async function listActiveLinksForClaim(db: DbOrTx, claimId: string) {
     relation: r.relation as ClaimEvidenceRelation,
     evidence: r.evidence,
   }));
+}
+
+/** Claim ids that have at least one non-deleted evidence link. */
+export async function listClaimIdsWithActiveEvidence(
+  db: DbOrTx,
+  claimIds: string[]
+): Promise<Set<string>> {
+  if (claimIds.length === 0) return new Set();
+  const rows = await db
+    .selectDistinct({ claimId: claimEvidence.claimId })
+    .from(claimEvidence)
+    .innerJoin(evidence, eq(claimEvidence.evidenceId, evidence.id))
+    .where(
+      and(
+        inArray(claimEvidence.claimId, claimIds),
+        isNull(evidence.deletedAt)
+      )
+    );
+  return new Set(rows.map((r) => r.claimId));
 }
 
 export async function listActiveLinksForEvidence(

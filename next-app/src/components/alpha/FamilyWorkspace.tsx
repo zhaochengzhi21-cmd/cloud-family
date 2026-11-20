@@ -444,6 +444,9 @@ export function FamilyWorkspace({
             claimType?: string;
             focusClaimId?: string;
             statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
+            /** Open the attach-evidence composer for focusClaimId. */
+            openEvidence?: boolean;
+            evidenceType?: string;
           }
     ) => {
       const resolved =
@@ -467,6 +470,14 @@ export function FamilyWorkspace({
           statusFilter: resolved.statusFilter,
           nonce: Date.now(),
         });
+        if (resolved.openEvidence) {
+          setEvidenceSeed({
+            personId,
+            claimId: resolved.focusClaimId,
+            evidenceType: resolved.evidenceType,
+            nonce: Date.now(),
+          });
+        }
       }
       setTab("records");
     },

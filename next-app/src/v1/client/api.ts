@@ -268,6 +268,17 @@ export const v1api = {
           text: string | null;
           createdAt: string;
         }>;
+        acceptedTotal: number;
+        sourcedAcceptedTotal: number;
+        unsourcedAcceptedTotal: number;
+        unsourcedAccepted: Array<{
+          claimId: string;
+          personId: string;
+          claimType: string;
+          status: string;
+          text: string | null;
+          createdAt: string;
+        }>;
       };
     }>(`/api/v1/families/${familyId}/overview`),
 
