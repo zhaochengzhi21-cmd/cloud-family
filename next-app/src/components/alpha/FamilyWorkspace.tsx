@@ -2026,6 +2026,25 @@ export function FamilyWorkspace({
             setSourcesFocusEvidenceId(evidenceId);
             setTab("overview");
           }}
+          onShareOpenEvidence={(claimId, open, evidenceType) => {
+            const pid = selectedPersonId;
+            if (!pid) return;
+            if (open) {
+              setShareClaim({
+                personId: pid,
+                claimId,
+                statusFilter: "ALL",
+                openEvidence: true,
+                evidenceType,
+              });
+            } else {
+              setShareClaim((prev) =>
+                prev && prev.claimId === claimId
+                  ? { ...prev, openEvidence: false, evidenceType: undefined }
+                  : prev
+              );
+            }
+          }}
           onOpenParticipants={
             canReview
               ? undefined
@@ -6824,6 +6843,7 @@ function PersonDrawer({
   onOpenPerson,
   onOpenSourcesLibrary,
   onOpenParticipants,
+  onShareOpenEvidence,
   onError,
   onAuth,
 }: {
@@ -6860,6 +6880,12 @@ function PersonDrawer({
   onOpenPerson: (id: string) => void;
   onOpenSourcesLibrary?: (evidenceId: string) => void;
   onOpenParticipants?: () => void;
+  /** Sync workspace ?openEvidence= while drawer attach composer is open. */
+  onShareOpenEvidence?: (
+    claimId: string,
+    open: boolean,
+    evidenceType?: string
+  ) => void;
   onError: (s: string) => void;
   onAuth: (e: unknown) => boolean;
 }) {
@@ -6917,9 +6943,27 @@ function PersonDrawer({
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState("");
   const [localFlash, setLocalFlash] = useState("");
+  const [localFlashCopyUrl, setLocalFlashCopyUrl] = useState<string | null>(
+    null
+  );
   const [localUndoClaimId, setLocalUndoClaimId] = useState<string | null>(
     null
   );
+
+  function handoffEvidenceAfterAccept(claimId: string) {
+    setDrawerOpenEvidenceClaimId(claimId);
+    onShareOpenEvidence?.(claimId, true);
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: person.id,
+      claim: claimId,
+      claimStatus: "ALL",
+      openEvidence: "1",
+    });
+    setLocalFlashCopyUrl(
+      `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+    );
+  }
   const [claims, setClaims] = useState<ClaimRow[]>([]);
   const [claimsLoading, setClaimsLoading] = useState(true);
   const [rejectedOpen, setRejectedOpen] = useState(false);
@@ -6972,6 +7016,7 @@ function PersonDrawer({
   }, [localFlash, localUndoClaimId]);
 
   function flashLocal(msg: string, undoClaimId?: string) {
+    if (!msg.includes("可复制链接")) setLocalFlashCopyUrl(null);
     setLocalFlash(msg);
     setLocalUndoClaimId(undoClaimId ?? null);
   }
@@ -7244,6 +7289,24 @@ function PersonDrawer({
             >
               <p className="min-w-0 flex-1">{localFlash}</p>
               <div className="flex shrink-0 flex-wrap items-center gap-3">
+                {localFlashCopyUrl && localFlash.includes("可复制链接") ? (
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      const url = localFlashCopyUrl;
+                      void navigator.clipboard.writeText(url).then(
+                        () => {
+                          setLocalFlash("已复制补来源链接，可发给家人一起补");
+                          setLocalFlashCopyUrl(null);
+                        },
+                        () => setLocalFlash("请手动复制地址栏链接")
+                      );
+                    }}
+                  >
+                    复制链接
+                  </button>
+                ) : null}
                 {localUndoClaimId ? (
                   <button
                     type="button"
@@ -7252,6 +7315,7 @@ function PersonDrawer({
                       const id = localUndoClaimId;
                       setLocalUndoClaimId(null);
                       setLocalFlash("");
+                      setLocalFlashCopyUrl(null);
                       void (async () => {
                         try {
                           await v1api.reopenClaim(familyId, id, {
@@ -7278,6 +7342,7 @@ function PersonDrawer({
                   onClick={() => {
                     setLocalFlash("");
                     setLocalUndoClaimId(null);
+                    setLocalFlashCopyUrl(null);
                   }}
                 >
                   关闭
@@ -7605,9 +7670,7 @@ function PersonDrawer({
                     }}
                     onFlash={flashLocal}
                     onAuthError={onAuth}
-                    onOpenEvidenceAfterAccept={(id) =>
-                      setDrawerOpenEvidenceClaimId(id)
-                    }
+                    onOpenEvidenceAfterAccept={handoffEvidenceAfterAccept}
                     onOpenParticipants={onOpenParticipants}
                   />
                 ) : null}
@@ -7622,12 +7685,14 @@ function PersonDrawer({
                         canEdit={canEdit}
                         canReview={canReview}
                         autoOpenEvidence={drawerOpenEvidenceClaimId === c.id}
-                        onAutoOpenEvidenceConsumed={() =>
-                          setDrawerOpenEvidenceClaimId(null)
+                        onAutoOpenEvidenceConsumed={() => {
+                          setDrawerOpenEvidenceClaimId(null);
+                          onShareOpenEvidence?.(c.id, false);
+                        }}
+                        onShareOpenEvidence={(open, evidenceType) =>
+                          onShareOpenEvidence?.(c.id, open, evidenceType)
                         }
-                        onOpenEvidenceAfterAccept={(id) =>
-                          setDrawerOpenEvidenceClaimId(id)
-                        }
+                        onOpenEvidenceAfterAccept={handoffEvidenceAfterAccept}
                         onProposeAlternate={(claimType) => {
                           setDrawerClaimSeed({
                             claimType,

@@ -226,6 +226,12 @@ export function OverviewTab({
     kind: "accept" | "reject";
     claimIds: string[];
   }>(null);
+  /** After batch accept — jump/copy 补来源 for the first succeeded claim. */
+  const [batchEvidenceHandoff, setBatchEvidenceHandoff] = useState<null | {
+    personId: string;
+    claimId: string;
+    url: string;
+  }>(null);
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -605,9 +611,13 @@ export function OverviewTab({
       setBatchBusy(true);
       setBatchFlash("");
       setBatchUndo(null);
+      setBatchEvidenceHandoff(null);
       setLoadError("");
       try {
         const claimIds = smartPendingIds.slice(0, 20);
+        const pendingById = new Map(
+          (overview?.pending ?? []).map((c) => [c.claimId, c])
+        );
         const r = await v1api.reviewClaimsBatch(
           familyId,
           { action, claimIds },
@@ -627,13 +637,40 @@ export function OverviewTab({
             } => row.ok
           )
           .map((row) => row.claim.id);
+        const firstAccepted =
+          action === "accept"
+            ? succeededIds
+                .map((id) => pendingById.get(id))
+                .find((c): c is NonNullable<typeof c> => Boolean(c))
+            : undefined;
         if (succeededIds.length > 0) {
           setBatchUndo({ kind: action, claimIds: succeededIds });
-          setBatchFlash(
-            r.failed > 0
-              ? `已${verb} ${r.succeeded} 条待确认资料，${r.failed} 条未成功。误操作可点恢复。${more}`
-              : `已${verb} ${r.succeeded} 条待确认资料。误操作可点恢复。${more}`
-          );
+          if (action === "accept" && canEdit && firstAccepted) {
+            const qs = new URLSearchParams({
+              tab: "records",
+              person: firstAccepted.personId,
+              claim: firstAccepted.claimId,
+              claimStatus: "ALL",
+              openEvidence: "1",
+            });
+            const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+            setBatchEvidenceHandoff({
+              personId: firstAccepted.personId,
+              claimId: firstAccepted.claimId,
+              url,
+            });
+            setBatchFlash(
+              r.failed > 0
+                ? `已确认 ${r.succeeded} 条待确认资料，${r.failed} 条未成功。接着可补来源；可复制链接发给家人一起补。误操作可点恢复。${more}`
+                : `已确认 ${r.succeeded} 条待确认资料。接着可补来源；可复制链接发给家人一起补。误操作可点恢复。${more}`
+            );
+          } else {
+            setBatchFlash(
+              r.failed > 0
+                ? `已${verb} ${r.succeeded} 条待确认资料，${r.failed} 条未成功。误操作可点恢复。${more}`
+                : `已${verb} ${r.succeeded} 条待确认资料。误操作可点恢复。${more}`
+            );
+          }
         } else {
           setBatchFlash(
             r.failed > 0
@@ -652,11 +689,13 @@ export function OverviewTab({
     },
     [
       batchBusy,
+      canEdit,
       canReview,
       familyId,
       load,
       onAuthError,
       onReload,
+      overview?.pending,
       smartPendingIds,
     ]
   );
@@ -666,6 +705,7 @@ export function OverviewTab({
     if (!undo?.claimIds.length || batchBusy) return;
     setBatchBusy(true);
     setBatchUndo(null);
+    setBatchEvidenceHandoff(null);
     setLoadError("");
     try {
       let ok = 0;
@@ -1263,6 +1303,37 @@ export function OverviewTab({
           role="status"
         >
           <p className="min-w-0 flex-1">{batchFlash}</p>
+          {batchEvidenceHandoff && batchFlash.includes("补来源") ? (
+            <>
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                onClick={() => {
+                  const h = batchEvidenceHandoff;
+                  onOpenRecords(h.personId, {
+                    focusClaimId: h.claimId,
+                    statusFilter: "ALL",
+                    openEvidence: true,
+                  });
+                }}
+              >
+                去补来源
+              </button>
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = batchEvidenceHandoff.url;
+                  void navigator.clipboard.writeText(url).then(
+                    () => setBatchFlash("已复制补来源链接，可发给家人一起补"),
+                    () => setBatchFlash("请手动复制地址栏链接")
+                  );
+                }}
+              >
+                复制链接
+              </button>
+            </>
+          ) : null}
           {batchUndo?.claimIds.length ? (
             <button
               type="button"
@@ -1279,6 +1350,7 @@ export function OverviewTab({
             onClick={() => {
               setBatchFlash("");
               setBatchUndo(null);
+              setBatchEvidenceHandoff(null);
             }}
           >
             关闭
