@@ -308,6 +308,7 @@ export const v1api = {
         membershipRole?: string;
         restorable?: boolean;
         rejoined?: boolean;
+        membershipId?: string;
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
 

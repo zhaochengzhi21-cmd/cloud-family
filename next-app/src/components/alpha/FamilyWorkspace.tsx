@@ -2195,6 +2195,23 @@ export function FamilyWorkspace({
                 setError(userMessageForApiError(e));
               }
             }}
+            onRestoreMember={async (membershipId) => {
+              try {
+                await v1api.restoreFamilyMember(familyId, membershipId, {
+                  idempotencyKey: crypto.randomUUID(),
+                });
+                setFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+                );
+                setFlash(
+                  "已恢复这位参与家人的权限。可复制本段链接发给对方打开家族。"
+                );
+                await load();
+              } catch (e) {
+                if (authRedirect(e)) return;
+                setError(userMessageForApiError(e));
+              }
+            }}
             onEvidenceRemoved={(evidenceId, label) => {
               setError("");
               setPendingUndo({ kind: "evidence", id: evidenceId, label });
