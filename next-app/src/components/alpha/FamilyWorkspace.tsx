@@ -1139,6 +1139,25 @@ export function FamilyWorkspace({
             >
               {refreshing ? "刷新中…" : "刷新"}
             </button>
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[40px] !px-3 !text-sm"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}`;
+                void (async () => {
+                  try {
+                    await navigator.clipboard.writeText(url);
+                    setFlash("已复制家族档案链接");
+                    setFlashParticipantsCta(false);
+                  } catch {
+                    setFlash("请手动复制地址栏链接");
+                    setFlashParticipantsCta(false);
+                  }
+                })();
+              }}
+            >
+              复制档案链接
+            </button>
             {canReview ? (
               <button
                 type="button"
