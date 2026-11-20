@@ -569,14 +569,14 @@ export function OverviewTab({
           setBatchUndo({ kind: action, claimIds: succeededIds });
           setBatchFlash(
             r.failed > 0
-              ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功。误操作可点恢复。${more}`
-              : `已${verb} ${r.succeeded} 条智能整理。误操作可点恢复。${more}`
+              ? `已${verb} ${r.succeeded} 条待确认资料，${r.failed} 条未成功。误操作可点恢复。${more}`
+              : `已${verb} ${r.succeeded} 条待确认资料。误操作可点恢复。${more}`
           );
         } else {
           setBatchFlash(
             r.failed > 0
-              ? `已${verb} ${r.succeeded} 条智能整理，${r.failed} 条未成功${more}`
-              : `已${verb} ${r.succeeded} 条智能整理${more}`
+              ? `已${verb} ${r.succeeded} 条待确认资料，${r.failed} 条未成功${more}`
+              : `已${verb} ${r.succeeded} 条待确认资料${more}`
           );
         }
         await load();
@@ -1247,8 +1247,8 @@ export function OverviewTab({
                   {batchBusy
                     ? "处理中…"
                     : smartPendingIds.length > 20
-                      ? `确认前 ${smartBatchCount} 条智能整理`
-                      : `确认 ${smartBatchCount} 条智能整理`}
+                      ? `确认前 ${smartBatchCount} 条智能整理/导入`
+                      : `确认 ${smartBatchCount} 条智能整理/导入`}
                 </button>
                 <button
                   type="button"
@@ -1265,7 +1265,7 @@ export function OverviewTab({
           </div>
           {smartPendingIds.length > 0 && !canReview ? (
             <p className="mb-2 text-sm text-[color:var(--a-muted)]">
-              其中有智能整理写入的资料，需{REVIEWER_CONTACT}确认后才会成为正式记载。
+              其中有智能整理或导入写入的资料，需{REVIEWER_CONTACT}确认后才会成为正式记载。
             </p>
           ) : null}
           <ul className="space-y-2">
