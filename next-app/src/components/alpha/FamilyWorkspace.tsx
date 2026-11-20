@@ -739,6 +739,7 @@ export function FamilyWorkspace({
     if (tab === "records" && shareClaim) {
       params.set("claim", shareClaim.claimId);
       params.set("person", shareClaim.personId);
+      params.delete("claimType");
     } else if (
       pendingClaim &&
       pendingClaimPerson &&
@@ -748,6 +749,7 @@ export function FamilyWorkspace({
       params.set("tab", "records");
       params.set("claim", pendingClaim);
       params.set("person", pendingClaimPerson);
+      params.delete("claimType");
     } else if (tab === "records") {
       params.delete("claim");
       params.delete("claimStatus");
@@ -756,9 +758,15 @@ export function FamilyWorkspace({
         recordsUrlPerson || pendingClaimPerson || null;
       if (recordsPerson) params.set("person", recordsPerson);
       else params.delete("person");
+      if (claimSeed?.claimType && claimSeed.personId === recordsPerson) {
+        params.set("claimType", claimSeed.claimType);
+      } else {
+        params.delete("claimType");
+      }
     } else if (tab === "lineage") {
       params.delete("claim");
       params.delete("claimStatus");
+      params.delete("claimType");
       // Prefer open drawer; otherwise keep lineage highlight subject shareable.
       const lineagePerson =
         selectedPersonId ||
@@ -780,6 +788,7 @@ export function FamilyWorkspace({
     } else {
       params.delete("claim");
       params.delete("claimStatus");
+      params.delete("claimType");
       params.delete("kin");
       if (selectedPersonId) params.set("person", selectedPersonId);
       else params.delete("person");
@@ -804,6 +813,7 @@ export function FamilyWorkspace({
     recordsUrlPerson,
     lineageUrlPerson,
     drawerBasicsFocus,
+    claimSeed,
     showAddKin,
     showAddPerson,
     showAddRel,
