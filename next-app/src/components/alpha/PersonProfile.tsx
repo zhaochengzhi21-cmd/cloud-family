@@ -889,6 +889,11 @@ export function PersonProfile({
             {FACT_TYPES.map((t) => {
               const rows = pickShown(claims, t);
               if (rows.length === 0) return null;
+              const canAddAnother =
+                canEdit &&
+                (t === "ANCESTRAL_PLACE" ||
+                  t === "ALIAS" ||
+                  t === "OCCUPATION");
               return (
                 <div key={t} className="flex gap-4 px-4 py-3">
                   <dt className="w-16 shrink-0 text-sm text-[color:var(--a-muted)]">
@@ -904,6 +909,19 @@ export function PersonProfile({
                       onFocusClaim={openRecordsFocus}
                       onOpenSourcesLibrary={openSourcesLibrary}
                     />
+                    {canAddAnother ? (
+                      <button
+                        type="button"
+                        className="alpha-print-hide mt-2 text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={() => openRecords(t)}
+                      >
+                        {t === "ALIAS"
+                          ? "再记别名"
+                          : t === "OCCUPATION"
+                            ? "再记职业"
+                            : "再记祖籍"}
+                      </button>
+                    ) : null}
                   </dd>
                 </div>
               );
