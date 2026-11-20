@@ -1910,7 +1910,8 @@ function ParticipantsRoster({
       </h2>
       <div className="alpha-panel space-y-3 px-4 py-4">
         <p className="text-sm text-[color:var(--a-muted)]">
-          确认资料、恢复已移除记录或生成邀请，需由{REVIEWER_CONTACT}操作。需要帮助时可联系下方账号。
+          确认或不采用人物资料、恢复已移除成员/来源、生成邀请，需由
+          {REVIEWER_CONTACT}操作；补充人物资料与家庭关系可由有编辑权限的家人完成。需要帮助时可联系下方账号。
         </p>
         {error ? (
           <div className="flex flex-wrap items-center gap-3">
