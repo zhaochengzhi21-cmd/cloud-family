@@ -1179,18 +1179,27 @@ export function FamilyWorkspace({
       ) : null}
       {error && !flash ? (
         <div
-          className="mb-3 flex items-start justify-between gap-3 alpha-alert alpha-alert-error"
+          className="mb-3 flex flex-wrap items-start justify-between gap-3 alpha-alert alpha-alert-error"
           role="alert"
         >
           <p className="min-w-0 flex-1">{error}</p>
-          <button
-            type="button"
-            className="shrink-0 text-sm font-semibold underline-offset-2 hover:underline"
-            onClick={() => setError("")}
-            aria-label="关闭错误提示"
-          >
-            关闭
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="text-sm font-semibold underline-offset-2 hover:underline"
+              onClick={() => void load()}
+            >
+              重试
+            </button>
+            <button
+              type="button"
+              className="text-sm font-semibold underline-offset-2 hover:underline"
+              onClick={() => setError("")}
+              aria-label="关闭错误提示"
+            >
+              关闭
+            </button>
+          </div>
         </div>
       ) : null}
 
