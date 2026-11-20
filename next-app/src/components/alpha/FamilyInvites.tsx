@@ -472,7 +472,7 @@ export function FamilyInvites({
                             try {
                               sessionStorage.setItem(
                                 "alpha-left-family-note",
-                                "已退出。再次加入需要家人发一条新邀请。"
+                                "已退出。再次加入需要家人发一条新邀请。可复制「我的家族」页链接提醒对方从参与家人处发邀请。"
                               );
                             } catch {
                               /* private mode */

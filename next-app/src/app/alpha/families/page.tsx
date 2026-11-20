@@ -28,6 +28,7 @@ export default function AlphaFamiliesPage() {
   const [surnameTouched, setSurnameTouched] = useState(false);
   const [lastFamilyId, setLastFamilyId] = useState("");
   const [leftNote, setLeftNote] = useState("");
+  const [leftNoteCopyFlash, setLeftNoteCopyFlash] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const createDialogRef = useRef<HTMLDivElement>(null);
 
@@ -162,13 +163,39 @@ export default function AlphaFamiliesPage() {
           role="status"
         >
           <p className="min-w-0 flex-1">{leftNote}</p>
-          <button
-            type="button"
-            className="shrink-0 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-            onClick={() => setLeftNote("")}
-          >
-            关闭
-          </button>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {leftNote.includes("可复制") ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = `${window.location.origin}/alpha/families`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setLeftNoteCopyFlash("已复制链接");
+                      window.setTimeout(() => setLeftNoteCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setLeftNoteCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setLeftNoteCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {leftNoteCopyFlash || "复制链接"}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                setLeftNote("");
+                setLeftNoteCopyFlash("");
+              }}
+            >
+              关闭
+            </button>
+          </div>
         </div>
       ) : null}
 
