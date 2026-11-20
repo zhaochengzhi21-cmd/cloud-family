@@ -386,19 +386,43 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             资料来源
           </h2>
           <ol className="space-y-1 text-sm text-[color:var(--a-ink)]">
-            {layout.notes.map(({ n, source }) => (
-              <li key={n}>
-                [{n}]{" "}
-                {[
-                  EVIDENCE_TYPE_UI[source!.evidenceType] ?? "来源",
-                  source!.title,
-                  source!.sourceLocator,
-                  source!.sourceDateText,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </li>
-            ))}
+            {layout.notes.map(({ n, source }) => {
+              const label = [
+                EVIDENCE_TYPE_UI[source!.evidenceType] ?? "来源",
+                source!.title,
+                source!.sourceLocator,
+                source!.sourceDateText,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <li key={n}>
+                  <span className="alpha-print-only">
+                    [{n}] {label}
+                  </span>
+                  <Link
+                    href={`/alpha/families/${familyId}`}
+                    className="alpha-print-hide font-semibold text-[color:var(--a-ink)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      try {
+                        sessionStorage.setItem(
+                          `alpha-evidence-focus:${familyId}`,
+                          source!.id
+                        );
+                        sessionStorage.setItem(
+                          `alpha-tab:${familyId}`,
+                          "overview"
+                        );
+                      } catch {
+                        /* private mode */
+                      }
+                    }}
+                  >
+                    [{n}] {label}
+                  </Link>
+                </li>
+              );
+            })}
           </ol>
         </section>
       ) : null}

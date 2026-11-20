@@ -2291,6 +2291,66 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：打印版脚注可直达来源库", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·打印脚注（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("GENEALOGY_PAGE");
+  await birthCard.getByLabel("来源标题（可选）").fill("打印脚注来源（测试）");
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("打印脚注来源（测试）")).toBeVisible({
+    timeout: 60_000,
+  });
+
+  const claimId = await birthCard.getAttribute("data-claim-id");
+  expect(claimId).toBeTruthy();
+  const detail = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}`
+  );
+  const evidenceId = (
+    detail.body as { evidenceLinks: { evidence: { id: string } }[] }
+  ).evidenceLinks[0]?.evidence.id;
+  expect(evidenceId).toBeTruthy();
+
+  await page.goto(`/alpha/families/${familyId}/print`);
+  await expect(
+    page.getByRole("region", { name: "资料来源" })
+  ).toBeVisible({ timeout: 60_000 });
+  await page
+    .getByRole("link", { name: /打印脚注来源（测试）/ })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("概览", {
+    timeout: 60_000,
+  });
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(
+    sourcesLib.locator(`[data-evidence-id="${evidenceId}"]`)
+  ).toBeVisible({ timeout: 20_000 });
+});
+
 test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
