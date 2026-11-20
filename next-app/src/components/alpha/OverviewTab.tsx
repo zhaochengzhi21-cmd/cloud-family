@@ -927,7 +927,7 @@ export function OverviewTab({
         : `${pendingTotal} 条资料等待确认`,
       body: canReview
         ? "确认或标记不采用后，资料会在人物资料中正式生效。"
-        : `${REVIEWER_CONTACT}确认后，资料会正式生效。`,
+        : `${REVIEWER_CONTACT}确认后，资料会正式生效。可在下方「参与家人」找到可确认的账号。`,
       action: {
         label: canReview ? "去确认" : "查看待确认",
         onClick: () => {
