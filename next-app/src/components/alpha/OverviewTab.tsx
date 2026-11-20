@@ -103,8 +103,14 @@ function activityPieces(item: ActivityItem): Piece[] | null {
       const t = item.evidenceType ? EVIDENCE_TYPE_UI[item.evidenceType] : null;
       return [t ? `添加了一条资料来源（${t}）` : "添加了一条资料来源"];
     }
-    case "EVIDENCE_DELETED":
-      return ["移除了一条资料来源"];
+    case "EVIDENCE_DELETED": {
+      const t = item.evidenceType ? EVIDENCE_TYPE_UI[item.evidenceType] : null;
+      return [t ? `移除了一条资料来源（${t}）` : "移除了一条资料来源"];
+    }
+    case "EVIDENCE_RESTORED": {
+      const t = item.evidenceType ? EVIDENCE_TYPE_UI[item.evidenceType] : null;
+      return [t ? `恢复了一条资料来源（${t}）` : "恢复了一条资料来源"];
+    }
     case "MEMBER_JOINED":
       return ["通过邀请加入了家族"];
     default:
@@ -129,6 +135,7 @@ export function OverviewTab({
   onOpenLineage,
   onRestorePerson,
   onRestoreRelationship,
+  onRestoreEvidence,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -168,6 +175,8 @@ export function OverviewTab({
   onRestorePerson?: (personId: string) => void | Promise<void>;
   /** Undo soft-deleted relationship (EDITOR+). */
   onRestoreRelationship?: (relationshipId: string) => void | Promise<void>;
+  /** Undo soft-deleted evidence (OWNER/ADMIN). */
+  onRestoreEvidence?: (evidenceId: string) => void | Promise<void>;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -1124,7 +1133,8 @@ export function OverviewTab({
                         </button>
                       </>
                     ) : null}
-                    {item.eventType === "EVIDENCE_CREATED" &&
+                    {(item.eventType === "EVIDENCE_CREATED" ||
+                      item.eventType === "EVIDENCE_RESTORED") &&
                     item.evidenceId ? (
                       <>
                         {" "}
@@ -1134,6 +1144,24 @@ export function OverviewTab({
                           onClick={() => setFocusEvidenceId(item.evidenceId!)}
                         >
                           查看
+                        </button>
+                      </>
+                    ) : null}
+                    {item.eventType === "EVIDENCE_DELETED" &&
+                    item.restorable &&
+                    item.evidenceId &&
+                    canReview &&
+                    onRestoreEvidence ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() =>
+                            void onRestoreEvidence(item.evidenceId!)
+                          }
+                        >
+                          恢复
                         </button>
                       </>
                     ) : null}
@@ -1212,6 +1240,7 @@ export function OverviewTab({
           onOpenRecords={onOpenRecords}
           focusEvidenceId={focusEvidenceId}
           onFocusEvidenceConsumed={() => setFocusEvidenceId(null)}
+          dataVersion={dataVersion}
         />
       ) : null}
 

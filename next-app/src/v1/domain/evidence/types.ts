@@ -40,6 +40,11 @@ export type DeleteEvidenceResult = {
   familyVersion: number;
 };
 
+export type RestoreEvidenceResult = {
+  evidence: EvidenceDto;
+  familyVersion: number;
+};
+
 export type LinkEvidenceInput = {
   familyId: string;
   actorContext: AccessContext;

@@ -8,6 +8,7 @@ import type { V1Db } from "@/db/client";
 import {
   auditEvents,
   claims,
+  evidence,
   familyMemberships,
   relationships,
 } from "@/db/schema";
@@ -86,6 +87,28 @@ export async function findRelationshipEndpoints(
       and(
         eq(relationships.familyId, familyId),
         inArray(relationships.id, relationshipIds)
+      )
+    );
+}
+
+/** Includes soft-deleted sources so removals can still be described / restored. */
+export async function findEvidenceSummaries(
+  db: DbOrTx,
+  familyId: string,
+  evidenceIds: string[]
+) {
+  if (evidenceIds.length === 0) return [];
+  return db
+    .select({
+      id: evidence.id,
+      evidenceType: evidence.evidenceType,
+      deletedAt: evidence.deletedAt,
+    })
+    .from(evidence)
+    .where(
+      and(
+        eq(evidence.familyId, familyId),
+        inArray(evidence.id, evidenceIds)
       )
     );
 }

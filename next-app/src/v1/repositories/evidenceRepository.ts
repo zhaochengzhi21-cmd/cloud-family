@@ -2,7 +2,7 @@
  * Trusted internal Evidence data access — not a public security boundary.
  */
 
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
 import { claimEvidence, evidence, mediaObjects } from "@/db/schema";
 import type {
@@ -37,6 +37,31 @@ export async function findActiveEvidenceById(db: DbOrTx, evidenceId: string) {
     .where(and(eq(evidence.id, evidenceId), isNull(evidence.deletedAt)))
     .limit(1);
   return row ?? null;
+}
+
+/** Includes soft-deleted rows (for restore). */
+export async function findEvidenceRowById(db: DbOrTx, evidenceId: string) {
+  const [row] = await db
+    .select()
+    .from(evidence)
+    .where(eq(evidence.id, evidenceId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function restoreEvidence(
+  db: DbOrTx,
+  evidenceId: string,
+  now: Date
+): Promise<boolean> {
+  const [row] = await db
+    .update(evidence)
+    .set({ deletedAt: null, updatedAt: now })
+    .where(
+      and(eq(evidence.id, evidenceId), isNotNull(evidence.deletedAt))
+    )
+    .returning({ id: evidence.id });
+  return !!row;
 }
 
 export async function insertEvidence(

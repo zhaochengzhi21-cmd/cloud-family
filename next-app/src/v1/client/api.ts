@@ -600,6 +600,15 @@ export const v1api = {
       { method: "DELETE", body: {} }
     ),
 
+  restoreEvidence: (familyId: string, evidenceId: string) =>
+    v1Fetch<{
+      evidence: { id: string; evidenceType: string; title: string | null };
+      familyVersion: number;
+    }>(`/api/v1/families/${familyId}/evidence/${evidenceId}/restore`, {
+      method: "POST",
+      body: {},
+    }),
+
   listEvidenceLinks: (familyId: string, evidenceId: string) =>
     v1Fetch<{
       links: Array<{

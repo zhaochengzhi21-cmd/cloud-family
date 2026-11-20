@@ -17,6 +17,7 @@ import type {
   EvidenceDto,
   LinkEvidenceInput,
   LinkEvidenceResult,
+  RestoreEvidenceResult,
 } from "@/v1/domain/evidence/types";
 import type { AccessContext } from "@/v1/domain/permission/types";
 import { PermissionDomainError } from "@/v1/domain/permission/errors";
@@ -288,12 +289,86 @@ export async function deleteEvidence(
       eventType: "EVIDENCE_DELETED",
       entityType: "EVIDENCE",
       entityId: evidenceId,
-      metadataJson: {},
+      metadataJson: {
+        evidenceType: existing.evidenceType,
+        title: existing.title,
+      },
       now: new Date(),
     });
   });
 
   return { evidenceId, familyVersion };
+}
+
+/**
+ * Undo a soft-deleted evidence source. Same ACL as delete (OWNER/ADMIN).
+ * Uses family-level DELETE_EVIDENCE — evidence-scoped authorize DENYs inactive rows.
+ */
+export async function restoreEvidence(
+  familyId: string,
+  evidenceId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db }
+): Promise<RestoreEvidenceResult> {
+  const database = dbOrDefault(options?.db);
+  const userId = actorUserId(actorContext);
+  const now = new Date();
+
+  const row = await evidenceRepo.findEvidenceRowById(database, evidenceId);
+  if (!row || !row.deletedAt || row.familyId !== familyId) {
+    throw new EvidenceDomainError(
+      row && row.familyId !== familyId ? "CROSS_FAMILY" : "EVIDENCE_NOT_FOUND"
+    );
+  }
+
+  const auth = await authorizeFamilyAction(
+    familyId,
+    actorContext,
+    "DELETE_EVIDENCE",
+    { db: database }
+  ).catch(mapPerm);
+  if (auth.decision !== "ALLOW") {
+    throw new EvidenceDomainError("FORBIDDEN");
+  }
+
+  const familyVersion = await database.transaction(async (tx) => {
+    const family = await lockFamilyForMutation(tx, familyId);
+    if (!family) {
+      throw new EvidenceDomainError("FAMILY_NOT_FOUND");
+    }
+
+    const ok = await evidenceRepo.restoreEvidence(tx, evidenceId, now);
+    if (!ok) {
+      throw new EvidenceDomainError("EVIDENCE_NOT_FOUND");
+    }
+
+    return advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId: userId,
+      summary: "EVIDENCE_RESTORED",
+      eventType: "EVIDENCE_RESTORED",
+      entityType: "EVIDENCE",
+      entityId: evidenceId,
+      metadataJson: {
+        evidenceType: row.evidenceType,
+        title: row.title,
+      },
+      now,
+    });
+  });
+
+  const restored = await evidenceRepo.findActiveEvidenceById(
+    database,
+    evidenceId
+  );
+  if (!restored) {
+    throw new EvidenceDomainError("EVIDENCE_NOT_FOUND");
+  }
+
+  return {
+    evidence: evidenceRepo.mapEvidenceDto(restored),
+    familyVersion,
+  };
 }
 
 export async function getEvidence(

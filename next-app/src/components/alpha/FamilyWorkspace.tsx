@@ -768,6 +768,18 @@ export function FamilyWorkspace({
                 setError(userMessageForApiError(e));
               }
             }}
+            onRestoreEvidence={async (evidenceId) => {
+              try {
+                const r = await v1api.restoreEvidence(familyId, evidenceId);
+                const label = r.evidence.title?.trim() || "资料来源";
+                setFlash(`已恢复「${label}」`);
+                await load();
+                setSourcesFocusEvidenceId(r.evidence.id);
+              } catch (e) {
+                if (authRedirect(e)) return;
+                setError(userMessageForApiError(e));
+              }
+            }}
             onAuthError={authRedirect}
             externalFocusEvidenceId={sourcesFocusEvidenceId}
             onExternalFocusEvidenceConsumed={() =>

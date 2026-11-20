@@ -27,6 +27,7 @@ const FEED_EVENT_TYPES = [
   "CLAIM_REJECTED",
   "EVIDENCE_CREATED",
   "EVIDENCE_DELETED",
+  "EVIDENCE_RESTORED",
   "MEMBER_JOINED",
 ];
 
@@ -102,13 +103,18 @@ export async function getFamilyActivity(
   const relIds = rows
     .filter((r) => r.eventType.startsWith("RELATIONSHIP_") && r.entityId)
     .map((r) => r.entityId as string);
+  const evidenceIds = rows
+    .filter((r) => r.eventType.startsWith("EVIDENCE_") && r.entityId)
+    .map((r) => r.entityId as string);
 
-  const [claimRows, relRows] = await Promise.all([
+  const [claimRows, relRows, evidenceRows] = await Promise.all([
     activityRepo.findClaimSubjects(database, familyId, claimIds),
     activityRepo.findRelationshipEndpoints(database, familyId, relIds),
+    activityRepo.findEvidenceSummaries(database, familyId, evidenceIds),
   ]);
   const claimById = new Map(claimRows.map((c) => [c.id, c]));
   const relById = new Map(relRows.map((r) => [r.id, r]));
+  const evidenceById = new Map(evidenceRows.map((e) => [e.id, e]));
 
   const items: ActivityItem[] = [];
   for (const r of rows) {
@@ -126,7 +132,6 @@ export async function getFamilyActivity(
     switch (r.eventType) {
       case "FAMILY_CREATED":
       case "FAMILY_IDENTITY_UPDATED":
-      case "EVIDENCE_DELETED":
       case "MEMBER_JOINED":
         items.push(base);
         break;
@@ -152,12 +157,20 @@ export async function getFamilyActivity(
         break;
       }
       case "EVIDENCE_CREATED":
+      case "EVIDENCE_DELETED":
+      case "EVIDENCE_RESTORED": {
+        const ev = r.entityId ? evidenceById.get(r.entityId) : undefined;
+        const evidenceType =
+          ev?.evidenceType ?? metaString(r.metadataJson, "evidenceType");
         items.push({
           ...base,
           evidenceId: r.entityId ?? undefined,
-          evidenceType: metaString(r.metadataJson, "evidenceType"),
+          evidenceType,
+          restorable:
+            r.eventType === "EVIDENCE_DELETED" && Boolean(ev?.deletedAt),
         });
         break;
+      }
       case "PERSON_CREATED":
       case "PERSON_UPDATED": {
         const name = r.entityId ? names.get(r.entityId) : undefined;

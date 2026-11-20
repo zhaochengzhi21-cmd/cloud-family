@@ -23,6 +23,7 @@ export function FamilySources({
   onOpenRecords,
   focusEvidenceId = null,
   onFocusEvidenceConsumed,
+  dataVersion = 0,
 }: {
   familyId: string;
   onAuthError: (e: unknown) => boolean;
@@ -35,6 +36,8 @@ export function FamilySources({
   ) => void;
   focusEvidenceId?: string | null;
   onFocusEvidenceConsumed?: () => void;
+  /** Bumps when the workspace reloads so the library stays in sync. */
+  dataVersion?: number;
 }) {
   const [items, setItems] = useState<Item[] | null>(null);
   const [filter, setFilter] = useState<"ALL" | "AUDIO" | "PHOTO">("ALL");
@@ -69,7 +72,7 @@ export function FamilySources({
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, dataVersion]);
 
   const shown = useMemo(() => {
     if (!items) return [];
@@ -142,41 +145,63 @@ export function FamilySources({
   }
 
   useEffect(() => {
-    if (!focusEvidenceId || !items) return;
-    const item = items.find((e) => e.id === focusEvidenceId);
-    if (!item) {
-      onFocusEvidenceConsumed?.();
-      return;
-    }
-    setFilter("ALL");
-    const t = window.setTimeout(() => {
-      const el = document.querySelector(
-        `[data-evidence-id="${focusEvidenceId}"]`
-      );
-      if (el instanceof HTMLElement) {
-        el.scrollIntoView({ block: "center", behavior: "smooth" });
-        el.classList.add("ring-2", "ring-[color:var(--a-brand)]");
-        window.setTimeout(() => {
-          el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
-        }, 2400);
+    if (!focusEvidenceId) return;
+    let cancelled = false;
+    const focusId = focusEvidenceId;
+    (async () => {
+      // Always refetch so restore / create paths see the latest library.
+      let list = items;
+      try {
+        const r = await v1api.listEvidence(familyId);
+        if (cancelled) return;
+        setItems(r.evidence);
+        list = r.evidence;
+      } catch (e) {
+        if (onAuthError(e)) return;
+        if (!cancelled) setError(userMessageForApiError(e));
+        onFocusEvidenceConsumed?.();
+        return;
       }
-      if (item.mediaObjectId) {
-        if (isPhoto(item.mimeType, item.evidenceType)) {
-          void openMedia(item, "photo");
-        } else if (isAudio(item.mimeType, item.evidenceType)) {
-          void openMedia(item, "audio");
-        } else {
-          void openMedia(item, "file");
+      const item = list?.find((e) => e.id === focusId);
+      if (!item) {
+        onFocusEvidenceConsumed?.();
+        return;
+      }
+      setFilter("ALL");
+      window.setTimeout(() => {
+        if (cancelled) return;
+        const el = document.querySelector(`[data-evidence-id="${focusId}"]`);
+        if (el instanceof HTMLElement) {
+          el.scrollIntoView({ block: "center", behavior: "smooth" });
+          el.classList.add("ring-2", "ring-[color:var(--a-brand)]");
+          window.setTimeout(() => {
+            el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
+          }, 2400);
         }
-      } else if (item.description || item.sourceDateText || item.sourceLocator) {
-        setDetailId(item.id);
-      }
-      onFocusEvidenceConsumed?.();
-    }, 50);
-    return () => window.clearTimeout(t);
+        if (item.mediaObjectId) {
+          if (isPhoto(item.mimeType, item.evidenceType)) {
+            void openMedia(item, "photo");
+          } else if (isAudio(item.mimeType, item.evidenceType)) {
+            void openMedia(item, "audio");
+          } else {
+            void openMedia(item, "file");
+          }
+        } else if (
+          item.description ||
+          item.sourceDateText ||
+          item.sourceLocator
+        ) {
+          setDetailId(item.id);
+        }
+        onFocusEvidenceConsumed?.();
+      }, 50);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // openMedia is stable enough for this focus path; avoid re-firing on every render
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusEvidenceId, items, onFocusEvidenceConsumed]);
+  }, [focusEvidenceId, familyId, onAuthError, onFocusEvidenceConsumed]);
 
   if (error && !items) {
     return (

@@ -2379,6 +2379,55 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：移除来源后可从动态恢复", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·来源恢复（测试）",
+    sample.surname
+  );
+
+  await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "OCCUPATION", text: "万载知县，后升胶州刺史" },
+  ]);
+
+  const created = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
+    method: "POST",
+    body: {
+      evidenceType: "DOCUMENT",
+      title: "明经胡氏支谱摘录（测试）",
+      visibility: "FAMILY",
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const evidenceId = (created.body as { evidence: { id: string } }).evidence.id;
+
+  const del = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/evidence/${evidenceId}`,
+    { method: "DELETE", body: {} }
+  );
+  expect(del.status, JSON.stringify(del.body)).toBe(200);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await expect(feed).toBeVisible({ timeout: 60_000 });
+  const row = feed.locator("li").filter({ hasText: "移除了一条资料来源" });
+  await expect(row).toBeVisible({ timeout: 60_000 });
+  await row.getByRole("button", { name: "恢复" }).click();
+  await expect(page.getByText("已恢复「明经胡氏支谱摘录（测试）」")).toBeVisible({
+    timeout: 60_000,
+  });
+
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(
+    sourcesLib.locator(`[data-evidence-id="${evidenceId}"]`)
+  ).toBeVisible({ timeout: 20_000 });
+});
+
 test("明经胡氏：取消关系后可从动态恢复", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
