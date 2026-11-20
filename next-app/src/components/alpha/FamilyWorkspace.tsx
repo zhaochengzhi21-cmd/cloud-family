@@ -1750,12 +1750,6 @@ export function FamilyWorkspace({
             setShowAddKin(false);
             setRelFocusPersonId(null);
           }}
-          onNeedMorePeople={() => {
-            setShowAddKin(false);
-            setRelFocusPersonId(null);
-            setTab("members");
-            setShowAddPerson(true);
-          }}
           onDone={async (result) => {
             setShowAddKin(false);
             setRelFocusPersonId(null);
