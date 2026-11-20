@@ -828,6 +828,12 @@ export function PersonProfile({
                 </button>
               ) : null}
               <Link
+                href={`${workspaceHref}?scroll=participants`}
+                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+              >
+                查看参与家人
+              </Link>
+              <Link
                 href={workspaceHref}
                 className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
               >
@@ -1280,6 +1286,12 @@ export function PersonProfile({
                 <p className="w-full text-sm text-[color:var(--a-muted)]">
                   有编辑权限的家人可以补充父母、配偶或子女。
                 </p>
+                <Link
+                  href={`${workspaceHref}?scroll=participants`}
+                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                >
+                  查看参与家人
+                </Link>
                 <Link
                   href={workspaceHref}
                   className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
