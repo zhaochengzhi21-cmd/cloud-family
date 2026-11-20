@@ -490,16 +490,24 @@ export function FamilyInvites({
                       ) : (
                         <>
                           <span className="text-xs text-[color:var(--a-muted)]">
-                            链接不在本会话，无法再复制
+                            {access.invitableRoles.includes(
+                              i.role as InviteRole
+                            )
+                              ? "链接不在本会话，无法再复制"
+                              : "链接不在本会话；该角色需创建者重新生成，你可先撤销"}
                           </span>
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void regenerate(i)}
-                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-50"
-                          >
-                            重新生成链接
-                          </button>
+                          {access.invitableRoles.includes(
+                            i.role as InviteRole
+                          ) ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void regenerate(i)}
+                              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline disabled:opacity-50"
+                            >
+                              重新生成链接
+                            </button>
+                          ) : null}
                         </>
                       )}
                       <button
