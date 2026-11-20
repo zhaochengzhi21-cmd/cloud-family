@@ -472,7 +472,9 @@ export function PersonProfile({
           {error ||
             (canReview
               ? "找不到这份资料。若刚移除了这位家人，可在下方恢复。"
-              : ERROR_COPY.notFound)}
+              : canEdit
+                ? "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「最近动态」中恢复。"
+                : ERROR_COPY.notFound)}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {canReview && !error ? (
