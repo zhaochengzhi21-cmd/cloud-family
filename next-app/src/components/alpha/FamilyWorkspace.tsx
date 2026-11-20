@@ -471,7 +471,7 @@ export function FamilyWorkspace({
       ) {
         setDrawerBasicsFocus(parsed.focus);
         setSelectedPersonId(parsed.personId);
-        setTab("lineage");
+        setTab("members");
       }
     } catch {
       /* private mode / bad JSON */
@@ -731,6 +731,11 @@ export function FamilyWorkspace({
       if (selectedPersonId) params.set("person", selectedPersonId);
       else params.delete("person");
     }
+    if (drawerBasicsFocus && selectedPersonId) {
+      params.set("basics", drawerBasicsFocus);
+    } else {
+      params.delete("basics");
+    }
     if (tab !== "overview") params.delete("scroll");
     const next = params.toString();
     if (next === searchParams.toString()) return;
@@ -742,6 +747,7 @@ export function FamilyWorkspace({
     shareClaim,
     recordsUrlPerson,
     lineageUrlPerson,
+    drawerBasicsFocus,
     pathname,
     router,
     searchParams,
@@ -797,6 +803,14 @@ export function FamilyWorkspace({
       if (!person) return prev ? null : prev;
       return prev === person ? prev : person;
     });
+    const basics = searchParams.get("basics");
+    if (
+      basics === "living" ||
+      basics === "gender" ||
+      basics === "name"
+    ) {
+      setDrawerBasicsFocus(basics);
+    }
   }, [searchParams, familyId]);
 
   useEffect(() => {

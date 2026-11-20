@@ -420,11 +420,16 @@ export function PersonProfile({
         `alpha-person-basics:${familyId}`,
         JSON.stringify({ personId, focus })
       );
-      sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
     } catch {
       /* private mode */
     }
-    router.push(`${workspaceHref}?tab=lineage`);
+    const qs = new URLSearchParams({
+      tab: "members",
+      person: personId,
+      basics: focus,
+    });
+    router.push(`${workspaceHref}?${qs.toString()}`);
   }
 
   function openInLineage() {
