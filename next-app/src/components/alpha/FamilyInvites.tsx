@@ -236,9 +236,14 @@ export function FamilyInvites({
       await v1api.removeFamilyMember(familyId, membershipId, {
         idempotencyKey: crypto.randomUUID(),
       });
-      setMessage("已移除该账号");
+      setMessage(
+        "已移除。若需对方再加入，在下方生成一条新邀请（同一邮箱会再次加入）。"
+      );
       await load();
       onMembershipChanged?.();
+      window.setTimeout(() => {
+        document.getElementById("invite-email")?.focus();
+      }, 80);
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
@@ -412,6 +417,14 @@ export function FamilyInvites({
                             await v1api.leaveFamily(familyId, {
                               idempotencyKey: crypto.randomUUID(),
                             });
+                            try {
+                              sessionStorage.setItem(
+                                "alpha-left-family-note",
+                                "已退出。再次加入需要家人发一条新邀请。"
+                              );
+                            } catch {
+                              /* private mode */
+                            }
                             window.location.href = "/alpha/families";
                           } catch (e) {
                             if (onAuthError(e)) return;

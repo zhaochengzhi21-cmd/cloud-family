@@ -272,6 +272,13 @@ export function FamilyWorkspace({
   const [kinRole, setKinRole] = useState<"child" | "parent" | "spouse">(
     "child"
   );
+  /** VIEWER opened ?kin= / ?add= — keep shareable params until they navigate away. */
+  const [shareKinHandoff, setShareKinHandoff] = useState<
+    "child" | "parent" | "spouse" | null
+  >(null);
+  const [shareAddHandoff, setShareAddHandoff] = useState<
+    "person" | "rel" | null
+  >(null);
   const [drawerExternalSeed, setDrawerExternalSeed] = useState<{
     claimType: string;
     nonce: number;
@@ -495,12 +502,24 @@ export function FamilyWorkspace({
         if (!canEdit) {
           if (addDeepLinkAnnounced.current !== `kin:${kin}`) {
             addDeepLinkAnnounced.current = `kin:${kin}`;
+            const handoff = new URL(window.location.href);
+            handoff.searchParams.set("tab", "lineage");
+            handoff.searchParams.set("person", person);
+            handoff.searchParams.set("kin", kin);
+            handoff.searchParams.delete("add");
             setFlash(
-              "当前为只读，无法添加家庭关系。可在概览「参与家人」中联系有编辑权限的家人。"
+              "当前为只读，无法添加家庭关系。可复制链接发给有编辑权限的家人，或查看参与家人。"
             );
+            setFlashCopyUrl(handoff.toString());
+            setFlashParticipantsCta(true);
+            setShareKinHandoff(kin);
+            setShareAddHandoff(null);
+            setLineageUrlPerson(person);
+            setTab("lineage");
           }
           return;
         }
+        setShareKinHandoff(null);
         setRelFocusPersonId(person);
         setKinRole(kin);
         setShowAddKin(true);
@@ -538,13 +557,23 @@ export function FamilyWorkspace({
       const fromUrl = new URLSearchParams(window.location.search).get("add");
       if (fromUrl === "rel") {
         if (canEdit) {
+          setShareAddHandoff(null);
           setShowAddRel(true);
           setTab("lineage");
         } else if (addDeepLinkAnnounced.current !== "rel") {
           addDeepLinkAnnounced.current = "rel";
+          const handoff = new URL(window.location.href);
+          handoff.searchParams.set("tab", "lineage");
+          handoff.searchParams.set("add", "rel");
+          handoff.searchParams.delete("kin");
           setFlash(
-            "当前为只读，无法添加家庭关系。可在概览「参与家人」中联系有编辑权限的家人。"
+            "当前为只读，无法添加家庭关系。可复制链接发给有编辑权限的家人，或查看参与家人。"
           );
+          setFlashCopyUrl(handoff.toString());
+          setFlashParticipantsCta(true);
+          setShareAddHandoff("rel");
+          setShareKinHandoff(null);
+          setTab("lineage");
         }
         return;
       }
@@ -565,13 +594,23 @@ export function FamilyWorkspace({
       const fromUrl = new URLSearchParams(window.location.search).get("add");
       if (fromUrl === "person") {
         if (canEdit) {
+          setShareAddHandoff(null);
           setShowAddPerson(true);
           setTab("members");
         } else if (addDeepLinkAnnounced.current !== "person") {
           addDeepLinkAnnounced.current = "person";
+          const handoff = new URL(window.location.href);
+          handoff.searchParams.set("tab", "members");
+          handoff.searchParams.set("add", "person");
+          handoff.searchParams.delete("kin");
           setFlash(
-            "当前为只读，无法添加成员。可在概览「参与家人」中联系有编辑权限的家人。"
+            "当前为只读，无法添加成员。可复制链接发给有编辑权限的家人，或查看参与家人。"
           );
+          setFlashCopyUrl(handoff.toString());
+          setFlashParticipantsCta(true);
+          setShareAddHandoff("person");
+          setShareKinHandoff(null);
+          setTab("members");
         }
         return;
       }
@@ -971,6 +1010,12 @@ export function FamilyWorkspace({
         (kinRole === "child" || kinRole === "parent" || kinRole === "spouse")
       ) {
         params.set("kin", kinRole);
+      } else if (
+        shareKinHandoff === "child" ||
+        shareKinHandoff === "parent" ||
+        shareKinHandoff === "spouse"
+      ) {
+        params.set("kin", shareKinHandoff);
       } else {
         params.delete("kin");
       }
@@ -980,7 +1025,15 @@ export function FamilyWorkspace({
       params.delete("claimType");
       params.delete("openEvidence");
       params.delete("evidenceType");
-      params.delete("kin");
+      if (
+        shareKinHandoff === "child" ||
+        shareKinHandoff === "parent" ||
+        shareKinHandoff === "spouse"
+      ) {
+        params.set("kin", shareKinHandoff);
+      } else {
+        params.delete("kin");
+      }
       if (selectedPersonId) params.set("person", selectedPersonId);
       else params.delete("person");
     }
@@ -991,7 +1044,9 @@ export function FamilyWorkspace({
     }
     if (showAddPerson && tab === "members") params.set("add", "person");
     else if (showAddRel && tab === "lineage") params.set("add", "rel");
-    else params.delete("add");
+    else if (shareAddHandoff === "person" || shareAddHandoff === "rel") {
+      params.set("add", shareAddHandoff);
+    } else params.delete("add");
     if (tab !== "overview") params.delete("scroll");
     const next = params.toString();
     if (next === searchParams.toString()) return;
@@ -1009,6 +1064,8 @@ export function FamilyWorkspace({
     showAddKin,
     showAddPerson,
     showAddRel,
+    shareKinHandoff,
+    shareAddHandoff,
     relFocusPersonId,
     kinRole,
     pathname,
@@ -1307,6 +1364,14 @@ export function FamilyWorkspace({
                       await v1api.leaveFamily(familyId, {
                         idempotencyKey: crypto.randomUUID(),
                       });
+                      try {
+                        sessionStorage.setItem(
+                          "alpha-left-family-note",
+                          "已退出。再次加入需要家人发一条新邀请。"
+                        );
+                      } catch {
+                        /* private mode */
+                      }
                       router.push("/alpha/families");
                     } catch (e) {
                       if (handleAuthRedirect(e, router)) return;
@@ -1402,7 +1467,7 @@ export function FamilyWorkspace({
         >
           <p className="min-w-0 flex-1">{flash}</p>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {flashParticipantsCta && flash.includes("不在名单") ? (
+            {flashParticipantsCta ? (
               <button
                 type="button"
                 className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -7163,6 +7228,8 @@ function PersonDrawer({
   }, [externalClaimSeed, onExternalClaimSeedConsumed]);
   useEffect(() => {
     if (!basicsFocus) return;
+    // VIEWER: keep ?basics= shareable; fields are not rendered.
+    if (!canEdit) return;
     const id =
       basicsFocus === "living"
         ? "edit-living"
@@ -7179,7 +7246,7 @@ function PersonDrawer({
       onBasicsFocusConsumed?.();
     }, 0);
     return () => window.clearTimeout(t);
-  }, [basicsFocus, person.id, onBasicsFocusConsumed]);
+  }, [basicsFocus, person.id, onBasicsFocusConsumed, canEdit]);
   const [revision, setRevision] = useState(person.revisionNo);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -7601,14 +7668,57 @@ function PersonDrawer({
             </div>
           ) : null}
           {!canEdit ? (
-            <p className="text-sm text-[color:var(--a-muted)]">
-              {LIVING_STATUS_LABEL[
-                living as keyof typeof LIVING_STATUS_LABEL
-              ] ?? living}
-              {gender !== "UNKNOWN"
-                ? ` · ${GENDER_LABEL[gender as keyof typeof GENDER_LABEL] ?? ""}`
-                : ""}
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                {LIVING_STATUS_LABEL[
+                  living as keyof typeof LIVING_STATUS_LABEL
+                ] ?? living}
+                {gender !== "UNKNOWN"
+                  ? ` · ${GENDER_LABEL[gender as keyof typeof GENDER_LABEL] ?? ""}`
+                  : ""}
+              </p>
+              {basicsFocus ? (
+                <div className="rounded-md border border-[color:var(--a-line)] bg-[color:var(--a-soft)] px-3 py-2 text-sm text-[color:var(--a-ink)]">
+                  <p>
+                    这条链接是要补
+                    {basicsFocus === "living"
+                      ? "在世状态"
+                      : basicsFocus === "gender"
+                        ? "性别"
+                        : "姓名"}
+                    ，需有编辑权限的家人处理。可复制链接发给对方，或查看参与家人。
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => {
+                        const url = new URL(window.location.href);
+                        url.searchParams.set("tab", "members");
+                        url.searchParams.set("person", person.id);
+                        url.searchParams.set("basics", basicsFocus);
+                        void navigator.clipboard.writeText(url.toString()).then(
+                          () =>
+                            setLocalFlash("已复制链接，可发给有编辑权限的家人"),
+                          () => setLocalFlash("请手动复制地址栏链接")
+                        );
+                      }}
+                    >
+                      复制链接
+                    </button>
+                    {onOpenParticipants ? (
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                        onClick={onOpenParticipants}
+                      >
+                        查看参与家人
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
           ) : (
             <form
               onSubmit={saveBasics}

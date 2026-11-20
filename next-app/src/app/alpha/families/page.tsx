@@ -27,6 +27,7 @@ export default function AlphaFamiliesPage() {
   const [query, setQuery] = useState("");
   const [surnameTouched, setSurnameTouched] = useState(false);
   const [lastFamilyId, setLastFamilyId] = useState("");
+  const [leftNote, setLeftNote] = useState("");
   const nameInputRef = useRef<HTMLInputElement>(null);
   const createDialogRef = useRef<HTMLDivElement>(null);
 
@@ -60,6 +61,17 @@ export default function AlphaFamiliesPage() {
       setLastFamilyId("");
     }
   }, [families]);
+
+  useEffect(() => {
+    try {
+      const note = sessionStorage.getItem("alpha-left-family-note");
+      if (!note) return;
+      sessionStorage.removeItem("alpha-left-family-note");
+      setLeftNote(note);
+    } catch {
+      /* private mode */
+    }
+  }, []);
 
   const filtered = useMemo(() => {
     if (!families) return [];
@@ -143,6 +155,22 @@ export default function AlphaFamiliesPage() {
           管理你参与的{PRODUCT.family}
         </p>
       </header>
+
+      {leftNote ? (
+        <div
+          className="mb-4 flex flex-wrap items-start justify-between gap-3 alpha-alert alpha-alert-ok"
+          role="status"
+        >
+          <p className="min-w-0 flex-1">{leftNote}</p>
+          <button
+            type="button"
+            className="shrink-0 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => setLeftNote("")}
+          >
+            关闭
+          </button>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mb-4 space-y-3">

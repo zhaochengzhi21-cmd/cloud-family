@@ -2031,6 +2031,38 @@ export function OverviewTab({
                         </button>
                       </span>
                     ) : null}
+                    {item.eventType === "MEMBERSHIP_SUSPENDED" ||
+                    item.eventType === "MEMBERSHIP_LEFT" ? (
+                      canReview ? (
+                        <>
+                          {" "}
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                            onClick={() => {
+                              scrollToParticipants();
+                              window.setTimeout(() => {
+                                document.getElementById("invite-email")?.focus();
+                              }, 120);
+                            }}
+                          >
+                            去邀请
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[color:var(--a-muted)]">
+                          {" "}
+                          · 需{REVIEWER_CONTACT}发新邀请 ·{" "}
+                          <button
+                            type="button"
+                            className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                            onClick={scrollToParticipants}
+                          >
+                            查看参与家人
+                          </button>
+                        </span>
+                      )
+                    ) : null}
                   </p>
                   <time
                     dateTime={item.at}
