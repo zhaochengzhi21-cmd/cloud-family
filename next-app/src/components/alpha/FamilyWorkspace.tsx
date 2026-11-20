@@ -37,6 +37,7 @@ import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
 import { useFocusTrap } from "@/components/alpha/useFocusTrap";
 import { OverviewTab } from "@/components/alpha/OverviewTab";
 import { MEDIA_MAX_BYTES } from "@/v1/domain/media/types";
+import { listMultiClaimTypes } from "@/v1/domain/claim/registry";
 
 type Role = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
 
@@ -2224,12 +2225,13 @@ function ClaimStartCtas({
   onPick,
 }: {
   livingStatus?: string;
-  /** Claim types already on this person — chips for these are hidden. */
+  /** Claim types already on this person — SINGLETON chips hide; MULTI stay. */
   presentTypes?: string[];
   variant?: "start" | "more";
   onPick: (claimType: string) => void;
 }) {
   const present = new Set(presentTypes);
+  const multi = new Set(listMultiClaimTypes());
   const startLabels: Record<string, string> = {
     BIRTH_DATE: "记下出生信息",
     BIRTH_PLACE: "记下出生地",
@@ -2242,6 +2244,12 @@ function ClaimStartCtas({
     DEATH_DATE: "记下去世信息",
     BURIAL_PLACE: "记下安葬地",
   };
+  const againLabels: Record<string, string> = {
+    ANCESTRAL_PLACE: "再记祖籍",
+    OCCUPATION: "再记职业",
+    ALIAS: "再记别名",
+    STORY: "再记故事",
+  };
   const types = [
     "BIRTH_DATE",
     "BIRTH_PLACE",
@@ -2252,13 +2260,14 @@ function ClaimStartCtas({
     "GENERATION_WORD",
     "BIRTH_ORDER",
     ...(livingStatus === "DECEASED" ? ["DEATH_DATE", "BURIAL_PLACE"] : []),
-  ].filter((t) => !present.has(t));
+  ].filter((t) => !present.has(t) || multi.has(t as never));
   if (types.length === 0) return null;
 
   const items = types.map((type) => ({
     type,
-    label:
-      variant === "more"
+    label: present.has(type)
+      ? againLabels[type] ?? `再记${CLAIM_TYPE_UI[type]?.label ?? type}`
+      : variant === "more"
         ? CLAIM_TYPE_UI[type]?.label ?? type
         : startLabels[type] ?? type,
   }));
