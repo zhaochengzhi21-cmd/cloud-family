@@ -115,15 +115,40 @@ export function FamilyInvites({
         url,
         role: r.invite.role,
       });
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch {
+        copied = false;
+      }
       if (trimmed) {
         if (r.emailDelivery === "sent") {
-          setMessage("已发送邀请邮件；也可复制下方链接备用");
+          setMessage(
+            copied
+              ? "已发送邀请邮件，并已复制链接备用"
+              : "已发送邀请邮件；也可复制下方链接备用"
+          );
         } else if (r.emailDelivery === "failed") {
           setFailed(true);
-          setMessage("邮件发送失败，请复制下方链接发给对方");
+          setMessage(
+            copied
+              ? "邮件发送失败，已复制链接，请发给对方"
+              : "邮件发送失败，请复制下方链接发给对方"
+          );
         } else {
-          setMessage("当前环境未开通发信，请复制下方链接发给对方");
+          setMessage(
+            copied
+              ? "当前环境未开通发信，已复制链接，请发给对方"
+              : "当前环境未开通发信，请复制下方链接发给对方"
+          );
         }
+      } else {
+        setMessage(
+          copied
+            ? "已生成并复制邀请链接，可发给家人"
+            : "已生成邀请链接，请复制下方链接发给家人"
+        );
       }
       await load();
     } catch (e) {
@@ -191,7 +216,12 @@ export function FamilyInvites({
         url,
         role: r.invite.role,
       });
-      setMessage("已重新生成邀请链接，旧链接已失效");
+      try {
+        await navigator.clipboard.writeText(url);
+        setMessage("已重新生成并复制邀请链接，旧链接已失效");
+      } catch {
+        setMessage("已重新生成邀请链接，旧链接已失效；请复制下方链接");
+      }
       await load();
     } catch (e) {
       if (onAuthError(e)) return;
