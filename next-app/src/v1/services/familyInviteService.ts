@@ -364,6 +364,54 @@ export async function removeFamilyMember(
   });
 }
 
+/**
+ * Undo a mistaken soft-remove: SUSPENDED → ACTIVE with the same role.
+ * OWNER/ADMIN only; same manageability rules as remove.
+ */
+export async function restoreFamilyMember(
+  familyId: string,
+  membershipId: string,
+  actorUserId: string,
+  options?: { db?: V1Db; now?: Date }
+): Promise<{ membershipId: string; role: string }> {
+  const db = dbOrDefault(options?.db);
+  const actorRole = await requireManager(db, familyId, actorUserId);
+  const now = options?.now ?? new Date();
+  return db.transaction(async (tx) => {
+    await lockFamilyForMutation(tx, familyId);
+    const [row] = await tx
+      .select()
+      .from(familyMemberships)
+      .where(
+        and(
+          eq(familyMemberships.id, membershipId),
+          eq(familyMemberships.familyId, familyId),
+          eq(familyMemberships.status, "SUSPENDED")
+        )
+      )
+      .limit(1);
+    if (!row) throw new InviteDomainError("INVITE_NOT_FOUND");
+    if (!canManageMember(actorRole, row.role as MembershipRole)) {
+      throw new InviteDomainError("FORBIDDEN");
+    }
+    await tx
+      .update(familyMemberships)
+      .set({ status: "ACTIVE", updatedAt: now })
+      .where(eq(familyMemberships.id, membershipId));
+    await advanceFamilyVersion(tx, {
+      familyId,
+      actorUserId,
+      summary: "Member restored after remove",
+      eventType: "MEMBER_JOINED",
+      entityType: "MEMBERSHIP",
+      entityId: membershipId,
+      metadataJson: { role: row.role, rejoined: true, restoredAfterRemove: true },
+      now,
+    });
+    return { membershipId, role: row.role };
+  });
+}
+
 /** Non-OWNER leaves the family (self → SUSPENDED). */
 export async function leaveFamily(
   familyId: string,

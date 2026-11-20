@@ -80,6 +80,10 @@ export function FamilyInvites({
     previous: InviteRole;
     label: string;
   }>(null);
+  const [memberUndo, setMemberUndo] = useState<null | {
+    membershipId: string;
+    label: string;
+  }>(null);
 
   const load = useCallback(async () => {
     try {
@@ -272,6 +276,7 @@ export function FamilyInvites({
     setMessageCopyUrl(null);
     setMessageCopyFlash("");
     setRoleUndo(null);
+    setMemberUndo(null);
     setFailed(false);
     try {
       await v1api.updateFamilyMemberRole(familyId, membershipId, next, {
@@ -345,6 +350,7 @@ export function FamilyInvites({
     setMessageCopyUrl(null);
     setMessageCopyFlash("");
     setRoleUndo(null);
+    setMemberUndo(null);
     setFailed(false);
     try {
       await v1api.removeFamilyMember(familyId, membershipId, {
@@ -357,13 +363,43 @@ export function FamilyInvites({
         `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
       );
       setMessage(
-        `已移除「${label}」。若需对方再加入，下方已选回${roleLabel(previousRole)}，填写同一邮箱生成邀请即可再次加入。可复制本段链接发给有邀请权限的家人核对。`
+        `已移除「${label}」。误操作可点恢复。若需对方再加入，下方已选回${roleLabel(previousRole)}，填写同一邮箱生成邀请即可。可复制本段链接发给有邀请权限的家人核对。`
       );
+      setMemberUndo({ membershipId, label });
       await load();
       onMembershipChanged?.();
       window.setTimeout(() => {
         document.getElementById("invite-email")?.focus();
       }, 80);
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessageCopyUrl(null);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function undoRemoveMember() {
+    const undo = memberUndo;
+    if (!undo || busy) return;
+    setBusy(true);
+    setMemberUndo(null);
+    setMessageCopyFlash("");
+    setFailed(false);
+    try {
+      await v1api.restoreFamilyMember(familyId, undo.membershipId, {
+        idempotencyKey: crypto.randomUUID(),
+      });
+      setMessageCopyUrl(
+        `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+      );
+      setMessage(
+        `已恢复「${undo.label}」的参与权限。可复制本段链接发给对方打开家族。`
+      );
+      await load();
+      onMembershipChanged?.();
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
@@ -770,6 +806,16 @@ export function FamilyInvites({
                 onClick={() => void undoRoleChange()}
               >
                 改回
+              </button>
+            ) : null}
+            {memberUndo && !failed ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                disabled={busy}
+                onClick={() => void undoRemoveMember()}
+              >
+                恢复
               </button>
             ) : null}
             {messageCopyUrl &&

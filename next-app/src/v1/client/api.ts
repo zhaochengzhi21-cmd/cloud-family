@@ -378,6 +378,23 @@ export const v1api = {
     );
   },
 
+  restoreFamilyMember: (
+    familyId: string,
+    membershipId: string,
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{ membership: { membershipId: string; role: string } }>(
+      `/api/v1/families/${familyId}/members/${membershipId}/restore`,
+      {
+        method: "POST",
+        body: {},
+        headers: Object.keys(headers).length ? headers : undefined,
+      }
+    );
+  },
+
   leaveFamily: (familyId: string, opts?: { idempotencyKey?: string }) => {
     const headers: Record<string, string> = {};
     if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
