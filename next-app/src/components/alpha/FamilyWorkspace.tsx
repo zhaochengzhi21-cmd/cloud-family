@@ -648,6 +648,7 @@ export function FamilyWorkspace({
         setShareClaim({
           personId: parsed.personId,
           claimId: parsed.claimId,
+          statusFilter: parsed.statusFilter,
         });
         setTab("records");
       }
