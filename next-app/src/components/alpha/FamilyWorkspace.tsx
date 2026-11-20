@@ -237,7 +237,13 @@ export function FamilyWorkspace({
   const [flashCopyUrl, setFlashCopyUrl] = useState<string | null>(null);
   const [roleBannerCopyFlash, setRoleBannerCopyFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
-    kind: "person" | "relationship" | "evidence" | "evidence-link" | "claim";
+    kind:
+      | "person"
+      | "relationship"
+      | "evidence"
+      | "evidence-link"
+      | "claim"
+      | "claim-accept";
     id: string;
     label: string;
     claimId?: string;
@@ -245,11 +251,18 @@ export function FamilyWorkspace({
     relation?: string;
     /** For claim undo → reopen deep-link handoff. */
     personId?: string;
+    /** Sibling claims rejected by prefer — reopen with preferred on accept-undo. */
+    siblingIds?: string[];
   }>(null);
+  /** Soft-deleted person id from a missed deep-link — restore CTA for canReview. */
+  const [flashRestorePersonId, setFlashRestorePersonId] = useState<
+    string | null
+  >(null);
 
   const openParticipantsFromFlash = useCallback(() => {
     setFlash("");
     setFlashParticipantsCta(false);
+    setFlashRestorePersonId(null);
     try {
       sessionStorage.setItem(
         `alpha-overview-scroll:${familyId}`,
@@ -1184,10 +1197,19 @@ export function FamilyWorkspace({
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
         );
-        setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可复制链接发给有编辑权限的家人，或查看参与家人。"
-        );
-        setFlashParticipantsCta(true);
+        if (canReview) {
+          setFlashRestorePersonId(person);
+          setFlash(
+            "链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；可点恢复这位家人。"
+          );
+          setFlashParticipantsCta(false);
+        } else {
+          setFlashRestorePersonId(null);
+          setFlash(
+            `链接指向的成员已不在名单中，可能刚被移除。资料页已打开其他家人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+          );
+          setFlashParticipantsCta(true);
+        }
         setRecordsUrlPerson(null);
       }
       return;
@@ -1205,10 +1227,19 @@ export function FamilyWorkspace({
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
         );
-        setFlash(
-          "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可复制链接发给有编辑权限的家人，或查看参与家人。"
-        );
-        setFlashParticipantsCta(true);
+        if (canReview) {
+          setFlashRestorePersonId(person);
+          setFlash(
+            "链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；可点恢复这位家人。"
+          );
+          setFlashParticipantsCta(false);
+        } else {
+          setFlashRestorePersonId(null);
+          setFlash(
+            `链接指向的成员已不在名单中，可能刚被移除。世系页仍可浏览其他人；若需找回，可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+          );
+          setFlashParticipantsCta(true);
+        }
         setLineageUrlPerson(null);
       }
       return;
@@ -1225,24 +1256,34 @@ export function FamilyWorkspace({
       setFlashCopyUrl(
         `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
       );
-      setFlash(
-        "链接指向的成员已不在名单中，可能刚被移除。可复制链接发给有编辑权限的家人，或查看参与家人。"
-      );
-      setFlashParticipantsCta(true);
+      if (canReview) {
+        setFlashRestorePersonId(person);
+        setFlash(
+          "链接指向的成员已不在名单中，可能刚被移除。可点恢复这位家人。"
+        );
+        setFlashParticipantsCta(false);
+      } else {
+        setFlashRestorePersonId(null);
+        setFlash(
+          `链接指向的成员已不在名单中，可能刚被移除。可复制链接发给${REVIEWER_CONTACT}，或查看参与家人。`
+        );
+        setFlashParticipantsCta(true);
+      }
     }
     // Hydrate drawer from URL after graph load.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: hydrate on load
   }, [loading, familyId, persons]);
 
   useEffect(() => {
-    if (!flash || pendingUndo) return;
+    if (!flash || pendingUndo || flashRestorePersonId) return;
     const t = window.setTimeout(() => {
       setFlash("");
       setFlashParticipantsCta(false);
       setFlashCopyUrl(null);
+      setFlashRestorePersonId(null);
     }, 8000);
     return () => window.clearTimeout(t);
-  }, [flash, pendingUndo]);
+  }, [flash, pendingUndo, flashRestorePersonId]);
 
   useEffect(() => {
     if (!lineageFocusId) return;
@@ -1558,6 +1599,42 @@ export function FamilyWorkspace({
                 查看参与家人
               </button>
             ) : null}
+            {flashRestorePersonId && canReview ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const id = flashRestorePersonId;
+                  setFlashRestorePersonId(null);
+                  setFlash("");
+                  setFlashParticipantsCta(false);
+                  void (async () => {
+                    try {
+                      await v1api.restorePerson(familyId, id, {
+                        idempotencyKey: crypto.randomUUID(),
+                      });
+                      const qs = new URLSearchParams({
+                        tab: "members",
+                        person: id,
+                      });
+                      setFlashCopyUrl(
+                        `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                      );
+                      setFlash(
+                        "已恢复这位家人。可复制链接发给家人一起看。"
+                      );
+                      await load();
+                      setSelectedPersonId(id);
+                    } catch (e) {
+                      if (handleAuthRedirect(e, router)) return;
+                      setError(userMessageForApiError(e));
+                    }
+                  })();
+                }}
+              >
+                恢复这位家人
+              </button>
+            ) : null}
             {flashCopyUrl && flash.includes("可复制链接") ? (
               <button
                 type="button"
@@ -1585,6 +1662,7 @@ export function FamilyWorkspace({
                   setPendingUndo(null);
                   setFlash("");
                   setFlashParticipantsCta(false);
+                  setFlashRestorePersonId(null);
                   void (async () => {
                     try {
                       if (undo.kind === "person") {
@@ -1675,10 +1753,27 @@ export function FamilyWorkspace({
                           setFlashCopyUrl(null);
                           setFlash(`已恢复「${undo.label}」的挂接`);
                         }
-                      } else if (undo.kind === "claim") {
+                      } else if (
+                        undo.kind === "claim" ||
+                        undo.kind === "claim-accept"
+                      ) {
+                        if (undo.kind === "claim-accept") {
+                          await v1api.rejectClaim(familyId, undo.id, {
+                            idempotencyKey: crypto.randomUUID(),
+                          });
+                        }
                         await v1api.reopenClaim(familyId, undo.id, {
                           idempotencyKey: crypto.randomUUID(),
                         });
+                        for (const siblingId of undo.siblingIds ?? []) {
+                          try {
+                            await v1api.reopenClaim(familyId, siblingId, {
+                              idempotencyKey: crypto.randomUUID(),
+                            });
+                          } catch {
+                            /* sibling may already be proposed */
+                          }
+                        }
                         if (undo.personId) {
                           const qs = new URLSearchParams({
                             tab: "records",
@@ -1716,6 +1811,7 @@ export function FamilyWorkspace({
                 setFlash("");
                 setFlashParticipantsCta(false);
                 setFlashCopyUrl(null);
+                setFlashRestorePersonId(null);
                 setPendingUndo(null);
               }}
               aria-label="关闭提示"
@@ -4058,10 +4154,11 @@ function RecordsTab({
   setFlashCopyUrl: (url: string | null) => void;
   setPendingUndo: (
     undo: null | {
-      kind: "claim";
+      kind: "claim" | "claim-accept";
       id: string;
       label: string;
       personId?: string;
+      siblingIds?: string[];
     }
   ) => void;
   setError: (s: string) => void;
@@ -4817,10 +4914,15 @@ function RecordsTab({
                 onError={setError}
                 onFlash={(msg, undoClaimId, handoff) => {
                   setFlash(msg);
+                  const acceptUndo =
+                    !!undoClaimId &&
+                    (msg.includes("已确认") || msg.includes("已采用"));
                   if (
                     undoClaimId &&
                     personId &&
-                    (msg.includes("不采用") || msg.includes("不同说法"))
+                    (msg.includes("不采用") ||
+                      msg.includes("不同说法") ||
+                      acceptUndo)
                   ) {
                     const qs = new URLSearchParams({
                       tab: "records",
@@ -4854,10 +4956,11 @@ function RecordsTab({
                   setPendingUndo(
                     undoClaimId
                       ? {
-                          kind: "claim",
+                          kind: acceptUndo ? "claim-accept" : "claim",
                           id: undoClaimId,
                           label: "这条资料",
                           personId,
+                          siblingIds: handoff?.siblingIds,
                         }
                       : null
                   );
@@ -4941,10 +5044,15 @@ function RecordsTab({
                     onError={setError}
                     onFlash={(msg, undoClaimId, handoff) => {
                       setFlash(msg);
+                      const acceptUndo =
+                        !!undoClaimId &&
+                        (msg.includes("已确认") || msg.includes("已采用"));
                       if (
                         undoClaimId &&
                         personId &&
-                        (msg.includes("不采用") || msg.includes("不同说法"))
+                        (msg.includes("不采用") ||
+                          msg.includes("不同说法") ||
+                          acceptUndo)
                       ) {
                         const qs = new URLSearchParams({
                           tab: "records",
@@ -4978,10 +5086,11 @@ function RecordsTab({
                       setPendingUndo(
                         undoClaimId
                           ? {
-                              kind: "claim",
+                              kind: acceptUndo ? "claim-accept" : "claim",
                               id: undoClaimId,
                               label: "这条资料",
                               personId,
+                              siblingIds: handoff?.siblingIds,
                             }
                           : null
                       );
@@ -5681,7 +5790,11 @@ function ConflictChooser({
   onFlash: (
     s: string,
     undoClaimId?: string,
-    handoff?: { claimId: string; openEvidence?: boolean }
+    handoff?: {
+      claimId: string;
+      openEvidence?: boolean;
+      siblingIds?: string[];
+    }
   ) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
@@ -5723,16 +5836,21 @@ function ConflictChooser({
       } catch {
         /* treat as unsourced if refresh fails */
       }
+      const siblingIds = claims
+        .filter((c) => c.id !== claim.id)
+        .map((c) => c.id);
       if (unsourced && canEdit) {
         onFlash(
-          "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
+          "已采用这条说法。接着可以补上谱页或其他来源。误操作可点恢复。可复制链接发给家人一起补。",
+          claim.id,
+          { claimId: claim.id, openEvidence: true, siblingIds }
         );
         onOpenEvidenceAfterAccept?.(claim.id);
       } else {
         onFlash(
-          "已采用这条说法。可复制链接发给家人一起看。",
-          undefined,
-          { claimId: claim.id }
+          "已采用这条说法。误操作可点恢复。可复制链接发给家人一起看。",
+          claim.id,
+          { claimId: claim.id, siblingIds }
         );
       }
       await onChanged();
@@ -5885,7 +6003,11 @@ function ClaimCard({
   onFlash: (
     s: string,
     undoClaimId?: string,
-    handoff?: { claimId: string; openEvidence?: boolean }
+    handoff?: {
+      claimId: string;
+      openEvidence?: boolean;
+      siblingIds?: string[];
+    }
   ) => void;
   onEvidenceRemoved?: (evidenceId: string, label: string) => void;
   onEvidenceUnlinked?: (args: {
@@ -6073,13 +6195,15 @@ function ClaimCard({
                   }
                   if (unsourced && canEdit) {
                     onFlash(
-                      "已确认这条资料。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
+                      "已确认这条资料。接着可以补上谱页或其他来源。误操作可点恢复。可复制链接发给家人一起补。",
+                      claim.id,
+                      { claimId: claim.id, openEvidence: true }
                     );
                     onOpenEvidenceAfterAccept?.(claim.id);
                   } else {
                     onFlash(
-                      "已确认这条资料。可复制链接发给家人一起看。",
-                      undefined,
+                      "已确认这条资料。误操作可点恢复。可复制链接发给家人一起看。",
+                      claim.id,
                       { claimId: claim.id }
                     );
                   }
@@ -6168,13 +6292,15 @@ function ClaimCard({
                   }
                   if (unsourced && canEdit) {
                     onFlash(
-                      "已采用这条说法。接着可以补上谱页或其他来源。可复制链接发给家人一起补。"
+                      "已采用这条说法。接着可以补上谱页或其他来源。误操作可点恢复。可复制链接发给家人一起补。",
+                      claim.id,
+                      { claimId: claim.id, openEvidence: true }
                     );
                     onOpenEvidenceAfterAccept?.(claim.id);
                   } else {
                     onFlash(
-                      "已采用这条说法。可复制链接发给家人一起看。",
-                      undefined,
+                      "已采用这条说法。误操作可点恢复。可复制链接发给家人一起看。",
+                      claim.id,
                       { claimId: claim.id }
                     );
                   }
@@ -8187,6 +8313,10 @@ function PersonDrawer({
   const [localUndoClaimId, setLocalUndoClaimId] = useState<string | null>(
     null
   );
+  const [localUndoAccept, setLocalUndoAccept] = useState(false);
+  const [localUndoSiblingIds, setLocalUndoSiblingIds] = useState<string[]>(
+    []
+  );
 
   function handoffEvidenceAfterAccept(claimId: string) {
     setDrawerOpenEvidenceClaimId(claimId);
@@ -8245,6 +8375,8 @@ function PersonDrawer({
   useEffect(() => {
     setLocalFlash("");
     setLocalUndoClaimId(null);
+    setLocalUndoAccept(false);
+    setLocalUndoSiblingIds([]);
     setLocalFlashCopyUrl(null);
   }, [person.id]);
 
@@ -8257,11 +8389,20 @@ function PersonDrawer({
   function flashLocal(
     msg: string,
     undoClaimId?: string,
-    handoff?: { claimId: string; openEvidence?: boolean }
+    handoff?: {
+      claimId: string;
+      openEvidence?: boolean;
+      siblingIds?: string[];
+    }
   ) {
+    const acceptUndo =
+      !!undoClaimId &&
+      (msg.includes("已确认") || msg.includes("已采用"));
     if (
       undoClaimId &&
-      (msg.includes("不采用") || msg.includes("不同说法"))
+      (msg.includes("不采用") ||
+        msg.includes("不同说法") ||
+        acceptUndo)
     ) {
       const qs = new URLSearchParams({
         tab: "records",
@@ -8277,6 +8418,8 @@ function PersonDrawer({
           : `${msg}可复制链接发给家人核对。`
       );
       setLocalUndoClaimId(undoClaimId);
+      setLocalUndoAccept(acceptUndo);
+      setLocalUndoSiblingIds(handoff?.siblingIds ?? []);
       return;
     }
     if (handoff?.claimId && msg.includes("可复制链接")) {
@@ -8292,11 +8435,15 @@ function PersonDrawer({
       );
       setLocalFlash(msg);
       setLocalUndoClaimId(undoClaimId ?? null);
+      setLocalUndoAccept(acceptUndo);
+      setLocalUndoSiblingIds(handoff?.siblingIds ?? []);
       return;
     }
     if (!msg.includes("可复制链接")) setLocalFlashCopyUrl(null);
     setLocalFlash(msg);
     setLocalUndoClaimId(undoClaimId ?? null);
+    setLocalUndoAccept(acceptUndo);
+    setLocalUndoSiblingIds(handoff?.siblingIds ?? []);
   }
 
   const loadClaims = useCallback(async () => {
@@ -8611,13 +8758,31 @@ function PersonDrawer({
                     className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                     onClick={() => {
                       const id = localUndoClaimId;
+                      const asAccept = localUndoAccept;
+                      const siblings = localUndoSiblingIds;
                       setLocalUndoClaimId(null);
+                      setLocalUndoAccept(false);
+                      setLocalUndoSiblingIds([]);
                       setLocalFlash("");
                       void (async () => {
                         try {
+                          if (asAccept) {
+                            await v1api.rejectClaim(familyId, id, {
+                              idempotencyKey: crypto.randomUUID(),
+                            });
+                          }
                           await v1api.reopenClaim(familyId, id, {
                             idempotencyKey: crypto.randomUUID(),
                           });
+                          for (const siblingId of siblings) {
+                            try {
+                              await v1api.reopenClaim(familyId, siblingId, {
+                                idempotencyKey: crypto.randomUUID(),
+                              });
+                            } catch {
+                              /* sibling may already be proposed */
+                            }
+                          }
                           const qs = new URLSearchParams({
                             tab: "records",
                             person: person.id,
