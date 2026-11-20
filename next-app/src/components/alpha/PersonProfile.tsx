@@ -330,9 +330,12 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(
-      `${workspaceHref}?tab=records&person=${encodeURIComponent(personId)}`
-    );
+    const qs = new URLSearchParams({
+      tab: "records",
+      person: personId,
+    });
+    if (claimType) qs.set("claimType", claimType);
+    router.push(`${workspaceHref}?${qs.toString()}`);
   }
 
   function openEvidence(claimId: string, evidenceType?: string) {
@@ -510,6 +513,15 @@ export function PersonProfile({
               : `找不到这份资料。若刚被移除，请联系${REVIEWER_CONTACT}在概览「参与家人」中找到可恢复的人。`)}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {error ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+              onClick={() => void load()}
+            >
+              重试
+            </button>
+          ) : null}
           {canReview && !error ? (
             <button
               type="button"
@@ -665,12 +677,18 @@ export function PersonProfile({
       ) : null}
 
       {error ? (
-        <p
-          className="alpha-print-hide mt-4 text-sm text-[color:var(--a-danger)]"
-          role="alert"
-        >
-          {error}
-        </p>
+        <div className="alpha-print-hide mt-4 flex flex-wrap items-center gap-3 text-sm text-[color:var(--a-danger)]">
+          <p role="alert" className="min-w-0">
+            {error}
+          </p>
+          <button
+            type="button"
+            className="shrink-0 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => void load()}
+          >
+            重试
+          </button>
+        </div>
       ) : null}
 
       <header className="mt-4 mb-8">
