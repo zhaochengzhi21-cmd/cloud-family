@@ -3810,6 +3810,10 @@ function ClaimCard({
               不采用
             </button>
           </div>
+        ) : !canReview && claim.status === "PROPOSED" ? (
+          <p className="text-xs text-[color:var(--a-muted)]">
+            需管理员确认后才会成为正式记载
+          </p>
         ) : null}
         {canReview && claim.status === "CONFLICTED" ? (
           <div className="flex gap-2">

@@ -4289,6 +4289,62 @@ test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseU
   ).toHaveCount(0);
 });
 
+test("明经胡氏：编辑者概览待确认显示需管理员", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·编辑者待确认文案（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "OCCUPATION",
+      value: { text: "万载知县（编辑者待确认文案）" },
+      originType: "MANUAL",
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const claimId = (created.body as { claim: { id: string } }).claim.id;
+
+  const editorId = await insertFakeUser();
+  await insertMembership(familyId, editorId, "EDITOR");
+  await loginAs(page, editorId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const pending = page.getByRole("region", { name: /待确认资料/ });
+  await expect(pending).toBeVisible({ timeout: 60_000 });
+  await expect(pending.getByText("待管理员确认")).toBeVisible();
+  await pending
+    .getByRole("button", { name: /待管理员确认/ })
+    .click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page.locator(`[data-claim-id="${claimId}"]`)).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page
+      .locator(`[data-claim-id="${claimId}"]`)
+      .getByText("需管理员确认后才会成为正式记载")
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(`[data-claim-id="${claimId}"]`)
+      .getByRole("button", { name: "确认这条资料" })
+  ).toHaveCount(0);
+});
+
 test("明经胡氏：邀请链接丢失会话可重新生成", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

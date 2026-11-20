@@ -1300,7 +1300,9 @@ export function OverviewTab({
                           ? c.status === "CONFLICTED"
                             ? "去选用说法"
                             : "去确认"
-                          : "查看"}
+                          : c.status === "CONFLICTED"
+                            ? "需管理员选用"
+                            : "待管理员确认"}
                       </span>
                     </span>
                   </button>
