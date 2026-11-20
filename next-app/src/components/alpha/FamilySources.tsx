@@ -1114,10 +1114,30 @@ function LibraryAttachForm({
   const [claims, setClaims] = useState<
     Awaited<ReturnType<typeof v1api.listPersonClaims>>["claims"]
   >([]);
+  const [linkedClaimIds, setLinkedClaimIds] = useState<Set<string>>(
+    () => new Set()
+  );
   const [claimId, setClaimId] = useState("");
   const [busy, setBusy] = useState(false);
   const [loadingClaims, setLoadingClaims] = useState(false);
   const [localError, setLocalError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    v1api
+      .listEvidenceLinks(familyId, evidenceId)
+      .then((r) => {
+        if (cancelled) return;
+        setLinkedClaimIds(new Set(r.links.map((l) => l.claimId)));
+      })
+      .catch((e) => {
+        if (cancelled || onAuthError(e)) return;
+        /* keep empty set — still allow attach */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [familyId, evidenceId, onAuthError]);
 
   useEffect(() => {
     if (!personId) {
@@ -1132,7 +1152,9 @@ function LibraryAttachForm({
       .listPersonClaims(familyId, personId)
       .then((r) => {
         if (cancelled) return;
-        const open = r.claims.filter((c) => c.status !== "REJECTED");
+        const open = r.claims.filter(
+          (c) => c.status !== "REJECTED" && !linkedClaimIds.has(c.id)
+        );
         setClaims(open);
         setClaimId(open[0]?.id ?? "");
       })
@@ -1148,7 +1170,7 @@ function LibraryAttachForm({
     return () => {
       cancelled = true;
     };
-  }, [familyId, personId, onAuthError]);
+  }, [familyId, personId, onAuthError, linkedClaimIds]);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -1212,7 +1234,9 @@ function LibraryAttachForm({
         ) : claims.length === 0 ? (
           <div className="space-y-2">
             <p className="text-sm text-[color:var(--a-muted)]">
-              这位家人还没有可挂接的资料。
+              {linkedClaimIds.size > 0
+                ? "这位家人的资料都已挂过这条来源，可换一位家人或先去添加新资料。"
+                : "这位家人还没有可挂接的资料。"}
             </p>
             {onOpenRecords && personId ? (
               <button
