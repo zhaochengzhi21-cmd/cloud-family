@@ -857,22 +857,24 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     let target = "";
-    let fromPendingScroll = false;
+    let missKind: "pending" | "sources" | null = null;
     try {
       const fromUrl = new URLSearchParams(window.location.search).get("scroll");
       if (fromUrl === "participants") {
         target = "overview-participants";
       } else if (fromUrl === "pending") {
         target = "overview-pending";
-        fromPendingScroll = true;
+        missKind = "pending";
       } else if (fromUrl === "sources") {
         target = "overview-sources-section";
+        missKind = "sources";
       } else {
         target =
           sessionStorage.getItem(`alpha-overview-scroll:${familyId}`) ?? "";
         if (!target) return;
         sessionStorage.removeItem(`alpha-overview-scroll:${familyId}`);
-        fromPendingScroll = target === "overview-pending";
+        if (target === "overview-pending") missKind = "pending";
+        if (target === "overview-sources-section") missKind = "sources";
       }
     } catch {
       return;
@@ -890,12 +892,19 @@ export function FamilyWorkspace({
         window.setTimeout(tick, 100);
         return;
       }
-      if (fromPendingScroll) {
+      if (missKind === "pending") {
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=pending`
         );
         setFlash(
           "当前没有待确认资料。可复制链接发给家人，或到资料页继续整理。"
+        );
+      } else if (missKind === "sources") {
+        setFlashCopyUrl(
+          `${window.location.origin}/alpha/families/${familyId}?scroll=sources`
+        );
+        setFlash(
+          "资料来源段暂时打不开，可能还在加载。可复制本段链接稍后重试，或到概览查看。"
         );
       }
     };
