@@ -1675,15 +1675,44 @@ export function PersonProfile({
             故事与口述
           </h2>
           <p className="mt-1 text-sm text-[color:var(--a-muted)]">
-            记下口碑、功绩或迁居缘起，一两段也可以。
+            记下口碑、功绩或迁居缘起，一两段也可以。也可复制链接发给家人一起补。
           </p>
-          <button
-            type="button"
-            className="alpha-btn alpha-btn-secondary mt-3 !min-h-[36px] !px-3 !text-xs"
-            onClick={() => openRecords("STORY")}
-          >
-            补充故事
-          </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+              onClick={() => openRecords("STORY")}
+            >
+              补充故事
+            </button>
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+              onClick={() => {
+                const qs = new URLSearchParams({
+                  tab: "records",
+                  person: personId,
+                  claimType: "STORY",
+                });
+                const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopyPageFlash("已复制补充故事链接");
+                    window.setTimeout(() => setCopyPageFlash(""), 2500);
+                  },
+                  () => {
+                    setCopyPageFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setCopyPageFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {copyPageFlash.includes("补充故事") ||
+              copyPageFlash.startsWith("请手动")
+                ? copyPageFlash
+                : "复制补充故事链接"}
+            </button>
+          </div>
         </section>
       ) : null}
 

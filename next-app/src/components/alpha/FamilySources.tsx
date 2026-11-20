@@ -390,7 +390,7 @@ export function FamilySources({
           <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-[color:var(--a-brand-soft)]/40 px-3 py-3">
             <p className="text-sm text-[color:var(--a-muted)]">
               {canEdit
-                ? "还没有成员，来源仍可收录与查看；挂到人物资料需先添加家人。"
+                ? "还没有成员，来源仍可收录与查看；挂到人物资料需先添加家人。也可复制添加链接发给家人一起补。"
                 : "还没有成员。有编辑权限的家人添加成员后，才可把来源挂到人物资料。可复制添加链接发给对方。"}
             </p>
             {canEdit && onAddPerson ? (
@@ -402,34 +402,32 @@ export function FamilySources({
                 去添加成员
               </button>
             ) : null}
-            {!canEdit ? (
-              <button
-                type="button"
-                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                onClick={() => {
-                  const qs = new URLSearchParams({
-                    tab: "members",
-                    add: "person",
-                  });
-                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
-                  void navigator.clipboard.writeText(url).then(
-                    () => setCopyFlash({ id: "add-person", ok: true }),
-                    () => setCopyFlash({ id: "add-person", ok: false })
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const qs = new URLSearchParams({
+                  tab: "members",
+                  add: "person",
+                });
+                const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                void navigator.clipboard.writeText(url).then(
+                  () => setCopyFlash({ id: "add-person", ok: true }),
+                  () => setCopyFlash({ id: "add-person", ok: false })
+                );
+                window.setTimeout(() => {
+                  setCopyFlash((cur) =>
+                    cur?.id === "add-person" ? null : cur
                   );
-                  window.setTimeout(() => {
-                    setCopyFlash((cur) =>
-                      cur?.id === "add-person" ? null : cur
-                    );
-                  }, 2500);
-                }}
-              >
-                {copyFlash?.id === "add-person"
-                  ? copyFlash.ok
-                    ? "已复制链接"
-                    : "请手动复制"
-                  : "复制添加成员链接"}
-              </button>
-            ) : null}
+                }, 2500);
+              }}
+            >
+              {copyFlash?.id === "add-person"
+                ? copyFlash.ok
+                  ? "已复制链接"
+                  : "请手动复制"
+                : "复制添加成员链接"}
+            </button>
             {!canEdit && onOpenParticipants ? (
               <button
                 type="button"
@@ -655,9 +653,31 @@ export function FamilySources({
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <p className="text-sm text-[color:var(--a-muted)]">
               {canEdit
-                ? "还没有资料来源。点「收录来源」先放入谱页、照片或口述出处；之后挂到人物资料时不必重复上传。"
+                ? "还没有资料来源。点「收录来源」先放入谱页、照片或口述出处；之后挂到人物资料时不必重复上传。也可复制本段链接发给家人一起补。"
                 : "还没有资料来源。有编辑权限的家人收录后，会汇总到这里。可复制上方本段链接发给对方。"}
             </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?scroll=sources`;
+                void navigator.clipboard.writeText(url).then(
+                  () => setCopyFlash({ id: "empty-sources", ok: true }),
+                  () => setCopyFlash({ id: "empty-sources", ok: false })
+                );
+                window.setTimeout(() => {
+                  setCopyFlash((cur) =>
+                    cur?.id === "empty-sources" ? null : cur
+                  );
+                }, 2500);
+              }}
+            >
+              {copyFlash?.id === "empty-sources"
+                ? copyFlash.ok
+                  ? "已复制链接"
+                  : "请手动复制"
+                : "复制本段链接发给家人"}
+            </button>
             {!canEdit && onOpenParticipants ? (
               <button
                 type="button"
