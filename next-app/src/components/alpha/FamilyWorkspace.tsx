@@ -1346,7 +1346,10 @@ export function FamilyWorkspace({
                 void (async () => {
                   try {
                     await load();
-                    setFlash("已刷新");
+                    setFlashCopyUrl(window.location.href);
+                    setFlash(
+                      "已刷新。可复制当前页面链接发给家人一起看。"
+                    );
                   } finally {
                     setRefreshing(false);
                   }
