@@ -1189,7 +1189,7 @@ export function FamilyWorkspace({
         </div>
         {!canEdit ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-            当前为只读。如需添加成员或资料，请联系{REVIEWER_CONTACT}。
+            当前为只读。如需添加成员或资料，请联系有编辑权限的家人。
             <button
               type="button"
               className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
