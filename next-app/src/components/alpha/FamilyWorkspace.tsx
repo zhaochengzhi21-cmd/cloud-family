@@ -393,6 +393,33 @@ export function FamilyWorkspace({
 
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      const claim = params.get("claim");
+      const person = params.get("person");
+      const evidenceType = params.get("evidenceType") || undefined;
+      const openEvidence =
+        params.get("openEvidence") === "1" || Boolean(evidenceType);
+      if (
+        claim &&
+        person &&
+        params.get("tab") === "records" &&
+        openEvidence
+      ) {
+        setEvidenceSeed({
+          personId: person,
+          claimId: claim,
+          evidenceType,
+          nonce: Date.now(),
+        });
+        setShareClaim({ personId: person, claimId: claim });
+        setRecordsFocus({
+          personId: person,
+          claimId: claim,
+          nonce: Date.now(),
+        });
+        setTab("records");
+        return;
+      }
       const raw = sessionStorage.getItem(
         `alpha-records-evidence-seed:${familyId}`
       );

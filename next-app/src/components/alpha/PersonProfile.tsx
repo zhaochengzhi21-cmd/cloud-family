@@ -367,7 +367,9 @@ export function PersonProfile({
       tab: "records",
       person: personId,
       claim: claimId,
+      openEvidence: "1",
     });
+    if (evidenceType) qs.set("evidenceType", evidenceType);
     router.push(`${workspaceHref}?${qs.toString()}`);
   }
 
