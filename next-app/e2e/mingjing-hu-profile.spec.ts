@@ -578,6 +578,14 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
     )
   ).toBe(true);
 
+  const acceptId = claimIds[0]!;
+  const accepted = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${acceptId}/accept`,
+    { method: "POST", body: {} }
+  );
+  expect(accepted.status, JSON.stringify(accepted.body)).toBe(200);
+
   const agent = await apiJson(page, `/api/v1/families/${familyId}/agent`);
   expect(agent.status, JSON.stringify(agent.body)).toBe(200);
   const channel = (
@@ -585,6 +593,10 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
       agent: {
         capabilities: { id: string }[];
         claimTypes: { type: string }[];
+        recentDecisions: Array<{
+          decision: string;
+          claimId: string;
+        }>;
       };
     }
   ).agent;
@@ -592,6 +604,11 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
     channel.capabilities.some((c) => c.id === "propose_claims_batch")
   ).toBe(true);
   expect(channel.claimTypes.some((t) => t.type === "STORY")).toBe(true);
+  expect(
+    channel.recentDecisions.some(
+      (d) => d.decision === "ACCEPTED" && d.claimId === acceptId
+    )
+  ).toBe(true);
 });
 
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({

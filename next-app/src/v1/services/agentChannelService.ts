@@ -18,15 +18,23 @@ import {
   getClaimTypeDefinition,
   listRegisteredClaimTypes,
 } from "@/v1/domain/claim/registry";
+import * as activityRepo from "@/v1/repositories/activityRepository";
 
 const PRINCIPLES = [
   "Agents may propose person facts with originType AI_EXTRACTION or IMPORT; creates are always 待确认 (PROPOSED).",
   "Prefer POST …/claims/batch for multi-fact extraction; use Idempotency-Key on retries so duplicate posts replay safely.",
   "Send X-Client-Agent (e.g. cursor, chatgpt) so drafts are attributable in audit — session user remains the actor.",
   "Only OWNER/ADMIN may confirm or reject; editors may propose but cannot accept.",
+  "After proposing, poll this channel for recentDecisions — never invent acceptances.",
   "Do not invent 资料来源. Prefer attaching real evidence, or leave unsourced for a human.",
   "Speak product language only: 人物资料 / 资料来源 / 不同说法 — never expose model or Claim jargon to end users.",
   "Use claimTypes below for allowed types and value shapes; prefer the tasks list over inventing work.",
+] as const;
+
+const DECISION_EVENT_TYPES = [
+  "CLAIM_ACCEPTED",
+  "CLAIM_REJECTED",
+  "CLAIM_REOPENED",
 ] as const;
 
 export type AgentCapability = {
@@ -67,10 +75,22 @@ export type AgentClaimType = {
   valueShape: string;
 };
 
+export type AgentDecision = {
+  id: string;
+  at: string;
+  decision: "ACCEPTED" | "REJECTED" | "REOPENED";
+  claimId: string;
+  claimType?: string;
+  personId?: string;
+  personName?: string;
+};
+
 export type AgentChannel = {
   principles: readonly string[];
   /** Machine catalog — what agents may put in claimType / value. */
   claimTypes: AgentClaimType[];
+  /** Human review outcomes since last poll — agents should wait on these. */
+  recentDecisions: AgentDecision[];
   capabilities: AgentCapability[];
   tasks: AgentTask[];
   taskTotal: number;
@@ -101,6 +121,16 @@ function capabilitiesForRole(
 ): AgentCapability[] {
   const base = `/api/v1/families/${familyId}`;
   const all: AgentCapability[] = [
+    {
+      id: "read_agent_channel",
+      summary: "Poll principles, claimTypes, tasks, and recentDecisions",
+      method: "GET",
+      path: `${base}/agent`,
+      roles: ["OWNER", "ADMIN", "EDITOR", "VIEWER"],
+      policy: [
+        "recentDecisions lists human ACCEPTED/REJECTED/REOPENED — do not invent",
+      ],
+    },
     {
       id: "read_overview",
       summary: "Read archive progress, pending review, and unsourced accepted facts",
@@ -351,9 +381,51 @@ export async function getFamilyAgentChannel(
 
   tasks.sort((a, b) => a.priority - b.priority || a.id.localeCompare(b.id));
 
+  const visiblePersons = new Set(graph.persons.map((p) => p.id));
+  const decisionLimit = Math.min(20, limit);
+  const decisionRows = await activityRepo.listRecentFamilyEvents(
+    database,
+    familyId,
+    [...DECISION_EVENT_TYPES],
+    decisionLimit * 3
+  );
+  const decisionClaimIds = decisionRows
+    .map((r) => r.entityId)
+    .filter((id): id is string => typeof id === "string");
+  const claimSubjects = await activityRepo.findClaimSubjects(
+    database,
+    familyId,
+    decisionClaimIds
+  );
+  const subjectById = new Map(claimSubjects.map((c) => [c.id, c]));
+  const recentDecisions: AgentDecision[] = [];
+  for (const r of decisionRows) {
+    if (!r.entityId) continue;
+    const c = subjectById.get(r.entityId);
+    if (!c || c.subjectType !== "PERSON") continue;
+    if (!visiblePersons.has(c.subjectId)) continue;
+    const decision =
+      r.eventType === "CLAIM_ACCEPTED"
+        ? ("ACCEPTED" as const)
+        : r.eventType === "CLAIM_REJECTED"
+          ? ("REJECTED" as const)
+          : ("REOPENED" as const);
+    recentDecisions.push({
+      id: r.id,
+      at: r.createdAt.toISOString(),
+      decision,
+      claimId: c.id,
+      claimType: c.claimType,
+      personId: c.subjectId,
+      personName: names.get(c.subjectId),
+    });
+    if (recentDecisions.length >= decisionLimit) break;
+  }
+
   return {
     principles: PRINCIPLES,
     claimTypes: claimTypesCatalog(),
+    recentDecisions,
     capabilities: caps,
     taskTotal: tasks.length,
     tasks: tasks.slice(0, limit),

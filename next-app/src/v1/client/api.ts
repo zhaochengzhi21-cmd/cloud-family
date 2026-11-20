@@ -587,6 +587,15 @@ export const v1api = {
           kind: string;
           valueShape: string;
         }>;
+        recentDecisions: Array<{
+          id: string;
+          at: string;
+          decision: string;
+          claimId: string;
+          claimType?: string;
+          personId?: string;
+          personName?: string;
+        }>;
         capabilities: Array<{
           id: string;
           summary: string;
