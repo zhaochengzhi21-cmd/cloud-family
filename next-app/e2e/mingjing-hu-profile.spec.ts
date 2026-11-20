@@ -678,6 +678,9 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
   expect(channel.capabilities.some((c) => c.id === "propose_package")).toBe(
     true
   );
+  expect(
+    (agent.body as { agent: { playbook: string[] } }).agent.playbook.length
+  ).toBeGreaterThan(0);
 
   const ev = await apiJson(page, `/api/v1/families/${familyId}/evidence`, {
     method: "POST",

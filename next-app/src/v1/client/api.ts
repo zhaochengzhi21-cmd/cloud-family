@@ -729,6 +729,7 @@ export const v1api = {
     return v1Fetch<{
       agent: {
         principles: string[];
+        playbook: string[];
         claimTypes: Array<{
           type: string;
           cardinality: string;

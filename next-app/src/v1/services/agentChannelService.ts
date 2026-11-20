@@ -88,6 +88,8 @@ export type AgentDecision = {
 
 export type AgentChannel = {
   principles: readonly string[];
+  /** Suggested end-to-end loop for page/OCR extracts. */
+  playbook: readonly string[];
   /** Machine catalog — what agents may put in claimType / value. */
   claimTypes: AgentClaimType[];
   /** Human review outcomes since last poll — agents should wait on these. */
@@ -96,6 +98,13 @@ export type AgentChannel = {
   tasks: AgentTask[];
   taskTotal: number;
 };
+
+const PLAYBOOK = [
+  "GET …/agent — read principles, claimTypes, tasks, recentDecisions",
+  "POST …/agent/propose — people + edges + facts (+ optional evidence); Idempotency-Key + X-Client-Agent",
+  "Stop — wait for human confirm (overview 智能整理 or POST …/claims/review-batch only with user intent)",
+  "GET …/agent?since= — pick up ACCEPTED/REJECTED; continue next tasks",
+] as const;
 
 function claimTypesCatalog(): AgentClaimType[] {
   return listRegisteredClaimTypes().map((type) => {
@@ -526,6 +535,7 @@ export async function getFamilyAgentChannel(
 
   return {
     principles: PRINCIPLES,
+    playbook: PLAYBOOK,
     claimTypes: claimTypesCatalog(),
     recentDecisions,
     capabilities: caps,
