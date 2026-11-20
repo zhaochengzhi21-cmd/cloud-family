@@ -938,7 +938,72 @@ export function OverviewTab({
     browsePeople: !canEdit,
   });
   const viewerReadHint =
-    "可先打开人物资料了解；有编辑权限的家人补充后，这里会更新。也可在下方「参与家人」找到可编辑的账号。";
+    "可先打开人物资料了解；有编辑权限的家人补充后，这里会更新。也可在下方「参与家人」找到可编辑的账号。可复制链接发给对方。";
+
+  const viewerHandoff = (opts: {
+    personId?: string;
+    claimType?: string;
+    basics?: "living" | "gender" | "name";
+    kin?: "child" | "parent" | "spouse";
+    openEvidenceClaimId?: string;
+    scrollPending?: boolean;
+  }): Step["secondaryAction"] => {
+    if (canEdit && !opts.scrollPending) return undefined;
+    if (opts.scrollPending) {
+      return {
+        label: nextStepCopyFlash || "复制待确认链接",
+        onClick: () => {
+          const qs = new URLSearchParams({
+            tab: "overview",
+            scroll: "pending",
+          });
+          const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+          void navigator.clipboard.writeText(url).then(
+            () => {
+              setNextStepCopyFlash("已复制待确认链接");
+              window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+            },
+            () => {
+              setNextStepCopyFlash("请手动复制地址栏链接");
+              window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+            }
+          );
+        },
+      };
+    }
+    if (!opts.personId) return undefined;
+    return {
+      label: nextStepCopyFlash || "复制补充链接",
+      onClick: () => {
+        const qs = new URLSearchParams({ person: opts.personId! });
+        if (opts.basics) {
+          qs.set("tab", "members");
+          qs.set("basics", opts.basics);
+        } else if (opts.kin) {
+          qs.set("tab", "lineage");
+          qs.set("kin", opts.kin);
+        } else if (opts.openEvidenceClaimId) {
+          qs.set("tab", "records");
+          qs.set("claim", opts.openEvidenceClaimId);
+          qs.set("openEvidence", "1");
+        } else {
+          qs.set("tab", "records");
+          if (opts.claimType) qs.set("claimType", opts.claimType);
+        }
+        const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+        void navigator.clipboard.writeText(url).then(
+          () => {
+            setNextStepCopyFlash("已复制补充链接");
+            window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+          },
+          () => {
+            setNextStepCopyFlash("请手动复制地址栏链接");
+            window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+          }
+        );
+      },
+    };
+  };
 
   if (missingSpouse.length > 0) {
     steps.push({
@@ -950,6 +1015,10 @@ export function OverviewTab({
         ? "已有子女的人补上配偶，世系和打印版家谱会更完整。也可以先跳过。"
         : viewerReadHint,
       ...peopleChips(missingSpouse, "补充配偶"),
+      secondaryAction: viewerHandoff({
+        personId: missingSpouse[0]?.id,
+        kin: "spouse",
+      }),
     });
   }
   if (missingChildren.length > 0) {
@@ -962,6 +1031,10 @@ export function OverviewTab({
         ? "已有配偶的人补上子女，世系和打印版家谱会更完整。也可以先跳过。"
         : viewerReadHint,
       ...peopleChips(missingChildren, "补充子女"),
+      secondaryAction: viewerHandoff({
+        personId: missingChildren[0]?.id,
+        kin: "child",
+      }),
     });
   }
   if (missingParents.length > 0) {
@@ -974,6 +1047,10 @@ export function OverviewTab({
         ? "已有配偶或子女的人补上父母，世系向上更完整。也可以先跳过。"
         : viewerReadHint,
       ...peopleChips(missingParents, "补充父母"),
+      secondaryAction: viewerHandoff({
+        personId: missingParents[0]?.id,
+        kin: "parent",
+      }),
     });
   }
   if (overview && total > 0 && missingBirth.length > 0) {
@@ -986,6 +1063,10 @@ export function OverviewTab({
         ? "出生年代是排辈、核对来源最常用的线索，大概的年份也可以。"
         : viewerReadHint,
       ...peopleChips(missingBirth, "补充出生信息"),
+      secondaryAction: viewerHandoff({
+        personId: missingBirth[0]?.id,
+        claimType: "BIRTH_DATE",
+      }),
     });
   }
   if (overview && missingBirthPlace.length > 0) {
@@ -998,6 +1079,10 @@ export function OverviewTab({
         ? "有了出生年代后，补上出生地，后人核对族谱页会更容易。"
         : viewerReadHint,
       ...peopleChips(missingBirthPlace, "补充出生地"),
+      secondaryAction: viewerHandoff({
+        personId: missingBirthPlace[0]?.id,
+        claimType: "BIRTH_PLACE",
+      }),
     });
   }
   if (overview && missingDeath.length > 0) {
@@ -1010,6 +1095,10 @@ export function OverviewTab({
         ? "标为已故后，补上大概的卒年，后人查阅和排谱会清楚很多。"
         : viewerReadHint,
       ...peopleChips(missingDeath, "补充去世信息"),
+      secondaryAction: viewerHandoff({
+        personId: missingDeath[0]?.id,
+        claimType: "DEATH_DATE",
+      }),
     });
   } else if (overview && missingBurial.length > 0) {
     steps.push({
@@ -1021,6 +1110,10 @@ export function OverviewTab({
         ? "安葬地是扫墓与核对族谱页的重要线索，记得不清楚也可以先写大概位置。"
         : viewerReadHint,
       ...peopleChips(missingBurial, "补充安葬地"),
+      secondaryAction: viewerHandoff({
+        personId: missingBurial[0]?.id,
+        claimType: "BURIAL_PLACE",
+      }),
     });
   }
   if (overview && total > 0 && missingAncestral.length > 0) {
@@ -1033,6 +1126,10 @@ export function OverviewTab({
         ? "祖籍是认亲、核对旧谱最常用的线索，写到县或村一级就可以。"
         : viewerReadHint,
       ...peopleChips(missingAncestral, "补充祖籍"),
+      secondaryAction: viewerHandoff({
+        personId: missingAncestral[0]?.id,
+        claimType: "ANCESTRAL_PLACE",
+      }),
     });
   }
   if (overview && missingOccupation.length > 0) {
@@ -1045,6 +1142,10 @@ export function OverviewTab({
         ? "职事与身份便于认亲和核对旧谱，知县、商贾、务农等写清楚即可。"
         : viewerReadHint,
       ...peopleChips(missingOccupation, "补充职业"),
+      secondaryAction: viewerHandoff({
+        personId: missingOccupation[0]?.id,
+        claimType: "OCCUPATION",
+      }),
     });
   }
   if (overview && missingAlias.length > 0) {
@@ -1057,6 +1158,10 @@ export function OverviewTab({
         ? "字、号、乳名等便于认亲和对照旧谱称呼，写一条常用的即可。"
         : viewerReadHint,
       ...peopleChips(missingAlias, "补充字号"),
+      secondaryAction: viewerHandoff({
+        personId: missingAlias[0]?.id,
+        claimType: "ALIAS",
+      }),
     });
   }
   if (overview && missingStory.length > 0) {
@@ -1069,6 +1174,10 @@ export function OverviewTab({
         ? "记下口碑、功绩或迁居缘起，一两段也可以；可注明讲述人。"
         : viewerReadHint,
       ...peopleChips(missingStory, "补充故事"),
+      secondaryAction: viewerHandoff({
+        personId: missingStory[0]?.id,
+        claimType: "STORY",
+      }),
     });
   }
   if (overview && missingGenerationWord.length > 0) {
@@ -1081,6 +1190,10 @@ export function OverviewTab({
         ? "有了世代后，补上字辈，世系标题与打印版家谱会按辈分更清楚。同辈常用同一个字。"
         : viewerReadHint,
       ...peopleChips(missingGenerationWord, "补充字辈"),
+      secondaryAction: viewerHandoff({
+        personId: missingGenerationWord[0]?.id,
+        claimType: "GENERATION_WORD",
+      }),
     });
   }
   if (overview && missingBirthOrder.length > 0) {
@@ -1093,6 +1206,10 @@ export function OverviewTab({
         ? "同一父母下有多位子女时，补上长/次/三…，人物资料与打印版的子女顺序会更清楚。"
         : viewerReadHint,
       ...peopleChips(missingBirthOrder, "补充排行"),
+      secondaryAction: viewerHandoff({
+        personId: missingBirthOrder[0]?.id,
+        claimType: "BIRTH_ORDER",
+      }),
     });
   }
   // Living status unlocks death/burial capture — nudge once the tree is connected.
@@ -1106,6 +1223,10 @@ export function OverviewTab({
         ? "还标成「不确定」的，在人物卡片里改成在世或已故；标为已故后才能提示补去世与安葬信息。"
         : viewerReadHint,
       ...peopleChips(missingLiving, "确认在世状态"),
+      secondaryAction: viewerHandoff({
+        personId: missingLiving[0]?.id,
+        basics: "living",
+      }),
     });
   }
   // Gender is person basics (drawer), not a claim — only nudge after births are in.
@@ -1124,6 +1245,10 @@ export function OverviewTab({
         ? "性别还标成「不确定」的，在人物卡片里改一下，排谱和称呼会更顺。"
         : viewerReadHint,
       ...peopleChips(missingGender, "确认性别"),
+      secondaryAction: viewerHandoff({
+        personId: missingGender[0]?.id,
+        basics: "gender",
+      }),
     });
   }
   if (overview && unsourcedAcceptedTotal > 0) {
@@ -1131,6 +1256,7 @@ export function OverviewTab({
       unsourcedAcceptedTotal > unsourcedAccepted.length
         ? `优先列出部分家人；其余约 ${unsourcedAcceptedTotal - unsourcedAccepted.length} 条也可点人名到资料页继续补。`
         : "";
+    const firstUnsourced = unsourcedAccepted[0];
     steps.push({
       key: "source",
       title: canEdit
@@ -1138,10 +1264,14 @@ export function OverviewTab({
         : `${unsourcedAcceptedTotal} 条已确认资料还没有来源`,
       body: canEdit
         ? `有出处的资料才经得起后人核对。点人名打开那条资料并挂上来源；谱页、口述、照片都可以。${overflowNote}`
-        : `可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。也可在下方「参与家人」找到可编辑的账号。${overflowNote}`,
+        : `可先打开人物资料查看；有编辑权限的家人补上来源后，这里会更新。也可在下方「参与家人」找到可编辑的账号。可复制补来源链接发给对方。${overflowNote}`,
       people: sourceStepPeople,
       peopleAria: canEdit ? "补上来源" : "查看",
       browsePeople: !canEdit,
+      secondaryAction: viewerHandoff({
+        personId: firstUnsourced?.personId,
+        openEvidenceClaimId: firstUnsourced?.claimId,
+      }),
     });
   }
   if (pendingTotal > 0) {
@@ -1152,7 +1282,7 @@ export function OverviewTab({
         : `${pendingTotal} 条资料等待确认`,
       body: canReview
         ? "确认或标记不采用后，资料会在人物资料中正式生效。"
-        : `${REVIEWER_CONTACT}确认后，资料会正式生效。可在下方「参与家人」找到可确认的账号。`,
+        : `${REVIEWER_CONTACT}确认后，资料会正式生效。可在下方「参与家人」找到可确认的账号。可复制待确认链接发给对方。`,
       action: {
         label: canReview ? "去确认" : "查看待确认",
         onClick: () => {
@@ -1161,6 +1291,9 @@ export function OverviewTab({
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
         },
       },
+      secondaryAction: canReview
+        ? undefined
+        : viewerHandoff({ scrollPending: true }),
     });
   }
 
