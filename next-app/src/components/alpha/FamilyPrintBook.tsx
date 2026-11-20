@@ -355,34 +355,59 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
           <p className="mt-3 text-[color:var(--a-muted)]">
             {canEdit
               ? "还没有成员可排进家谱。先添加家人后再回来查看。"
-              : "还没有成员可排进家谱。有编辑权限的家人添加后，这里会出现。"}
+              : "还没有成员可排进家谱。有编辑权限的家人添加后，这里会出现。可复制添加链接发给对方。"}
           </p>
-          <Link
-            href={
-              canEdit
-                ? `/alpha/families/${familyId}?tab=members&add=person`
-                : `/alpha/families/${familyId}?scroll=participants`
-            }
-            onClick={() => {
-              try {
-                if (canEdit) {
-                  sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
-                  sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
-                } else {
-                  sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
-                  sessionStorage.setItem(
-                    `alpha-overview-scroll:${familyId}`,
-                    "overview-participants"
-                  );
-                }
-              } catch {
-                /* private mode */
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Link
+              href={
+                canEdit
+                  ? `/alpha/families/${familyId}?tab=members&add=person`
+                  : `/alpha/families/${familyId}?scroll=participants`
               }
-            }}
-            className="alpha-btn alpha-btn-primary mt-6 inline-flex !min-h-[40px] !text-sm"
-          >
-            {canEdit ? "去添加成员" : "查看参与家人"}
-          </Link>
+              onClick={() => {
+                try {
+                  if (canEdit) {
+                    sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
+                    sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
+                  } else {
+                    sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
+                    sessionStorage.setItem(
+                      `alpha-overview-scroll:${familyId}`,
+                      "overview-participants"
+                    );
+                  }
+                } catch {
+                  /* private mode */
+                }
+              }}
+              className="alpha-btn alpha-btn-primary inline-flex !min-h-[40px] !text-sm"
+            >
+              {canEdit ? "去添加成员" : "查看参与家人"}
+            </Link>
+            {!canEdit ? (
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  const url = `${window.location.origin}/alpha/families/${familyId}?tab=members&add=person`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setCopyFlash("已复制添加链接");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {copyFlash.includes("添加") || copyFlash.startsWith("请手动")
+                  ? copyFlash
+                  : "复制添加链接发给家人"}
+              </button>
+            ) : null}
+          </div>
         </div>
       </div>
     );

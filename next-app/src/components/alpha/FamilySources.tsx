@@ -1345,6 +1345,42 @@ function LibraryAddSourceForm({
   );
 }
 
+function AttachEmptyCopyButton({
+  familyId,
+  personId,
+}: {
+  familyId: string;
+  personId: string;
+}) {
+  const [flash, setFlash] = useState("");
+  return (
+    <button
+      type="button"
+      className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+      onClick={() => {
+        const qs = new URLSearchParams({
+          tab: "records",
+          person: personId,
+          claimType: "BIRTH_DATE",
+        });
+        const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+        void navigator.clipboard.writeText(url).then(
+          () => {
+            setFlash("已复制添加资料链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          },
+          () => {
+            setFlash("请手动复制地址栏链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          }
+        );
+      }}
+    >
+      {flash || "复制添加链接发给家人"}
+    </button>
+  );
+}
+
 function LibraryAttachForm({
   familyId,
   evidenceId,
@@ -1506,18 +1542,26 @@ function LibraryAttachForm({
             <p className="text-sm text-[color:var(--a-muted)]">
               {linkedClaimIds.size > 0
                 ? "这位家人的资料都已挂过这条来源，可换一位家人或先去添加新资料。"
-                : "这位家人还没有可挂接的资料。"}
+                : "这位家人还没有可挂接的资料。可先添加人物资料，或复制链接发给家人一起补。"}
             </p>
-            {onOpenRecords && personId ? (
-              <button
-                type="button"
-                className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
-                onClick={() =>
-                  onOpenRecords(personId, { claimType: "BIRTH_DATE" })
-                }
-              >
-                去添加人物资料
-              </button>
+            {personId ? (
+              <div className="flex flex-wrap gap-2">
+                {onOpenRecords ? (
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+                    onClick={() =>
+                      onOpenRecords(personId, { claimType: "BIRTH_DATE" })
+                    }
+                  >
+                    去添加人物资料
+                  </button>
+                ) : null}
+                <AttachEmptyCopyButton
+                  familyId={familyId}
+                  personId={personId}
+                />
+              </div>
             ) : null}
           </div>
         ) : (
