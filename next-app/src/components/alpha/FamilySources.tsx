@@ -140,6 +140,23 @@ export function FamilySources({
   const [attachingId, setAttachingId] = useState<string | null>(null);
   const [focusMissId, setFocusMissId] = useState<string | null>(null);
   const [focusRestoreBusy, setFocusRestoreBusy] = useState(false);
+  const [copyFlash, setCopyFlash] = useState<{
+    id: string;
+    ok: boolean;
+  } | null>(null);
+
+  async function copyEvidenceLink(evidenceId: string) {
+    const url = `${window.location.origin}/alpha/families/${familyId}?evidence=${encodeURIComponent(evidenceId)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopyFlash({ id: evidenceId, ok: true });
+    } catch {
+      setCopyFlash({ id: evidenceId, ok: false });
+    }
+    window.setTimeout(() => {
+      setCopyFlash((cur) => (cur?.id === evidenceId ? null : cur));
+    }, 2500);
+  }
 
   const load = useCallback(async () => {
     setError("");
@@ -559,6 +576,17 @@ export function FamilySources({
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => void copyEvidenceLink(e.id)}
+                    >
+                      {copyFlash?.id === e.id
+                        ? copyFlash.ok
+                          ? "已复制链接"
+                          : "请手动复制地址栏"
+                        : "复制本条链接"}
+                    </button>
                     {canEdit && persons.length > 0 ? (
                       <button
                         type="button"
