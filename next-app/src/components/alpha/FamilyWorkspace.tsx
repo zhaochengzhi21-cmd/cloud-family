@@ -1489,7 +1489,7 @@ export function FamilyWorkspace({
                   const url = flashCopyUrl;
                   void navigator.clipboard.writeText(url).then(
                     () => {
-                      setFlash("已复制链接，可发给创建者或管理员确认");
+                      setFlash("已复制链接，可发给家人");
                       setFlashCopyUrl(null);
                     },
                     () => setFlash("请手动复制地址栏链接")
