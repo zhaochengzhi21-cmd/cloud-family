@@ -311,7 +311,11 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
               : "还没有成员可排进家谱。有编辑权限的家人添加后，这里会出现。"}
           </p>
           <Link
-            href={`/alpha/families/${familyId}`}
+            href={
+              canEdit
+                ? `/alpha/families/${familyId}?tab=members`
+                : `/alpha/families/${familyId}`
+            }
             onClick={() => {
               if (!canEdit) return;
               try {
@@ -369,7 +373,11 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
               : "尚未连成世代。有编辑权限的家人补上父母或配偶后，这里会按世代排版。"}
           </p>
           <Link
-            href={`/alpha/families/${familyId}`}
+            href={
+              canEdit && book.persons.length < 2
+                ? `/alpha/families/${familyId}?tab=members`
+                : `/alpha/families/${familyId}?tab=lineage`
+            }
             onClick={() => {
               try {
                 if (canEdit && book.persons.length < 2) {
@@ -461,7 +469,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                     [{n}] {label}
                   </span>
                   <Link
-                    href={`/alpha/families/${familyId}`}
+                    href={`/alpha/families/${familyId}?tab=overview`}
                     className="alpha-print-hide font-semibold text-[color:var(--a-ink)] underline-offset-2 hover:underline"
                     onClick={() => focusEvidenceInWorkspace(familyId, source!.id)}
                   >
@@ -524,7 +532,7 @@ function PrintCiteMark({
         [{n}]
       </sup>
       <Link
-        href={`/alpha/families/${familyId}`}
+        href={`/alpha/families/${familyId}?tab=overview`}
         aria-label={`查看来源 ${n}`}
         className="alpha-print-hide ml-0.5 align-super text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
         onClick={() => focusEvidenceInWorkspace(familyId, evidenceId)}
