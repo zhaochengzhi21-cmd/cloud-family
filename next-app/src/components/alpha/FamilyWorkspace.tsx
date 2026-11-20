@@ -3443,8 +3443,9 @@ function AddClaimForm({
           ) : null}
         </div>
         <p className="text-xs text-[color:var(--a-muted)]">
-          保存后为「待确认」
-          {canReview ? "，可继续添加资料来源后再确认。" : "。"}
+          {canReview
+            ? "保存后为「待确认」，可继续添加资料来源后再确认。"
+            : "保存后为「待确认」。你可以先补上资料来源；确认或不采用需由创建者/管理员操作。"}
         </p>
         <button
           type="submit"
