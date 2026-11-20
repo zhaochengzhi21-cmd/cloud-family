@@ -2203,8 +2203,14 @@ export function FamilyWorkspace({
                   `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
                 );
                 setFlash(
-                  "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                  "已重新打开这条资料，可再次确认或不采用。误操作可点恢复。可复制链接发给家人核对。"
                 );
+                setPendingUndo({
+                  kind: "claim-reopen",
+                  id: claimId,
+                  label: "这条资料",
+                  personId,
+                });
                 await load();
                 openRecordsFor(personId, {
                   focusClaimId: claimId,
@@ -8506,6 +8512,7 @@ function PersonDrawer({
     null
   );
   const [localUndoAccept, setLocalUndoAccept] = useState(false);
+  const [localUndoReopen, setLocalUndoReopen] = useState(false);
   const [localUndoSiblingIds, setLocalUndoSiblingIds] = useState<string[]>(
     []
   );
@@ -8568,6 +8575,7 @@ function PersonDrawer({
     setLocalFlash("");
     setLocalUndoClaimId(null);
     setLocalUndoAccept(false);
+    setLocalUndoReopen(false);
     setLocalUndoSiblingIds([]);
     setLocalFlashCopyUrl(null);
   }, [person.id]);
@@ -8611,6 +8619,7 @@ function PersonDrawer({
       );
       setLocalUndoClaimId(undoClaimId);
       setLocalUndoAccept(acceptUndo);
+      setLocalUndoReopen(false);
       setLocalUndoSiblingIds(handoff?.siblingIds ?? []);
       return;
     }
@@ -8628,6 +8637,7 @@ function PersonDrawer({
       setLocalFlash(msg);
       setLocalUndoClaimId(undoClaimId ?? null);
       setLocalUndoAccept(acceptUndo);
+      setLocalUndoReopen(false);
       setLocalUndoSiblingIds(handoff?.siblingIds ?? []);
       return;
     }
@@ -8635,6 +8645,7 @@ function PersonDrawer({
     setLocalFlash(msg);
     setLocalUndoClaimId(undoClaimId ?? null);
     setLocalUndoAccept(acceptUndo);
+    setLocalUndoReopen(false);
     setLocalUndoSiblingIds(handoff?.siblingIds ?? []);
   }
 
@@ -8951,42 +8962,61 @@ function PersonDrawer({
                     onClick={() => {
                       const id = localUndoClaimId;
                       const asAccept = localUndoAccept;
+                      const asReopen = localUndoReopen;
                       const siblings = localUndoSiblingIds;
                       setLocalUndoClaimId(null);
                       setLocalUndoAccept(false);
+                      setLocalUndoReopen(false);
                       setLocalUndoSiblingIds([]);
                       setLocalFlash("");
                       void (async () => {
                         try {
-                          if (asAccept) {
+                          if (asReopen) {
                             await v1api.rejectClaim(familyId, id, {
                               idempotencyKey: crypto.randomUUID(),
                             });
-                          }
-                          await v1api.reopenClaim(familyId, id, {
-                            idempotencyKey: crypto.randomUUID(),
-                          });
-                          for (const siblingId of siblings) {
-                            try {
-                              await v1api.reopenClaim(familyId, siblingId, {
+                            const qs = new URLSearchParams({
+                              tab: "records",
+                              person: person.id,
+                              claim: id,
+                            });
+                            setLocalFlashCopyUrl(
+                              `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                            );
+                            setLocalFlash(
+                              "已改回不采用。可复制链接发给家人核对。"
+                            );
+                          } else {
+                            if (asAccept) {
+                              await v1api.rejectClaim(familyId, id, {
                                 idempotencyKey: crypto.randomUUID(),
                               });
-                            } catch {
-                              /* sibling may already be proposed */
                             }
+                            await v1api.reopenClaim(familyId, id, {
+                              idempotencyKey: crypto.randomUUID(),
+                            });
+                            for (const siblingId of siblings) {
+                              try {
+                                await v1api.reopenClaim(familyId, siblingId, {
+                                  idempotencyKey: crypto.randomUUID(),
+                                });
+                              } catch {
+                                /* sibling may already be proposed */
+                              }
+                            }
+                            const qs = new URLSearchParams({
+                              tab: "records",
+                              person: person.id,
+                              claim: id,
+                              claimStatus: "PROPOSED",
+                            });
+                            setLocalFlashCopyUrl(
+                              `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                            );
+                            setLocalFlash(
+                              "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                            );
                           }
-                          const qs = new URLSearchParams({
-                            tab: "records",
-                            person: person.id,
-                            claim: id,
-                            claimStatus: "PROPOSED",
-                          });
-                          setLocalFlashCopyUrl(
-                            `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
-                          );
-                          setLocalFlash(
-                            "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
-                          );
                           await loadClaims();
                           onChanged();
                         } catch (e) {
@@ -9517,8 +9547,12 @@ function PersonDrawer({
                                 `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
                               );
                               setLocalFlash(
-                                "已重新打开这条资料，可再次确认或不采用。可复制链接发给家人核对。"
+                                "已重新打开这条资料，可再次确认或不采用。误操作可点恢复。可复制链接发给家人核对。"
                               );
+                              setLocalUndoClaimId(c.id);
+                              setLocalUndoAccept(false);
+                              setLocalUndoSiblingIds([]);
+                              setLocalUndoReopen(true);
                               setRejectedOpen(false);
                               await loadClaims();
                               requestAnimationFrame(() => {
