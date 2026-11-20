@@ -3103,11 +3103,11 @@ function RecordsTab({
                   >
                     恢复待确认
                   </button>
-                ) : canEdit ? (
+                ) : (
                   <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
                     需创建者或管理员重新打开
                   </span>
-                ) : null}
+                )}
               </li>
             ))}
           </ul>
@@ -6591,11 +6591,11 @@ function PersonDrawer({
                       >
                         恢复待确认
                       </button>
-                    ) : canEdit ? (
+                    ) : (
                       <span className="shrink-0 text-xs text-[color:var(--a-muted)]">
                         需创建者或管理员重新打开
                       </span>
-                    ) : null}
+                    )}
                   </li>
                 ))}
               </ul>
