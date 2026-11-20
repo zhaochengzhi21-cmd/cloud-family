@@ -2705,7 +2705,18 @@ function ParticipantsRoster({
             正在读取参与家人…
           </p>
         ) : members.length === 0 ? (
-          <p className="text-sm text-[color:var(--a-muted)]">暂无参与账号。</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              暂无参与账号。可复制上方本段链接发给家人，或稍后重试。
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => setAttempt((n) => n + 1)}
+            >
+              重试
+            </button>
+          </div>
         ) : (
           <ul
             className="divide-y divide-[color:var(--a-brand-line)] text-sm"
@@ -2750,9 +2761,34 @@ function ParticipantsRoster({
           </ul>
         )}
         {reviewers.length === 0 && members && members.length > 0 ? (
-          <p className="text-sm text-[color:var(--a-muted)]">
-            当前名单里还没有{REVIEWER_CONTACT}，请稍后再试或向家人确认。
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              当前名单里还没有{REVIEWER_CONTACT}
+              ，可复制上方本段链接发给家人核对，或请有管理权限的家人调整角色。
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setRosterCopyFlash("已复制链接，可发给家人核对");
+                    window.setTimeout(() => setRosterCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setRosterCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setRosterCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {rosterCopyFlash.includes("核对") ||
+              rosterCopyFlash.startsWith("请手动")
+                ? rosterCopyFlash
+                : "复制链接发给家人"}
+            </button>
+          </div>
         ) : null}
       </div>
     </section>
