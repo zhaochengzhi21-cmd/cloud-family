@@ -297,7 +297,7 @@ export default function AlphaFamiliesPage() {
                 创建家族档案
               </h2>
               <p className="mt-2 text-sm text-[color:var(--a-muted)]">
-                新建家族默认仅家族成员可见。
+                新建家族默认{PRODUCT.privacyFamilyOnly}。
               </p>
               {error ? (
                 <p className="mt-3 alpha-alert alpha-alert-error" role="alert">
