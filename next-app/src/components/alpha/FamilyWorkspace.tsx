@@ -1754,12 +1754,22 @@ export function FamilyWorkspace({
                       });
                       const urlTab = searchParams.get("tab");
                       const urlClaim = searchParams.get("claim");
+                      const urlKin = searchParams.get("kin");
+                      const kinRole =
+                        urlKin === "parent" ||
+                        urlKin === "child" ||
+                        urlKin === "spouse"
+                          ? urlKin
+                          : null;
                       const urlOpenEvidence =
                         searchParams.get("openEvidence") === "1";
                       const urlEvidenceType =
                         searchParams.get("evidenceType") || undefined;
                       const resumeRecords =
                         urlTab === "records" || Boolean(urlClaim);
+                      const resumeLineage =
+                        !resumeRecords &&
+                        (urlTab === "lineage" || Boolean(kinRole));
                       const qs = new URLSearchParams(
                         resumeRecords
                           ? {
@@ -1773,7 +1783,13 @@ export function FamilyWorkspace({
                                 ? { evidenceType: urlEvidenceType }
                                 : {}),
                             }
-                          : { tab: "members", person: id }
+                          : resumeLineage
+                            ? {
+                                tab: "lineage",
+                                person: id,
+                                ...(kinRole ? { kin: kinRole } : {}),
+                              }
+                            : { tab: "members", person: id }
                       );
                       setFlashCopyUrl(
                         `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
@@ -1781,7 +1797,11 @@ export function FamilyWorkspace({
                       setFlash(
                         resumeRecords
                           ? "已恢复这位家人。可继续查看资料；可复制链接发给家人一起看。"
-                          : "已恢复这位家人。可复制链接发给家人一起看。"
+                          : resumeLineage && kinRole
+                            ? "已恢复这位家人。可继续补家庭关系；可复制链接发给家人一起看世系。"
+                            : resumeLineage
+                              ? "已恢复这位家人。可继续查看世系；可复制链接发给家人一起看。"
+                              : "已恢复这位家人。可复制链接发给家人一起看。"
                       );
                       await load();
                       if (resumeRecords) {
@@ -1794,6 +1814,15 @@ export function FamilyWorkspace({
                           );
                         } catch {
                           /* private mode */
+                        }
+                      } else if (resumeLineage) {
+                        setTab("lineage");
+                        setLineageUrlPerson(id);
+                        setLineageFocusId(id);
+                        if (kinRole && canEdit) {
+                          setRelFocusPersonId(id);
+                          setKinRole(kinRole);
+                          setShowAddKin(true);
                         }
                       } else {
                         setSelectedPersonId(id);
