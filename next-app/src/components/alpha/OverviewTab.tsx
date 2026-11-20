@@ -2264,6 +2264,7 @@ function ParticipantsRoster({
   >(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [rosterCopyFlash, setRosterCopyFlash] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -2301,12 +2302,33 @@ function ParticipantsRoster({
       aria-labelledby="overview-participants-title"
       className="scroll-mt-24"
     >
-      <h2
-        id="overview-participants-title"
-        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-      >
-        参与家人
-      </h2>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <h2
+          id="overview-participants-title"
+          className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          参与家人
+        </h2>
+        <button
+          type="button"
+          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          onClick={() => {
+            const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+            void navigator.clipboard.writeText(url).then(
+              () => {
+                setRosterCopyFlash("已复制链接");
+                window.setTimeout(() => setRosterCopyFlash(""), 2500);
+              },
+              () => {
+                setRosterCopyFlash("请手动复制地址栏链接");
+                window.setTimeout(() => setRosterCopyFlash(""), 2500);
+              }
+            );
+          }}
+        >
+          {rosterCopyFlash || "复制本段链接"}
+        </button>
+      </div>
       <div className="alpha-panel space-y-3 px-4 py-4">
         <p className="text-sm text-[color:var(--a-muted)]">
           确认或不采用人物资料、恢复已移除成员/来源、生成邀请，需由

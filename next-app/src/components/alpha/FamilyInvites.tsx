@@ -72,6 +72,7 @@ export function FamilyInvites({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
+  const [sectionCopyFlash, setSectionCopyFlash] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -278,12 +279,33 @@ export function FamilyInvites({
       aria-labelledby="overview-invite"
       className="scroll-mt-24"
     >
-      <h2
-        id="overview-invite"
-        className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-      >
-        邀请家人
-      </h2>
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <h2
+          id="overview-invite"
+          className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+        >
+          邀请家人
+        </h2>
+        <button
+          type="button"
+          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+          onClick={() => {
+            const url = `${window.location.origin}/alpha/families/${familyId}?scroll=participants`;
+            void navigator.clipboard.writeText(url).then(
+              () => {
+                setSectionCopyFlash("已复制链接");
+                window.setTimeout(() => setSectionCopyFlash(""), 2500);
+              },
+              () => {
+                setSectionCopyFlash("请手动复制地址栏链接");
+                window.setTimeout(() => setSectionCopyFlash(""), 2500);
+              }
+            );
+          }}
+        >
+          {sectionCopyFlash || "复制本段链接"}
+        </button>
+      </div>
       <div className="alpha-panel space-y-4 px-4 py-4">
         <p className="text-sm text-[color:var(--a-muted)]">
           已有 {access.members.length} 个账号参与：
