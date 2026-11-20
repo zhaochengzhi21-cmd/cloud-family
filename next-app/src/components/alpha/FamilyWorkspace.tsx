@@ -3567,7 +3567,12 @@ function RecordsTab({
               active.map((c) => c.claimType),
               selectedPerson?.livingStatus
             );
-            setFlash(flashAfterClaimSave(followUp, savedType));
+            const base = flashAfterClaimSave(followUp, savedType);
+            setFlash(
+              !canReview
+                ? `${base} 当前链接已可发给${REVIEWER_CONTACT}确认。`
+                : base
+            );
             setStatusFilter("PROPOSED");
             onShareClaim?.(personId, claimId, "PROPOSED");
             await loadClaims();
