@@ -24,12 +24,34 @@ function safeNextPath(raw: string | null): string | null {
   return raw;
 }
 
+/** Accept raw invite tokens or pasted /alpha/invite/... links. */
+function normalizeInviteToken(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "";
+  try {
+    const asUrl = trimmed.includes("://")
+      ? new URL(trimmed)
+      : trimmed.startsWith("/alpha/invite/")
+        ? new URL(trimmed, "https://example.invalid")
+        : null;
+    if (asUrl) {
+      const m = asUrl.pathname.match(/\/alpha\/invite\/([^/?#]+)/i);
+      if (m?.[1]) return decodeURIComponent(m[1]);
+    }
+  } catch {
+    /* fall through */
+  }
+  const inline = trimmed.match(/\/alpha\/invite\/([^/?#\s]+)/i);
+  if (inline?.[1]) return decodeURIComponent(inline[1]);
+  return trimmed;
+}
+
 export default function AlphaLoginPage() {
   const router = useRouter();
   const search = useSearchParams();
   const expired = search.get("reason") === "expired";
   const nextPath = safeNextPath(search.get("next"));
-  const inviteFromUrl = (search.get("invite") ?? "").trim();
+  const inviteFromUrl = normalizeInviteToken(search.get("invite") ?? "");
   const showInviteFromUrl =
     search.get("showInvite") === "1" || Boolean(inviteFromUrl);
 
@@ -119,7 +141,7 @@ export default function AlphaLoginPage() {
         email: trimmed,
       };
       if (showInvite && inviteToken.trim()) {
-        body.inviteToken = inviteToken.trim();
+        body.inviteToken = normalizeInviteToken(inviteToken);
       }
       const res = await v1api.requestCode(body);
       try {
@@ -237,9 +259,15 @@ export default function AlphaLoginPage() {
                   autoComplete="off"
                   value={inviteToken}
                   onChange={(e) => setInviteToken(e.target.value)}
+                  onBlur={() =>
+                    setInviteToken((t) => normalizeInviteToken(t))
+                  }
                   className="alpha-input"
-                  placeholder="粘贴收到的邀请码"
+                  placeholder="粘贴邀请码或邀请链接"
                 />
+                <p className="mt-1 text-xs text-[color:var(--a-muted)]">
+                  也可直接粘贴家人发来的邀请链接，我们会自动识别。
+                </p>
                 <button
                   type="button"
                   className="mt-2 text-sm font-semibold text-[color:var(--a-brand)]"
