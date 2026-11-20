@@ -96,12 +96,20 @@ export function InviteLanding({ token }: { token: string }) {
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
               请确认链接完整，或向家人要一条新的邀请链接。
             </p>
-            <Link
-              href="/alpha/families"
-              className="alpha-btn alpha-btn-primary mt-6 inline-flex"
-            >
-              查看我的家族
-            </Link>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Link
+                href="/alpha/families"
+                className="alpha-btn alpha-btn-primary inline-flex"
+              >
+                查看我的家族
+              </Link>
+              <Link
+                href="/alpha/login?showInvite=1"
+                className="alpha-btn alpha-btn-secondary inline-flex"
+              >
+                去登录页填写邀请码
+              </Link>
+            </div>
           </>
         ) : null}
 
@@ -157,12 +165,20 @@ export function InviteLanding({ token }: { token: string }) {
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
               它可能已被使用、被撤销或已过期。请向家人要一条新的邀请链接。
             </p>
-            <Link
-              href="/alpha/families"
-              className="alpha-btn alpha-btn-primary mt-6 inline-flex"
-            >
-              查看我的家族
-            </Link>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <Link
+                href="/alpha/families"
+                className="alpha-btn alpha-btn-primary inline-flex"
+              >
+                查看我的家族
+              </Link>
+              <Link
+                href="/alpha/login?showInvite=1"
+                className="alpha-btn alpha-btn-secondary inline-flex"
+              >
+                去登录页填写邀请码
+              </Link>
+            </div>
           </>
         ) : null}
 
