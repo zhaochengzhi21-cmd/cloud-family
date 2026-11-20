@@ -15,6 +15,7 @@ import type {
   CreateRelationshipInput,
   CreateRelationshipResult,
   DeleteRelationshipResult,
+  RestoreRelationshipResult,
 } from "@/v1/domain/relationship/types";
 import type { AccessContext } from "@/v1/domain/permission/types";
 import {
@@ -240,10 +241,87 @@ export async function deleteRelationship(
       entityId: relationshipId,
       metadataJson: {
         relationshipType: rel.relationshipType,
+        fromPersonId: rel.fromPersonId,
+        toPersonId: rel.toPersonId,
       },
       now,
     });
 
     return { relationshipId, familyVersion };
+  });
+}
+
+/**
+ * Undo a soft-deleted relationship. Same ACL as create/delete (EDIT_RELATIONSHIP).
+ */
+export async function restoreRelationship(
+  relationshipId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db; expectedFamilyId?: string }
+): Promise<RestoreRelationshipResult> {
+  assertUuid(relationshipId, "relationshipId");
+  const database = dbOrDefault(options?.db);
+  const now = new Date();
+  const userId = actorUserId(actorContext);
+
+  return database.transaction(async (tx) => {
+    const row = await relRepo.findRelationshipRowById(tx, relationshipId);
+    if (!row || !row.deletedAt) {
+      throw new RelationshipDomainError("RELATIONSHIP_NOT_FOUND");
+    }
+    if (
+      options?.expectedFamilyId &&
+      row.familyId !== options.expectedFamilyId
+    ) {
+      throw new RelationshipDomainError("RELATIONSHIP_NOT_FOUND");
+    }
+
+    const family = await lockFamilyForMutation(tx, row.familyId);
+    if (!family) throw new RelationshipDomainError("FAMILY_NOT_FOUND");
+
+    const auth = await authorizeFamilyAction(
+      row.familyId,
+      actorContext,
+      "EDIT_RELATIONSHIP",
+      { db: tx }
+    ).catch(mapPerm);
+    if (auth.decision !== "ALLOW") {
+      throw new RelationshipDomainError("FORBIDDEN");
+    }
+
+    await assertCanReadBothPersons(
+      row.fromPersonId,
+      row.toPersonId,
+      actorContext,
+      tx
+    );
+
+    const ok = await relRepo.restoreRelationship(tx, relationshipId, now);
+    if (!ok) throw new RelationshipDomainError("RELATIONSHIP_NOT_FOUND");
+
+    const relationship = await relRepo.findActiveRelationshipById(
+      tx,
+      relationshipId
+    );
+    if (!relationship) {
+      throw new RelationshipDomainError("RELATIONSHIP_NOT_FOUND");
+    }
+
+    const familyVersion = await advanceFamilyVersion(tx, {
+      familyId: row.familyId,
+      actorUserId: userId,
+      summary: "RELATIONSHIP_RESTORED",
+      eventType: "RELATIONSHIP_RESTORED",
+      entityType: "RELATIONSHIP",
+      entityId: relationshipId,
+      metadataJson: {
+        relationshipType: relationship.relationshipType,
+        fromPersonId: relationship.fromPersonId,
+        toPersonId: relationship.toPersonId,
+      },
+      now,
+    });
+
+    return { relationship, familyVersion };
   });
 }

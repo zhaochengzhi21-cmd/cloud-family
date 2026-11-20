@@ -749,6 +749,25 @@ export function FamilyWorkspace({
                 setError(userMessageForApiError(e));
               }
             }}
+            onRestoreRelationship={async (relationshipId) => {
+              try {
+                const r = await v1api.restoreRelationship(
+                  familyId,
+                  relationshipId
+                );
+                const from =
+                  persons.find((p) => p.id === r.relationship.fromPersonId)
+                    ?.preferredName ?? "成员";
+                const to =
+                  persons.find((p) => p.id === r.relationship.toPersonId)
+                    ?.preferredName ?? "成员";
+                setFlash(`已恢复「${from}」与「${to}」的家庭关系`);
+                await load();
+              } catch (e) {
+                if (authRedirect(e)) return;
+                setError(userMessageForApiError(e));
+              }
+            }}
             onAuthError={authRedirect}
             externalFocusEvidenceId={sourcesFocusEvidenceId}
             onExternalFocusEvidenceConsumed={() =>

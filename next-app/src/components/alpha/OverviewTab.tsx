@@ -91,6 +91,8 @@ function activityPieces(item: ActivityItem): Piece[] | null {
           ];
     case "RELATIONSHIP_DELETED":
       return p && o ? ["取消了「", p, "」与「", o, "」的家庭关系"] : null;
+    case "RELATIONSHIP_RESTORED":
+      return p && o ? ["恢复了「", p, "」与「", o, "」的家庭关系"] : null;
     case "CLAIM_CREATED":
       return p ? ["为「", p, `」添加了${claimLabel}`] : null;
     case "CLAIM_ACCEPTED":
@@ -126,6 +128,7 @@ export function OverviewTab({
   onOpenRecords,
   onOpenLineage,
   onRestorePerson,
+  onRestoreRelationship,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -163,6 +166,8 @@ export function OverviewTab({
   onOpenLineage?: (personId: string) => void;
   /** Undo soft-delete (OWNER/ADMIN). */
   onRestorePerson?: (personId: string) => void | Promise<void>;
+  /** Undo soft-deleted relationship (EDITOR+). */
+  onRestoreRelationship?: (relationshipId: string) => void | Promise<void>;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -1133,7 +1138,8 @@ export function OverviewTab({
                       </>
                     ) : null}
                     {(item.eventType === "RELATIONSHIP_CREATED" ||
-                      item.eventType === "RELATIONSHIP_DELETED") &&
+                      item.eventType === "RELATIONSHIP_DELETED" ||
+                      item.eventType === "RELATIONSHIP_RESTORED") &&
                     onOpenLineage &&
                     item.personId ? (
                       <>
@@ -1144,6 +1150,24 @@ export function OverviewTab({
                           onClick={() => onOpenLineage(item.personId!)}
                         >
                           查看
+                        </button>
+                      </>
+                    ) : null}
+                    {item.eventType === "RELATIONSHIP_DELETED" &&
+                    item.restorable &&
+                    item.relationshipId &&
+                    canEdit &&
+                    onRestoreRelationship ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() =>
+                            void onRestoreRelationship(item.relationshipId!)
+                          }
+                        >
+                          恢复
                         </button>
                       </>
                     ) : null}

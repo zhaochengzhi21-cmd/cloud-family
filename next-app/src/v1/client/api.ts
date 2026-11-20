@@ -295,6 +295,7 @@ export const v1api = {
         otherPersonName?: string;
         claimId?: string;
         claimType?: string;
+        relationshipId?: string;
         relationshipType?: string;
         evidenceId?: string;
         evidenceType?: string;
@@ -457,6 +458,20 @@ export const v1api = {
     v1Fetch<{ relationshipId: string; familyVersion: number }>(
       `/api/v1/families/${familyId}/relationships/${relationshipId}`,
       { method: "DELETE", body: {} }
+    ),
+
+  restoreRelationship: (familyId: string, relationshipId: string) =>
+    v1Fetch<{
+      relationship: {
+        id: string;
+        fromPersonId: string;
+        toPersonId: string;
+        relationshipType: string;
+      };
+      familyVersion: number;
+    }>(
+      `/api/v1/families/${familyId}/relationships/${relationshipId}/restore`,
+      { method: "POST", body: {} }
     ),
 
   createClaim: (

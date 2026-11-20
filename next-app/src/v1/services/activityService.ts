@@ -21,6 +21,7 @@ const FEED_EVENT_TYPES = [
   "PERSON_RESTORED",
   "RELATIONSHIP_CREATED",
   "RELATIONSHIP_DELETED",
+  "RELATIONSHIP_RESTORED",
   "CLAIM_CREATED",
   "CLAIM_ACCEPTED",
   "CLAIM_REJECTED",
@@ -54,10 +55,11 @@ export type ActivityItem = {
   otherPersonName?: string;
   claimId?: string;
   claimType?: string;
+  relationshipId?: string;
   relationshipType?: string;
   evidenceId?: string;
   evidenceType?: string;
-  /** Soft-deleted person can be restored (OWNER/ADMIN UI). */
+  /** Soft-deleted person/relationship can be restored in the UI. */
   restorable?: boolean;
 };
 
@@ -164,7 +166,8 @@ export async function getFamilyActivity(
         break;
       }
       case "RELATIONSHIP_CREATED":
-      case "RELATIONSHIP_DELETED": {
+      case "RELATIONSHIP_DELETED":
+      case "RELATIONSHIP_RESTORED": {
         const rel = r.entityId ? relById.get(r.entityId) : undefined;
         if (!rel) break;
         const a = names.get(rel.fromPersonId);
@@ -176,7 +179,10 @@ export async function getFamilyActivity(
           personName: a,
           otherPersonId: rel.toPersonId,
           otherPersonName: b,
+          relationshipId: rel.id,
           relationshipType: rel.relationshipType,
+          restorable:
+            r.eventType === "RELATIONSHIP_DELETED" && Boolean(rel.deletedAt),
         });
         break;
       }

@@ -2,7 +2,7 @@
  * Trusted internal Relationship data access — not a public security boundary.
  */
 
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
 import { relationships } from "@/db/schema";
 import type { RelationshipType } from "@/db/constants";
@@ -85,6 +85,37 @@ export async function findActiveRelationshipById(
     )
     .limit(1);
   return row ? mapRelationship(row) : null;
+}
+
+/** Includes soft-deleted rows (for restore). */
+export async function findRelationshipRowById(
+  db: DbOrTx,
+  relationshipId: string
+) {
+  const [row] = await db
+    .select()
+    .from(relationships)
+    .where(eq(relationships.id, relationshipId))
+    .limit(1);
+  return row ?? null;
+}
+
+export async function restoreRelationship(
+  db: DbOrTx,
+  relationshipId: string,
+  now: Date
+): Promise<boolean> {
+  const updated = await db
+    .update(relationships)
+    .set({ deletedAt: null, updatedAt: now })
+    .where(
+      and(
+        eq(relationships.id, relationshipId),
+        isNotNull(relationships.deletedAt)
+      )
+    )
+    .returning({ id: relationships.id });
+  return updated.length > 0;
 }
 
 export async function listActiveAcceptedByFamily(

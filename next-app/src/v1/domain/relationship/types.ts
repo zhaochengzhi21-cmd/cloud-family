@@ -35,6 +35,11 @@ export type DeleteRelationshipResult = {
   familyVersion: number;
 };
 
+export type RestoreRelationshipResult = {
+  relationship: RelationshipView;
+  familyVersion: number;
+};
+
 export const PARENT_RELATIONSHIP_TYPES: RelationshipType[] = [
   "BIOLOGICAL_PARENT",
   "ADOPTIVE_PARENT",

@@ -2379,6 +2379,62 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：取消关系后可从动态恢复", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·关系恢复（测试）",
+    sample.surname
+  );
+
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, []);
+  const childId = await seedPerson(page, familyId, sample.yuanXi, []);
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+  const relationshipId = (
+    rel.body as { relationship: { id: string } }
+  ).relationship.id;
+
+  const del = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/relationships/${relationshipId}`,
+    { method: "DELETE", body: {} }
+  );
+  expect(del.status, JSON.stringify(del.body)).toBe(200);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await expect(feed).toBeVisible({ timeout: 60_000 });
+  const row = feed.locator("li").filter({
+    hasText: `取消了「${sample.guanSan.preferredName}」与「${sample.yuanXi.preferredName}」的家庭关系`,
+  });
+  await expect(row).toBeVisible({ timeout: 60_000 });
+  await row.getByRole("button", { name: "恢复" }).click();
+  await expect(
+    page.getByText(
+      `已恢复「${sample.guanSan.preferredName}」与「${sample.yuanXi.preferredName}」的家庭关系`
+    )
+  ).toBeVisible({ timeout: 60_000 });
+
+  await page.getByRole("tab", { name: "世系" }).click();
+  await expect(page.getByRole("heading", { name: /第二代/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.getByText(sample.yuanXi.preferredName, { exact: true }).first()
+  ).toBeVisible({ timeout: 20_000 });
+});
+
 test("明经胡氏：移除成员后可从动态恢复", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

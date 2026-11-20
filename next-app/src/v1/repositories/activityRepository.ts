@@ -79,6 +79,7 @@ export async function findRelationshipEndpoints(
       fromPersonId: relationships.fromPersonId,
       toPersonId: relationships.toPersonId,
       relationshipType: relationships.relationshipType,
+      deletedAt: relationships.deletedAt,
     })
     .from(relationships)
     .where(
