@@ -6,6 +6,7 @@ import { invalidRequest, mapDomainErrorToResponse, notFound } from "@/v1/http/er
 import { okJson } from "@/v1/http/response";
 import { getClaim } from "@/v1/services/claimService";
 import { linkEvidenceToClaim } from "@/v1/services/evidenceService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -31,35 +32,44 @@ export async function POST(
   const parsed = linkEvidenceBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
 
-  try {
-    const claim = await getClaim(p.data.claimId, ctx.actorContext, {
-      db: ctx.db,
-    });
-    if (!claim || claim.familyId !== p.data.familyId) {
-      return notFound();
-    }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "claims.evidence.link",
+    body: { claimId: p.data.claimId, ...parsed.data },
+    run: async () => {
+      try {
+        const claim = await getClaim(p.data.claimId, ctx.actorContext, {
+          db: ctx.db,
+        });
+        if (!claim || claim.familyId !== p.data.familyId) {
+          return notFound();
+        }
 
-    const result = await linkEvidenceToClaim(
-      {
-        familyId: p.data.familyId,
-        actorContext: ctx.actorContext,
-        claimId: p.data.claimId,
-        evidenceId: parsed.data.evidenceId,
-        relation: parsed.data.relation,
-      },
-      { db: ctx.db }
-    );
-    return okJson({
-      claimId: result.claimId,
-      evidenceId: result.evidenceId,
-      relation: result.relation,
-      familyVersion: result.familyVersion,
-    });
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+        const result = await linkEvidenceToClaim(
+          {
+            familyId: p.data.familyId,
+            actorContext: ctx.actorContext,
+            claimId: p.data.claimId,
+            evidenceId: parsed.data.evidenceId,
+            relation: parsed.data.relation,
+          },
+          { db: ctx.db }
+        );
+        return okJson({
+          claimId: result.claimId,
+          evidenceId: result.evidenceId,
+          relation: result.relation,
+          familyVersion: result.familyVersion,
+        });
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }
