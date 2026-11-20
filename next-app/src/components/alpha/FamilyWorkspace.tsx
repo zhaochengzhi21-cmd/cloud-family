@@ -4398,9 +4398,21 @@ function AddEvidenceForm({
             </p>
           ) : null}
           {reuseOptions.length === 0 ? (
-            <p className="text-sm text-[color:var(--a-muted)]">
-              还没有可复用的来源，请先新建一条。
-            </p>
+            <div className="space-y-2">
+              <p className="text-sm text-[color:var(--a-muted)]">
+                还没有可复用的来源，请先新建一条。
+              </p>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  setMode("new");
+                  setLocalError("");
+                }}
+              >
+                去新建来源
+              </button>
+            </div>
           ) : (
             <div>
               <label htmlFor="ev-reuse" className="alpha-label">
@@ -4434,13 +4446,15 @@ function AddEvidenceForm({
             >
               取消
             </button>
-            <button
-              type="submit"
-              disabled={busy || reuseOptions.length === 0}
-              className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
-            >
-              {busy ? "保存中…" : "挂到来源"}
-            </button>
+            {reuseOptions.length > 0 ? (
+              <button
+                type="submit"
+                disabled={busy}
+                className="alpha-btn alpha-btn-primary flex-1 !min-h-[44px]"
+              >
+                {busy ? "保存中…" : "挂到来源"}
+              </button>
+            ) : null}
           </div>
         </form>
       ) : (

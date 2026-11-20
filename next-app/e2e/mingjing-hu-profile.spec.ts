@@ -3875,3 +3875,35 @@ test("明经胡氏：资料来源库空筛选可收录对应类型", async ({
     sourcesLib.getByRole("button", { name: "查看全部" })
   ).toBeVisible();
 });
+
+test("明经胡氏：空库使用已有来源可去新建", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·空库新建来源（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "BIRTH_DATE", text: "约明嘉靖年间" },
+  ]);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.getByRole("button", { name: "使用已有来源" }).click();
+  await expect(
+    birthCard.getByText("还没有可复用的来源，请先新建一条。")
+  ).toBeVisible();
+  await birthCard.getByRole("button", { name: "去新建来源" }).click();
+  await expect(birthCard.locator("#ev-type")).toBeVisible();
+  await expect(
+    birthCard.getByRole("button", { name: "新建来源", pressed: true })
+  ).toBeVisible();
+});
