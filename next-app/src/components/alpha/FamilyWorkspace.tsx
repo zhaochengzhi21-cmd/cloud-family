@@ -2078,6 +2078,22 @@ function MembersTab({
           再添加一位家人后，可在「世系」里建立父母或配偶关系。
         </p>
       ) : null}
+      {!canEdit && persons.length === 1 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-[color:var(--a-muted)]">
+          <p>
+            档案里只有一位成员。有编辑权限的家人再补一位后，才能建立关系、排进世代。
+          </p>
+          {onOpenParticipants ? (
+            <button
+              type="button"
+              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={onOpenParticipants}
+            >
+              查看参与家人
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         {canEdit ? (
           <button
