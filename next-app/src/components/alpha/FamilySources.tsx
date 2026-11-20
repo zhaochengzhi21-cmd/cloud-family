@@ -322,21 +322,47 @@ export function FamilySources({
 
   if (error && !items) {
     return (
-      <div className="flex flex-wrap items-center gap-3">
-        <p role="alert" className="text-sm text-[color:var(--a-danger)]">
-          {error}
-        </p>
-        <button
-          type="button"
-          className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-          onClick={() => void load()}
-        >
-          重试
-        </button>
-      </div>
+      <section id="overview-sources-section" aria-labelledby="overview-sources">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <h2
+            id="overview-sources"
+            className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            资料来源库
+          </h2>
+        </div>
+        <div className="alpha-panel flex flex-wrap items-center gap-3 px-4 py-4">
+          <p role="alert" className="text-sm text-[color:var(--a-danger)]">
+            {error}
+          </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => void load()}
+          >
+            重试
+          </button>
+        </div>
+      </section>
     );
   }
-  if (!items) return null;
+  if (!items) {
+    return (
+      <section id="overview-sources-section" aria-labelledby="overview-sources">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <h2
+            id="overview-sources"
+            className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+          >
+            资料来源库
+          </h2>
+        </div>
+        <div className="alpha-panel px-4 py-4">
+          <p className="text-sm text-[color:var(--a-muted)]">资料来源加载中…</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="overview-sources-section" aria-labelledby="overview-sources">

@@ -955,7 +955,7 @@ export function FamilyWorkspace({
         );
         setFlashRecordsCta(false);
         setFlash(
-          "资料来源段暂时打不开，可能还在加载。可复制链接稍后重试，或到概览查看。"
+          "资料来源段暂时打不开，可能还在加载。可复制链接稍后重试，或刷新页面后再打开。"
         );
       } else if (missKind === "participants") {
         setFlashCopyUrl(
