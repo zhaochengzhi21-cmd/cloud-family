@@ -3383,8 +3383,8 @@ function LineageTab({
         >
           <p className="text-sm text-[color:var(--a-muted)]">
             {canEdit
-              ? `档案里有 ${componentCount} 个尚未连接的家族分支。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。`
-              : `档案里有 ${componentCount} 个尚未连接的家族分支。可先打开较小分支里的人物资料；有编辑权限的家人补上关系后，会并入主支。`}
+              ? `档案里有 ${componentCount} 个尚未连接的家族分支。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。也可复制链接发给家人一起补。`
+              : `档案里有 ${componentCount} 个尚未连接的家族分支。可先打开较小分支里的人物资料；有编辑权限的家人补上关系后，会并入主支。可复制链接发给对方。`}
           </p>
           {branchReps.length > 0 ? (
             <div
@@ -3413,6 +3413,39 @@ function LineageTab({
                   </button>
                 )
               )}
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const focus = branchReps[0];
+                  const qs = new URLSearchParams({
+                    tab: "lineage",
+                    person: focus.id,
+                    kin: "parent",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setCopyFlash(
+                        canEdit
+                          ? "已复制连接分支链接，可发给家人一起补"
+                          : "已复制链接，可发给有编辑权限的家人"
+                      );
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {copyFlash.includes("分支") ||
+                copyFlash.includes("有编辑权限") ||
+                copyFlash.startsWith("请手动")
+                  ? copyFlash
+                  : "复制连接分支链接"}
+              </button>
             </div>
           ) : null}
         </div>

@@ -874,12 +874,41 @@ function BookEntry({
               : "暂无已确认的正式记载。有编辑权限的家人补充并确认后，会出现在这里。"}
           </p>
           {canEdit ? (
-            <Link
-              href={`/alpha/families/${familyId}/people/${person.id}`}
-              className="alpha-print-hide mt-2 inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
-            >
-              补充资料
-            </Link>
+            <div className="alpha-print-hide mt-2 flex flex-wrap gap-2">
+              <Link
+                href={`/alpha/families/${familyId}/people/${person.id}`}
+                className="inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+              >
+                补充资料
+              </Link>
+              <button
+                type="button"
+                className="inline-flex alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams({
+                    tab: "records",
+                    person: person.id,
+                    claimType: "BIRTH_DATE",
+                  });
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setPendingCopyFlash("已复制补充资料链接");
+                      window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setPendingCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {pendingCopyFlash.includes("补充资料") ||
+                pendingCopyFlash.startsWith("请手动")
+                  ? pendingCopyFlash
+                  : "复制补充资料链接发给家人"}
+              </button>
+            </div>
           ) : (
             <div className="alpha-print-hide mt-2 flex flex-wrap gap-2">
               <button
