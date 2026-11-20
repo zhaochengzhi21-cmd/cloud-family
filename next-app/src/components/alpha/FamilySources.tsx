@@ -366,7 +366,9 @@ export function FamilySources({
           >
             <p className="text-sm text-[color:var(--a-muted)]">
               这条来源已不在资料来源库中
-              {canManage ? "，可能刚被移除。" : "。"}
+              {canManage
+                ? "，可能刚被移除。"
+                : "。若需找回，请联系创建者或管理员恢复。"}
             </p>
             {canManage ? (
               <button
