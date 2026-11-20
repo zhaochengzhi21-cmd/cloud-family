@@ -235,6 +235,7 @@ export function FamilyWorkspace({
   const [flashParticipantsCta, setFlashParticipantsCta] = useState(false);
   /** Optional copy URL offered next to flash (e.g. after EDITOR saves a claim). */
   const [flashCopyUrl, setFlashCopyUrl] = useState<string | null>(null);
+  const [roleBannerCopyFlash, setRoleBannerCopyFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
     kind: "person" | "relationship" | "evidence" | "evidence-link" | "claim";
     id: string;
@@ -1464,6 +1465,26 @@ export function FamilyWorkspace({
             >
               查看参与家人
             </button>
+            {" · "}
+            <button
+              type="button"
+              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?tab=members&add=person`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setRoleBannerCopyFlash("已复制添加链接，可发给有编辑权限的家人");
+                    window.setTimeout(() => setRoleBannerCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setRoleBannerCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setRoleBannerCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {roleBannerCopyFlash || "复制添加链接发给家人"}
+            </button>
           </p>
         ) : !canReview ? (
           <p className="mt-2 text-sm text-[color:var(--a-muted)]">
@@ -1494,6 +1515,28 @@ export function FamilyWorkspace({
               }}
             >
               查看参与家人
+            </button>
+            {" · "}
+            <button
+              type="button"
+              className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?scroll=pending`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setRoleBannerCopyFlash(
+                      `已复制待确认入口，可发给${REVIEWER_CONTACT}`
+                    );
+                    window.setTimeout(() => setRoleBannerCopyFlash(""), 2500);
+                  },
+                  () => {
+                    setRoleBannerCopyFlash("请手动复制地址栏链接");
+                    window.setTimeout(() => setRoleBannerCopyFlash(""), 2500);
+                  }
+                );
+              }}
+            >
+              {roleBannerCopyFlash || `复制待确认入口发给${REVIEWER_CONTACT}`}
             </button>
           </p>
         ) : null}

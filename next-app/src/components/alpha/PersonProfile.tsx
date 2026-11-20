@@ -999,17 +999,49 @@ export function PersonProfile({
             ) : null}
             <div className="mt-3 flex flex-wrap gap-2">
               {pendingClaims.length > 0 ? (
-                <button
-                  type="button"
-                  className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
-                  onClick={() => {
-                    document
-                      .getElementById("profile-pending")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                >
-                  查看待确认
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                    onClick={() => {
+                      document
+                        .getElementById("profile-pending")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    查看待确认
+                  </button>
+                  <button
+                    type="button"
+                    className="alpha-btn alpha-btn-secondary !min-h-[36px] !px-3 !text-xs"
+                    onClick={() => {
+                      const first = pendingClaims[0];
+                      const qs = new URLSearchParams({
+                        tab: "records",
+                        person: personId,
+                        claim: first.id,
+                      });
+                      const url = `${window.location.origin}${workspaceHref}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () => {
+                          setPendingCopyFlash(
+                            `已复制链接，可发给${REVIEWER_CONTACT}确认`
+                          );
+                          window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                        },
+                        () => {
+                          setPendingCopyFlash("请手动复制地址栏链接");
+                          window.setTimeout(() => setPendingCopyFlash(""), 2500);
+                        }
+                      );
+                    }}
+                  >
+                    {pendingCopyFlash.includes("确认") ||
+                    pendingCopyFlash.startsWith("请手动")
+                      ? pendingCopyFlash
+                      : `复制链接发给${REVIEWER_CONTACT}`}
+                  </button>
+                </>
               ) : null}
               {claims.some((c) => c.status === "REJECTED") ? (
                 <>

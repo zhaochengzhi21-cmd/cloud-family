@@ -562,7 +562,27 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                   : "去建立关系"
                 : "去世系查看"}
             </Link>
-            {!canEdit ? (
+            {canEdit ? (
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary inline-flex !min-h-[40px] !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams(
+                    book.persons.length < 2
+                      ? { tab: "members", add: "person" }
+                      : { tab: "lineage", add: "rel" }
+                  );
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => setKinHandoffFlash("已复制链接，可发给家人一起补"),
+                    () => setKinHandoffFlash("请手动复制地址栏链接")
+                  );
+                  window.setTimeout(() => setKinHandoffFlash(""), 2500);
+                }}
+              >
+                {kinHandoffFlash || "复制链接发给家人"}
+              </button>
+            ) : (
               <>
                 <button
                   type="button"
@@ -590,7 +610,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                   查看参与家人
                 </Link>
               </>
-            ) : null}
+            )}
           </div>
         </div>
       ) : null}
