@@ -382,6 +382,9 @@ export function FamilyWorkspace({
     statusFilter?: "PROPOSED" | "CONFLICTED" | "ALL";
     nonce: number;
   } | null>(null);
+  const [sourcesFocusEvidenceId, setSourcesFocusEvidenceId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     try {
@@ -405,6 +408,18 @@ export function FamilyWorkspace({
       }
     } catch {
       /* private mode / bad JSON */
+    }
+  }, [familyId]);
+
+  useEffect(() => {
+    try {
+      const id = sessionStorage.getItem(`alpha-evidence-focus:${familyId}`);
+      if (!id) return;
+      sessionStorage.removeItem(`alpha-evidence-focus:${familyId}`);
+      setSourcesFocusEvidenceId(id);
+      setTab("overview");
+    } catch {
+      /* private mode */
     }
   }, [familyId]);
 
@@ -692,6 +707,10 @@ export function FamilyWorkspace({
             }}
             onOpenRecords={openRecordsFor}
             onAuthError={authRedirect}
+            externalFocusEvidenceId={sourcesFocusEvidenceId}
+            onExternalFocusEvidenceConsumed={() =>
+              setSourcesFocusEvidenceId(null)
+            }
           />
         </div>
       ) : null}
@@ -757,6 +776,10 @@ export function FamilyWorkspace({
             onEvidenceSeedConsumed={() => setEvidenceSeed(null)}
             recordsFocus={recordsFocus}
             onRecordsFocusConsumed={() => setRecordsFocus(null)}
+            onOpenSourcesLibrary={(evidenceId) => {
+              setSourcesFocusEvidenceId(evidenceId);
+              setTab("overview");
+            }}
             onAuthError={(e) => handleAuthRedirect(e, router)}
             onOpenPerson={(id) => setSelectedPersonId(id)}
             onGoMembers={() => setTab("members")}
@@ -1805,6 +1828,7 @@ function RecordsTab({
   onEvidenceSeedConsumed,
   recordsFocus,
   onRecordsFocusConsumed,
+  onOpenSourcesLibrary,
   onAuthError,
   onOpenPerson,
   onGoMembers,
@@ -1833,6 +1857,7 @@ function RecordsTab({
     nonce: number;
   } | null;
   onRecordsFocusConsumed: () => void;
+  onOpenSourcesLibrary?: (evidenceId: string) => void;
   onAuthError: (e: unknown) => boolean;
   onOpenPerson: (id: string) => void;
   onGoMembers: () => void;
@@ -2307,6 +2332,7 @@ function RecordsTab({
                     setOpenEvidenceClaimId(id);
                     setOpenEvidenceType(null);
                   }}
+                  onOpenSourcesLibrary={onOpenSourcesLibrary}
                   onAuthError={onAuthError}
                   onChanged={loadClaims}
                   onError={setError}
@@ -2750,6 +2776,7 @@ function ClaimCard({
   seedEvidenceType = null,
   onAutoOpenEvidenceConsumed,
   onOpenEvidenceAfterAccept,
+  onOpenSourcesLibrary,
   onChanged,
   onError,
   onFlash,
@@ -2763,6 +2790,7 @@ function ClaimCard({
   seedEvidenceType?: string | null;
   onAutoOpenEvidenceConsumed?: () => void;
   onOpenEvidenceAfterAccept?: (claimId: string) => void;
+  onOpenSourcesLibrary?: (evidenceId: string) => void;
   onChanged: () => Promise<void>;
   onError: (s: string) => void;
   onFlash: (s: string) => void;
@@ -2972,6 +3000,15 @@ function ClaimCard({
                       }
                     >
                       详情
+                    </button>
+                  ) : null}
+                  {onOpenSourcesLibrary ? (
+                    <button
+                      type="button"
+                      className="ml-2 font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={() => onOpenSourcesLibrary(l.evidence.id)}
+                    >
+                      来源库
                     </button>
                   ) : null}
                   {l.evidence.mediaObjectId ? (

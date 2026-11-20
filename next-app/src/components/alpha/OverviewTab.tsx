@@ -120,6 +120,8 @@ export function OverviewTab({
   onOpenPerson,
   onOpenRecords,
   onAuthError,
+  externalFocusEvidenceId = null,
+  onExternalFocusEvidenceConsumed,
 }: {
   familyId: string;
   persons: Person[];
@@ -149,11 +151,19 @@ export function OverviewTab({
         }
   ) => void;
   onAuthError: (e: unknown) => boolean;
+  externalFocusEvidenceId?: string | null;
+  onExternalFocusEvidenceConsumed?: () => void;
 }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
   const [loadError, setLoadError] = useState("");
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!externalFocusEvidenceId) return;
+    setFocusEvidenceId(externalFocusEvidenceId);
+    onExternalFocusEvidenceConsumed?.();
+  }, [externalFocusEvidenceId, onExternalFocusEvidenceConsumed]);
 
   const load = useCallback(async () => {
     setLoadError("");

@@ -1791,6 +1791,65 @@ test("明经胡氏：来源库已用于可直达关联资料卡片", async ({
   ).toBeVisible();
 });
 
+test("明经胡氏：资料卡来源库按钮直达概览来源库", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·资料卡来源库（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(
+    page,
+    familyId,
+    sample.wenGuang,
+    sample.wenGuang.claims.filter((c) => c.claimType === "BIRTH_DATE")
+  );
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "资料" }).click();
+  await page.locator("#records-person").selectOption(personId);
+  const birthCard = page
+    .locator("[data-claim-id]")
+    .filter({ hasText: "约明嘉靖年间" });
+  await expect(birthCard).toBeVisible({ timeout: 60_000 });
+  await birthCard.getByRole("button", { name: "添加资料来源" }).click();
+  await birthCard.locator("#ev-type").selectOption("GENEALOGY_PAGE");
+  await birthCard.getByLabel("来源标题（可选）").fill("来源库跳转谱（测试）");
+  await birthCard.getByRole("button", { name: "保存来源" }).click();
+  await expect(birthCard.getByText("来源库跳转谱（测试）")).toBeVisible({
+    timeout: 60_000,
+  });
+
+  const claimId = await birthCard.getAttribute("data-claim-id");
+  expect(claimId).toBeTruthy();
+  const detail = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/${claimId}`
+  );
+  const evidenceId = (
+    detail.body as { evidenceLinks: { evidence: { id: string } }[] }
+  ).evidenceLinks[0]?.evidence.id;
+  expect(evidenceId).toBeTruthy();
+
+  await birthCard.getByRole("button", { name: "来源库" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("概览", {
+    timeout: 60_000,
+  });
+  const sourcesLib = page.getByRole("region", { name: "资料来源库" });
+  await expect(
+    sourcesLib.locator(`[data-evidence-id="${evidenceId}"]`)
+  ).toBeVisible({ timeout: 20_000 });
+  await expect(
+    sourcesLib.locator(`[data-evidence-id="${evidenceId}"]`)
+  ).toContainText("来源库跳转谱（测试）");
+});
+
 test("明经胡氏：动态不采用查看展开对应记录", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

@@ -371,6 +371,19 @@ export function PersonProfile({
     router.push(workspaceHref);
   }
 
+  function openSourcesLibrary(evidenceId: string) {
+    try {
+      sessionStorage.setItem(
+        `alpha-evidence-focus:${familyId}`,
+        evidenceId
+      );
+      sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
+    } catch {
+      /* private mode */
+    }
+    router.push(workspaceHref);
+  }
+
   if (loading && !person) {
     return (
       <p className="py-16 text-center text-[color:var(--a-muted)]" role="status">
@@ -539,6 +552,7 @@ export function PersonProfile({
             onFill={openRecords}
             onAddSource={openEvidence}
             onFocusClaim={openRecordsFocus}
+            onOpenSourcesLibrary={openSourcesLibrary}
           />
           {generationWord.length > 0 ||
           birthOrder.length > 0 ||
@@ -572,6 +586,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
           {ancestral.length > 0 ||
@@ -594,6 +609,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
           {occupation.length > 0 ||
@@ -616,6 +632,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
           {alias.length > 0 ||
@@ -638,6 +655,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
           {showDeath ? (
@@ -667,6 +685,7 @@ export function PersonProfile({
               onFill={openRecords}
               onAddSource={openEvidence}
               onFocusClaim={openRecordsFocus}
+              onOpenSourcesLibrary={openSourcesLibrary}
             />
           ) : null}
         </ol>
@@ -749,6 +768,7 @@ export function PersonProfile({
                       canEdit={canEdit}
                       onAddSource={openEvidence}
                       onFocusClaim={openRecordsFocus}
+                      onOpenSourcesLibrary={openSourcesLibrary}
                     />
                   </dd>
                 </div>
@@ -779,7 +799,11 @@ export function PersonProfile({
                 ) : null}
                 {sources[c.id]?.length ? (
                   <div className="mt-2">
-                    <ClaimSources familyId={familyId} links={sources[c.id]} />
+                    <ClaimSources
+                      familyId={familyId}
+                      links={sources[c.id]}
+                      onOpenSourcesLibrary={openSourcesLibrary}
+                    />
                   </div>
                 ) : canEdit ? (
                   <button
@@ -1034,6 +1058,7 @@ function TimelineEvent({
   onFill,
   onAddSource,
   onFocusClaim,
+  onOpenSourcesLibrary,
 }: {
   title: string;
   rows: TimelineRow[];
@@ -1043,6 +1068,7 @@ function TimelineEvent({
   onFill?: (claimType: string) => void;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
+  onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
   const visible = rows.filter(
     (r) => r.claims.length > 0 || (canEdit && r.fill && onFill)
@@ -1073,6 +1099,7 @@ function TimelineEvent({
                   canEdit={canEdit}
                   onAddSource={onAddSource}
                   onFocusClaim={onFocusClaim}
+                  onOpenSourcesLibrary={onOpenSourcesLibrary}
                 />
               ) : r.fill && onFill ? (
                 <button
@@ -1113,9 +1140,11 @@ function isPhotoEvidence(type: string) {
 function ClaimSources({
   familyId,
   links,
+  onOpenSourcesLibrary,
 }: {
   familyId: string;
   links: EvidenceLink[];
+  onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
   const [viewer, setViewer] = useState<{
     url: string;
@@ -1193,6 +1222,13 @@ function ClaimSources({
                     详情
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  className="alpha-print-hide font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                  onClick={() => onOpenSourcesLibrary(l.evidence.id)}
+                >
+                  来源库
+                </button>
                 {mid && isAudioEvidence(type) ? (
                   <button
                     type="button"
@@ -1502,6 +1538,7 @@ function ClaimValues({
   canEdit = false,
   onAddSource,
   onFocusClaim,
+  onOpenSourcesLibrary,
 }: {
   claims: Claim[];
   sources: SourcesByClaim;
@@ -1509,6 +1546,7 @@ function ClaimValues({
   canEdit?: boolean;
   onAddSource?: (claimId: string) => void;
   onFocusClaim?: (claimId: string, status?: string) => void;
+  onOpenSourcesLibrary: (evidenceId: string) => void;
 }) {
   if (claims.length === 0) {
     return <span className="text-sm text-[color:var(--a-muted)]">未记录</span>;
@@ -1571,7 +1609,11 @@ function ClaimValues({
               )
             ) : null}
             {sources[c.id]?.length ? (
-              <ClaimSources familyId={familyId} links={sources[c.id]} />
+              <ClaimSources
+                familyId={familyId}
+                links={sources[c.id]}
+                onOpenSourcesLibrary={onOpenSourcesLibrary}
+              />
             ) : canEdit && onAddSource ? (
               <button
                 type="button"
