@@ -11,6 +11,7 @@ import {
   GENDER_LABEL,
   LIVING_STATUS_LABEL,
   PRODUCT,
+  REVIEWER_CONTACT,
   birthOrderRank,
   generationLabel,
 } from "@/v1/ui/copy";
@@ -1893,8 +1894,8 @@ function pendingStatusLabel(status: string, canReview: boolean): string {
       CLAIM_STATUS_LABEL[status as keyof typeof CLAIM_STATUS_LABEL] ?? status
     );
   }
-  if (status === "CONFLICTED") return "需创建者或管理员选用";
-  if (status === "PROPOSED") return "待创建者或管理员确认";
+  if (status === "CONFLICTED") return `需${REVIEWER_CONTACT}选用`;
+  if (status === "PROPOSED") return `待${REVIEWER_CONTACT}确认`;
   return (
     CLAIM_STATUS_LABEL[status as keyof typeof CLAIM_STATUS_LABEL] ?? status
   );
@@ -1945,13 +1946,13 @@ function ClaimValues({
           >
             {canReview
               ? "存在不同说法"
-              : "存在不同说法（需创建者或管理员选用）"}
+              : `存在不同说法（需${REVIEWER_CONTACT}选用）`}
           </button>
         ) : (
           <p className="text-xs font-semibold text-[color:var(--a-brand)]">
             {canReview
               ? "存在不同说法"
-              : "存在不同说法（需创建者或管理员选用）"}
+              : `存在不同说法（需${REVIEWER_CONTACT}选用）`}
           </p>
         )
       ) : null}

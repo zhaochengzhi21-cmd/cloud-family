@@ -7,6 +7,7 @@ import {
   CLAIM_STATUS_LABEL,
   CLAIM_TYPE_UI,
   EVIDENCE_TYPE_UI,
+  REVIEWER_CONTACT,
   ROLE_LABEL,
   relativeTimeLabel,
 } from "@/v1/ui/copy";
@@ -1316,8 +1317,8 @@ export function OverviewTab({
                             ? "去选用说法"
                             : "去确认"
                           : c.status === "CONFLICTED"
-                            ? "需创建者或管理员选用"
-                            : "待创建者或管理员确认"}
+                            ? `需${REVIEWER_CONTACT}选用`
+                            : `待${REVIEWER_CONTACT}确认`}
                       </span>
                     </span>
                   </button>
