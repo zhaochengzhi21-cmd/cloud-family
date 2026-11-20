@@ -2512,6 +2512,7 @@ function LineageTab({
   const [query, setQuery] = useState("");
   const [branchRoot, setBranchRoot] = useState<string | null>(null);
   const [focusMiss, setFocusMiss] = useState(false);
+  const [copyFlash, setCopyFlash] = useState("");
   const [collapsed, setCollapsed] = useState<Set<number>>(() => {
     if (persons.length <= LINEAGE_FOLD_THRESHOLD) return new Set();
     const gens = new Set(Object.values(generationByPerson));
@@ -2997,8 +2998,32 @@ function LineageTab({
           ) : (
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               <p className="w-full text-sm text-[color:var(--a-muted)]">
-                有编辑权限的家人补充后，世系会出现在这里。
+                有编辑权限的家人补充后，世系会出现在这里。可复制链接发给对方。
               </p>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+                onClick={() => {
+                  const qs = new URLSearchParams(
+                    persons.length < 2
+                      ? { tab: "members", add: "person" }
+                      : { tab: "lineage", add: "rel" }
+                  );
+                  const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setCopyFlash("已复制链接，可发给家人");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {copyFlash || "复制链接发给家人"}
+              </button>
               {persons.length > 0 ? (
                 <button
                   type="button"
