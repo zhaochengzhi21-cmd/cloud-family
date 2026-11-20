@@ -786,7 +786,7 @@ export function PersonProfile({
 
       {photos.length > 0 ? (
         <PhotoWall familyId={familyId} photos={photos} />
-      ) : canEdit && birthDate.length > 0 ? (
+      ) : canEdit ? (
         <section
           aria-labelledby="profile-photos"
           className="alpha-print-hide mb-8 rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-4"
@@ -812,7 +812,7 @@ export function PersonProfile({
 
       {audios.length > 0 ? (
         <AudioWall familyId={familyId} audios={audios} />
-      ) : canEdit && birthDate.length > 0 ? (
+      ) : canEdit ? (
         <section
           aria-labelledby="profile-audios"
           className="alpha-print-hide mb-8 rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-4"
@@ -935,7 +935,7 @@ export function PersonProfile({
             </button>
           ) : null}
         </section>
-      ) : canEdit && birthDate.length > 0 ? (
+      ) : canEdit ? (
         <section
           aria-labelledby="profile-stories"
           className="alpha-print-hide mb-8 rounded-2xl bg-[color:var(--a-brand-soft)]/40 px-4 py-4"

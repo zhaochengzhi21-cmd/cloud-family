@@ -3607,6 +3607,32 @@ test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：无出生信息时人物页仍可补充照片录音故事", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·无出生补充（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole("button", { name: "补充照片" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "补充录音" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "补充故事" })).toBeVisible();
+});
+
 test("明经胡氏：世系未连接分支可点人名添加关系", async ({
   page,
   baseURL,
