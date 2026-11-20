@@ -4384,23 +4384,23 @@ function RecordsTab({
               selectedPerson?.livingStatus
             );
             const base = flashAfterClaimSave(followUp, savedType);
-            if (!canReview) {
-              const qs = new URLSearchParams({
-                tab: "records",
-                person: personId,
-                claim: claimId,
-                claimStatus: "PROPOSED",
-              });
-              setFlashCopyUrl(
-                `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
-              );
-              setFlash(
-                `${base} 可复制链接发给${REVIEWER_CONTACT}确认。`
-              );
-            } else {
-              setFlashCopyUrl(null);
-              setFlash(base);
-            }
+            const qs = new URLSearchParams({
+              tab: "records",
+              person: personId,
+              claim: claimId,
+              claimStatus: "PROPOSED",
+            });
+            if (!followUp) qs.set("openEvidence", "1");
+            setFlashCopyUrl(
+              `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+            );
+            setFlash(
+              !canReview
+                ? `${base} 可复制链接发给${REVIEWER_CONTACT}确认。`
+                : followUp
+                  ? `${base}。可复制链接发给家人一起看。`
+                  : `${base}。可复制链接发给家人一起补来源，或稍后确认。`
+            );
             setStatusFilter("PROPOSED");
             onShareClaim?.(personId, claimId, "PROPOSED");
             await loadClaims();
@@ -8655,23 +8655,23 @@ function PersonDrawer({
                   living
                 );
                 const base = flashAfterClaimSave(followUp, savedType);
-                if (!canReview) {
-                  const qs = new URLSearchParams({
-                    tab: "records",
-                    person: person.id,
-                    claim: claimId,
-                    claimStatus: "PROPOSED",
-                  });
-                  setLocalFlashCopyUrl(
-                    `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
-                  );
-                  setLocalFlash(
-                    `${base} 可复制链接发给${REVIEWER_CONTACT}确认。`
-                  );
-                } else {
-                  setLocalFlashCopyUrl(null);
-                  setLocalFlash(base);
-                }
+                const qs = new URLSearchParams({
+                  tab: "records",
+                  person: person.id,
+                  claim: claimId,
+                  claimStatus: "PROPOSED",
+                });
+                if (!followUp) qs.set("openEvidence", "1");
+                setLocalFlashCopyUrl(
+                  `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
+                );
+                setLocalFlash(
+                  !canReview
+                    ? `${base} 可复制链接发给${REVIEWER_CONTACT}确认。`
+                    : followUp
+                      ? `${base}。可复制链接发给家人一起看。`
+                      : `${base}。可复制链接发给家人一起补来源，或稍后确认。`
+                );
                 await loadClaims();
                 if (followUp) {
                   setDrawerClaimSeed({ claimType: followUp, nonce: Date.now() });
