@@ -421,35 +421,45 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
                 : "尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。"
               : "尚未连成世代。有编辑权限的家人补上父母或配偶后，这里会按世代排版。"}
           </p>
-          <Link
-            href={
-              canEdit && book.persons.length < 2
-                ? `/alpha/families/${familyId}?tab=members`
-                : `/alpha/families/${familyId}?tab=lineage`
-            }
-            onClick={() => {
-              try {
-                if (canEdit && book.persons.length < 2) {
-                  sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
-                  sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
-                } else {
-                  sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
-                  if (canEdit) {
-                    sessionStorage.setItem(`alpha-add-rel:${familyId}`, "1");
-                  }
-                }
-              } catch {
-                /* private mode */
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Link
+              href={
+                canEdit && book.persons.length < 2
+                  ? `/alpha/families/${familyId}?tab=members`
+                  : `/alpha/families/${familyId}?tab=lineage`
               }
-            }}
-            className="alpha-btn alpha-btn-secondary mt-4 inline-flex !min-h-[40px] !text-sm"
-          >
-            {canEdit
-              ? book.persons.length < 2
-                ? "去添加成员"
-                : "去建立关系"
-              : "去世系查看"}
-          </Link>
+              onClick={() => {
+                try {
+                  if (canEdit && book.persons.length < 2) {
+                    sessionStorage.setItem(`alpha-tab:${familyId}`, "members");
+                    sessionStorage.setItem(`alpha-add-person:${familyId}`, "1");
+                  } else {
+                    sessionStorage.setItem(`alpha-tab:${familyId}`, "lineage");
+                    if (canEdit) {
+                      sessionStorage.setItem(`alpha-add-rel:${familyId}`, "1");
+                    }
+                  }
+                } catch {
+                  /* private mode */
+                }
+              }}
+              className="alpha-btn alpha-btn-secondary inline-flex !min-h-[40px] !text-sm"
+            >
+              {canEdit
+                ? book.persons.length < 2
+                  ? "去添加成员"
+                  : "去建立关系"
+                : "去世系查看"}
+            </Link>
+            {!canEdit ? (
+              <Link
+                href={`/alpha/families/${familyId}?scroll=participants`}
+                className="alpha-btn alpha-btn-secondary inline-flex !min-h-[40px] !text-sm"
+              >
+                查看参与家人
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
