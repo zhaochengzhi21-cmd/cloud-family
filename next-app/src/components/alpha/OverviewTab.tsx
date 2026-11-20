@@ -861,7 +861,27 @@ export function OverviewTab({
           },
     });
   }
+  const copyKinHandoff = (personId: string) => {
+    const qs = new URLSearchParams({
+      tab: "lineage",
+      person: personId,
+      kin: "parent",
+    });
+    const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+    void navigator.clipboard.writeText(url).then(
+      () => {
+        setNextStepCopyFlash("已复制添加关系链接");
+        window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+      },
+      () => {
+        setNextStepCopyFlash("请手动复制地址栏链接");
+        window.setTimeout(() => setNextStepCopyFlash(""), 2500);
+      }
+    );
+  };
+
   if (total >= 2 && unconnected.length > 0) {
+    const kinTarget = unconnected[0]?.id;
     steps.push({
       key: "connect",
       title: canEdit
@@ -869,15 +889,23 @@ export function OverviewTab({
         : `还有 ${unconnected.length} 位成员未连入世系`,
       body: canEdit
         ? "还没有父母或配偶关系，暂时无法排进世代。点人名可为 TA 添加父母（也可在弹窗里改成配偶或子女）。"
-        : "还没有父母或配偶关系，暂时无法排进世代。可先打开人物资料了解他们；有编辑权限的家人补上关系后，世系会出现。",
+        : "还没有父母或配偶关系，暂时无法排进世代。可先打开人物资料了解他们；有编辑权限的家人补上关系后，世系会出现。可复制添加关系链接发给对方。",
       people: unconnected.slice(0, 6),
       peopleAria: canEdit ? "建立关系" : "查看",
       browsePeople: !canEdit,
       action: canEdit
         ? { label: "添加家庭关系", onClick: onAddRel }
         : { label: "查看参与家人", onClick: scrollToParticipants },
+      secondaryAction:
+        !canEdit && kinTarget
+          ? {
+              label: nextStepCopyFlash || "复制添加关系链接",
+              onClick: () => copyKinHandoff(kinTarget),
+            }
+          : undefined,
     });
   } else if (componentCount > 1) {
+    const kinTarget = branchReps[0]?.id ?? unconnected[0]?.id;
     steps.push({
       key: "branches",
       title: canEdit
@@ -885,13 +913,20 @@ export function OverviewTab({
         : `档案里有 ${componentCount} 个尚未连接的分支`,
       body: canEdit
         ? "档案里有几支还没有连在一起。点较小分支里的人名，可为 TA 添加父母或配偶，与主支连上。"
-        : "几支还没有连在一起。可先打开较小分支里的人物资料；有编辑权限的家人补上关系后，会并入主支。",
+        : "几支还没有连在一起。可先打开较小分支里的人物资料；有编辑权限的家人补上关系后，会并入主支。可复制添加关系链接发给对方。",
       people: branchReps.length > 0 ? branchReps : undefined,
       peopleAria: canEdit ? "连接分支" : "查看",
       browsePeople: !canEdit,
       action: canEdit
         ? { label: "添加家庭关系", onClick: onAddRel }
         : { label: "查看参与家人", onClick: scrollToParticipants },
+      secondaryAction:
+        !canEdit && kinTarget
+          ? {
+              label: nextStepCopyFlash || "复制添加关系链接",
+              onClick: () => copyKinHandoff(kinTarget),
+            }
+          : undefined,
     });
   }
   const peopleChips = (
