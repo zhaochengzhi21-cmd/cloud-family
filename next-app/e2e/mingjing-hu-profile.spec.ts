@@ -4068,6 +4068,46 @@ test("明经胡氏：无成员时资料来源库仍可见", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：唯一成员抽屉关系CTA去添加成员", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·抽屉单人加成员（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "成员" }).click();
+  await page
+    .getByRole("button", { name: new RegExp(sample.wenGuang.preferredName) })
+    .click();
+  const drawer = page.getByRole("dialog");
+  await expect(
+    drawer.getByRole("heading", { name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    drawer.getByRole("button", { name: "选用已有成员建立关系" })
+  ).toHaveCount(0);
+  await drawer.getByRole("button", { name: "去添加成员" }).click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("成员", {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole("dialog", { name: /添加成员|添加家人/ }).or(
+      page.getByLabel("姓名 / 常用称呼")
+    )
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByText("至少需要两位成员")
+  ).toHaveCount(0);
+});
+
 test("明经胡氏：编辑者抽屉不可移除成员", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

@@ -1246,6 +1246,11 @@ export function FamilyWorkspace({
             const pid = selectedPersonId;
             setSelectedPersonId(null);
             setDrawerBasicsFocus(null);
+            if (persons.length < 2) {
+              setTab("members");
+              setShowAddPerson(true);
+              return;
+            }
             setTab("lineage");
             setRelFocusPersonId(pid);
             setShowAddRel(true);
@@ -6228,7 +6233,11 @@ function PersonDrawer({
                 className="text-sm font-semibold text-[color:var(--a-brand)]"
                 onClick={onRequestAddRel}
               >
-                {relRows.length ? "再添加一条关系" : "选用已有成员建立关系"}
+                {persons.length < 2
+                  ? "去添加成员"
+                  : relRows.length
+                    ? "再添加一条关系"
+                    : "选用已有成员建立关系"}
               </button>
             ) : null}
             {relRows.length > 0 ? (
