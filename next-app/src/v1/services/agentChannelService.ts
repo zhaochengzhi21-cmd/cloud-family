@@ -258,6 +258,21 @@ function capabilitiesForRole(
       policy: [
         "Link one claim: POST …/claims/{claimId}/evidence",
         "Link many claims: POST …/evidence/{evidenceId}/links",
+        "Unlink one claim: DELETE …/claims/{claimId}/evidence/{evidenceId} (keeps the source)",
+      ],
+    },
+    {
+      id: "unlink_evidence",
+      summary: "Detach a 资料来源 from one claim without deleting the source",
+      method: "DELETE",
+      path: `${base}/claims/{claimId}/evidence/{evidenceId}`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: [
+        "Does not soft-delete the evidence — only removes the claim link",
+        "To remove from the family library use DELETE …/evidence/{evidenceId}",
       ],
     },
     {
