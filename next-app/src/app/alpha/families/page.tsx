@@ -180,12 +180,12 @@ export default function AlphaFamiliesPage() {
           <p className="mt-4 text-sm text-[color:var(--a-muted)]">
             已有邀请？打开家人发来的链接，或到{" "}
             <Link
-              href="/alpha/login"
+              href="/alpha/login?showInvite=1"
               className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
             >
-              登录页
-            </Link>{" "}
-            粘贴邀请码。
+              登录页填写邀请码
+            </Link>
+            。
           </p>
         </div>
       ) : null}

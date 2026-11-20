@@ -29,10 +29,13 @@ export default function AlphaLoginPage() {
   const search = useSearchParams();
   const expired = search.get("reason") === "expired";
   const nextPath = safeNextPath(search.get("next"));
+  const inviteFromUrl = (search.get("invite") ?? "").trim();
+  const showInviteFromUrl =
+    search.get("showInvite") === "1" || Boolean(inviteFromUrl);
 
   const [email, setEmail] = useState("");
-  const [inviteToken, setInviteToken] = useState("");
-  const [showInvite, setShowInvite] = useState(false);
+  const [inviteToken, setInviteToken] = useState(inviteFromUrl);
+  const [showInvite, setShowInvite] = useState(showInviteFromUrl);
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState(
@@ -56,6 +59,12 @@ export default function AlphaLoginPage() {
       /* private mode */
     }
   }, []);
+
+  useEffect(() => {
+    if (!inviteFromUrl && !showInviteFromUrl) return;
+    if (inviteFromUrl) setInviteToken(inviteFromUrl);
+    setShowInvite(true);
+  }, [inviteFromUrl, showInviteFromUrl]);
 
   useEffect(() => {
     const prev = document.title;
