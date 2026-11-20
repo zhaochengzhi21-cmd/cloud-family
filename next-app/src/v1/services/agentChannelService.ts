@@ -14,14 +14,19 @@ import { getFamilyGraph } from "@/v1/services/familyGraphService";
 import { getClaimsForSubject } from "@/v1/services/claimService";
 import { listClaimIdsWithActiveEvidence } from "@/v1/repositories/evidenceRepository";
 import { mapPool } from "@/v1/util/pool";
+import {
+  getClaimTypeDefinition,
+  listRegisteredClaimTypes,
+} from "@/v1/domain/claim/registry";
 
 const PRINCIPLES = [
   "Agents may propose person facts with originType AI_EXTRACTION or IMPORT; creates are always 待确认 (PROPOSED).",
   "Prefer POST …/claims/batch for multi-fact extraction; use Idempotency-Key on retries so duplicate posts replay safely.",
+  "Send X-Client-Agent (e.g. cursor, chatgpt) so drafts are attributable in audit — session user remains the actor.",
   "Only OWNER/ADMIN may confirm or reject; editors may propose but cannot accept.",
   "Do not invent 资料来源. Prefer attaching real evidence, or leave unsourced for a human.",
   "Speak product language only: 人物资料 / 资料来源 / 不同说法 — never expose model or Claim jargon to end users.",
-  "Prefer the tasks list below over inventing work; complete high-priority human review first.",
+  "Use claimTypes below for allowed types and value shapes; prefer the tasks list over inventing work.",
 ] as const;
 
 export type AgentCapability = {
@@ -55,12 +60,36 @@ export type AgentTask = {
   };
 };
 
+export type AgentClaimType = {
+  type: string;
+  cardinality: "SINGLETON" | "MULTI";
+  kind: "TEXTUAL" | "RELATIONSHIP_ASSERTION";
+  valueShape: string;
+};
+
 export type AgentChannel = {
   principles: readonly string[];
+  /** Machine catalog — what agents may put in claimType / value. */
+  claimTypes: AgentClaimType[];
   capabilities: AgentCapability[];
   tasks: AgentTask[];
   taskTotal: number;
 };
+
+function claimTypesCatalog(): AgentClaimType[] {
+  return listRegisteredClaimTypes().map((type) => {
+    const def = getClaimTypeDefinition(type)!;
+    return {
+      type,
+      cardinality: def.cardinality,
+      kind: def.kind,
+      valueShape:
+        def.kind === "TEXTUAL"
+          ? '{ "text": string, "narrator"?: string }'
+          : '{ "otherPersonId": uuid, "relationshipType": string, "direction": string }',
+    };
+  });
+}
 
 function dbOrDefault(db?: V1Db): V1Db {
   return db ?? getV1Db();
@@ -102,6 +131,7 @@ function capabilitiesForRole(
         originType: "AI_EXTRACTION|IMPORT|MANUAL",
         confidence: "0..1 optional for AI_EXTRACTION",
         "Idempotency-Key": "optional header — safe AI retry",
+        "X-Client-Agent": "optional — cursor|chatgpt|… for audit",
       },
       policy: [
         "Always creates PROPOSED — never auto-accepted",
@@ -118,6 +148,7 @@ function capabilitiesForRole(
         claims: "array of propose_claim bodies (+ optional clientItemId)",
         onDuplicate: "reuse|error — default reuse",
         "Idempotency-Key": "optional header — safe AI retry",
+        "X-Client-Agent": "optional — cursor|chatgpt|… for audit",
       },
       policy: [
         "Partial success — check results[].ok per item",
@@ -322,6 +353,7 @@ export async function getFamilyAgentChannel(
 
   return {
     principles: PRINCIPLES,
+    claimTypes: claimTypesCatalog(),
     capabilities: caps,
     taskTotal: tasks.length,
     tasks: tasks.slice(0, limit),

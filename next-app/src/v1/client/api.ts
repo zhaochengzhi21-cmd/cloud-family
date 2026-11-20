@@ -488,9 +488,12 @@ export const v1api = {
       originType?: "MANUAL" | "AI_EXTRACTION" | "IMPORT";
       confidence?: number | null;
     },
-    opts?: { idempotencyKey?: string }
-  ) =>
-    v1Fetch<{
+    opts?: { idempotencyKey?: string; clientAgent?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    if (opts?.clientAgent) headers["X-Client-Agent"] = opts.clientAgent;
+    return v1Fetch<{
       claim: {
         id: string;
         claimType: string;
@@ -509,10 +512,9 @@ export const v1api = {
         originType: body.originType ?? "MANUAL",
         confidence: body.confidence ?? null,
       },
-      headers: opts?.idempotencyKey
-        ? { "Idempotency-Key": opts.idempotencyKey }
-        : undefined,
-    }),
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
 
   createClaimsBatch: (
     familyId: string,
@@ -527,9 +529,12 @@ export const v1api = {
       }>;
       onDuplicate?: "error" | "reuse";
     },
-    opts?: { idempotencyKey?: string }
-  ) =>
-    v1Fetch<{
+    opts?: { idempotencyKey?: string; clientAgent?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    if (opts?.clientAgent) headers["X-Client-Agent"] = opts.clientAgent;
+    return v1Fetch<{
       results: Array<
         | {
             index: number;
@@ -568,15 +573,20 @@ export const v1api = {
         })),
         onDuplicate: body.onDuplicate ?? "reuse",
       },
-      headers: opts?.idempotencyKey
-        ? { "Idempotency-Key": opts.idempotencyKey }
-        : undefined,
-    }),
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
 
   getAgentChannel: (familyId: string, limit = 40) =>
     v1Fetch<{
       agent: {
         principles: string[];
+        claimTypes: Array<{
+          type: string;
+          cardinality: string;
+          kind: string;
+          valueShape: string;
+        }>;
         capabilities: Array<{
           id: string;
           summary: string;

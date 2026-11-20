@@ -51,6 +51,8 @@ export type CreateClaimInput = {
   value: unknown;
   confidence?: number | null;
   originType?: ClaimOriginType;
+  /** Optional X-Client-Agent — audit only, never shown as product copy. */
+  clientAgent?: string | null;
 };
 
 export type CreateClaimResult = {

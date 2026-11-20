@@ -294,6 +294,9 @@ export async function createClaim(
         claimType: validated.claimType,
         subjectType: validated.subjectType,
         originType: validated.originType,
+        ...(input.clientAgent
+          ? { clientAgent: input.clientAgent }
+          : {}),
       },
       now: new Date(),
     });

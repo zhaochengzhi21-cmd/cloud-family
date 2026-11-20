@@ -386,12 +386,19 @@ test("明经胡氏：智能整理提议进入待确认且 agent 通道可见", a
 }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;
-  const familyId = await createFamily(
-    page,
-    baseURL!,
-    "西递明经胡氏·智能整理（测试）",
-    sample.surname
-  );
+  const ownerId = await insertFakeUser();
+  await loginAs(page, ownerId, baseURL!);
+  await page.goto(`${baseURL}/alpha/families`);
+
+  const fam = await apiJson(page, `/api/v1/families`, {
+    method: "POST",
+    body: {
+      displayName: "西递明经胡氏·智能整理（测试）",
+      surname: sample.surname,
+    },
+  });
+  expect(fam.status, JSON.stringify(fam.body)).toBe(201);
+  const familyId = (fam.body as { family: { id: string } }).family.id;
 
   const personId = await seedPerson(page, familyId, sample.wenGuang, []);
   const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
@@ -404,6 +411,7 @@ test("明经胡氏：智能整理提议进入待确认且 agent 通道可见", a
       originType: "AI_EXTRACTION",
       confidence: 0.82,
     },
+    headers: { "X-Client-Agent": "cursor-e2e" },
   });
   expect(created.status, JSON.stringify(created.body)).toBe(201);
   const claim = (
@@ -420,12 +428,14 @@ test("明经胡氏：智能整理提议进入待确认且 agent 通道可见", a
     agent.body as {
       agent: {
         principles: string[];
+        claimTypes: { type: string; valueShape: string }[];
         capabilities: { id: string }[];
         tasks: { kind: string; claimId?: string; originType?: string }[];
       };
     }
   ).agent;
   expect(channel.principles.length).toBeGreaterThan(0);
+  expect(channel.claimTypes.some((t) => t.type === "OCCUPATION")).toBe(true);
   expect(channel.capabilities.some((c) => c.id === "propose_claim")).toBe(
     true
   );
@@ -438,14 +448,15 @@ test("明经胡氏：智能整理提议进入待确认且 agent 通道可见", a
     )
   ).toBe(true);
 
-  await page.goto(`/alpha/families/${familyId}`);
+  // UI badge path (overview → 资料). Soft timeout — Neon stalls shouldn't fail the channel contract.
+  await page.goto(`/alpha/families/${familyId}`, { waitUntil: "domcontentloaded" });
   await page.getByRole("tab", { name: "概览" }).click();
   const pending = page.getByRole("region", { name: /待确认资料/ });
-  await expect(pending).toBeVisible({ timeout: 60_000 });
+  await expect(pending).toBeVisible({ timeout: 90_000 });
   const row = pending.getByRole("button", {
     name: /胡文光.*职业|万载知县/,
   });
-  await expect(row).toBeVisible();
+  await expect(row).toBeVisible({ timeout: 30_000 });
   await expect(row.getByText("智能整理")).toBeVisible();
   await row.click();
   await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
@@ -510,7 +521,10 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
     {
       method: "POST",
       body,
-      headers: { "Idempotency-Key": idem },
+      headers: {
+        "Idempotency-Key": idem,
+        "X-Client-Agent": "cursor-e2e",
+      },
     }
   );
   expect(first.status, JSON.stringify(first.body)).toBe(201);
@@ -533,24 +547,16 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
     {
       method: "POST",
       body,
-      headers: { "Idempotency-Key": idem },
+      headers: {
+        "Idempotency-Key": idem,
+        "X-Client-Agent": "cursor-e2e",
+      },
     }
   );
   expect(replay.status).toBe(201);
   expect(replay.replayed).toBe("true");
   const replayBody = replay.body as { created: number };
   expect(replayBody.created).toBe(2);
-
-  const agent = await apiJson(page, `/api/v1/families/${familyId}/agent`);
-  expect(agent.status).toBe(200);
-  const channel = (
-    agent.body as {
-      agent: { capabilities: { id: string }[] };
-    }
-  ).agent;
-  expect(
-    channel.capabilities.some((c) => c.id === "propose_claims_batch")
-  ).toBe(true);
 
   // Same facts without idempotency key → reuse path, no new rows
   const again = await apiJson(
@@ -571,6 +577,21 @@ test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", asyn
       (r) => r.ok && r.reused && claimIds.includes(r.claim!.id)
     )
   ).toBe(true);
+
+  const agent = await apiJson(page, `/api/v1/families/${familyId}/agent`);
+  expect(agent.status, JSON.stringify(agent.body)).toBe(200);
+  const channel = (
+    agent.body as {
+      agent: {
+        capabilities: { id: string }[];
+        claimTypes: { type: string }[];
+      };
+    }
+  ).agent;
+  expect(
+    channel.capabilities.some((c) => c.id === "propose_claims_batch")
+  ).toBe(true);
+  expect(channel.claimTypes.some((t) => t.type === "STORY")).toBe(true);
 });
 
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({

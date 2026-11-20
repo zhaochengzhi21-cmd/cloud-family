@@ -6,6 +6,7 @@ import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { claimDto, okJson } from "@/v1/http/response";
 import { createClaimsBatch } from "@/v1/services/claimBatchService";
 import { withIdempotency } from "@/v1/http/idempotency";
+import { readClientAgent } from "@/v1/http/clientAgent";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -33,6 +34,7 @@ export async function POST(
 
   const parsed = createClaimsBatchBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
+  const clientAgent = readClientAgent(req);
 
   return withIdempotency({
     req,
@@ -56,6 +58,7 @@ export async function POST(
               clientItemId: c.clientItemId,
             })),
             onDuplicate: parsed.data.onDuplicate,
+            clientAgent,
           },
           { db: ctx.db }
         );

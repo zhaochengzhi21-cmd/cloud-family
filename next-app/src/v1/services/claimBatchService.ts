@@ -65,6 +65,7 @@ export async function createClaimsBatch(
     actorContext: AccessContext;
     claims: BatchClaimItemInput[];
     onDuplicate?: "error" | "reuse";
+    clientAgent?: string | null;
   },
   options?: { db?: V1Db }
 ): Promise<CreateClaimsBatchResult> {
@@ -101,6 +102,7 @@ export async function createClaimsBatch(
           value: item.value,
           originType: item.originType ?? "MANUAL",
           confidence: item.confidence ?? null,
+          clientAgent: input.clientAgent ?? null,
         },
         { db: database }
       );

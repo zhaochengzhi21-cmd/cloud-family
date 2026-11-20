@@ -6,6 +6,7 @@ import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { claimDto, okJson } from "@/v1/http/response";
 import { createClaim } from "@/v1/services/claimService";
 import { withIdempotency } from "@/v1/http/idempotency";
+import { readClientAgent } from "@/v1/http/clientAgent";
 import type { ClaimType } from "@/db/constants";
 import { z } from "zod";
 
@@ -48,6 +49,7 @@ export async function POST(
 
   const parsed = createClaimBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
+  const clientAgent = readClientAgent(req);
 
   return withIdempotency({
     req,
@@ -67,6 +69,7 @@ export async function POST(
             value: parsed.data.value,
             originType: parsed.data.originType ?? "MANUAL",
             confidence: parsed.data.confidence ?? null,
+            clientAgent,
           },
           { db: ctx.db }
         );
