@@ -307,6 +307,7 @@ export const v1api = {
         evidenceType?: string;
         membershipRole?: string;
         restorable?: boolean;
+        rejoined?: boolean;
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
 

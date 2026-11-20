@@ -69,6 +69,8 @@ export type ActivityItem = {
   membershipRole?: string;
   /** Soft-deleted person/relationship can be restored in the UI. */
   restorable?: boolean;
+  /** MEMBER_JOINED after leave/remove (invite reinstated SUSPENDED → ACTIVE). */
+  rejoined?: boolean;
 };
 
 function actorUserId(ctx: AccessContext): string | null {
@@ -139,11 +141,21 @@ export async function getFamilyActivity(
     switch (r.eventType) {
       case "FAMILY_CREATED":
       case "FAMILY_IDENTITY_UPDATED":
-      case "MEMBER_JOINED":
       case "MEMBERSHIP_SUSPENDED":
       case "MEMBERSHIP_LEFT":
         items.push(base);
         break;
+      case "MEMBER_JOINED": {
+        const rejoined =
+          r.metadataJson &&
+          typeof r.metadataJson === "object" &&
+          !Array.isArray(r.metadataJson) &&
+          (r.metadataJson as Record<string, unknown>).rejoined === true
+            ? true
+            : undefined;
+        items.push({ ...base, rejoined });
+        break;
+      }
       case "MEMBERSHIP_ROLE_CHANGED": {
         const role = metaString(r.metadataJson, "role");
         items.push({

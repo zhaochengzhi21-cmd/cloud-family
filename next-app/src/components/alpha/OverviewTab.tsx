@@ -124,7 +124,9 @@ function activityPieces(item: ActivityItem): Piece[] | null {
       return [t ? `恢复了一条资料来源（${t}）` : "恢复了一条资料来源"];
     }
     case "MEMBER_JOINED":
-      return ["通过邀请加入了家族"];
+      return [
+        item.rejoined ? "再次受邀加入了家族" : "通过邀请加入了家族",
+      ];
     case "MEMBERSHIP_ROLE_CHANGED": {
       const roleKey = item.membershipRole;
       const roleLabel =

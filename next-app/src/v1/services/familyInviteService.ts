@@ -501,9 +501,36 @@ export async function acceptFamilyInvite(
     if (existing?.status === "ACTIVE") {
       return { familyId: family.id, role: existing.role, alreadyMember: true };
     }
-    if (existing) throw new InviteDomainError("MEMBERSHIP_SUSPENDED");
     if (!inviteRepo.isInviteOpen(invite, now)) {
       throw new InviteDomainError("INVITE_UNAVAILABLE");
+    }
+
+    // Left/removed members are SUSPENDED; a fresh invite should reinstate them.
+    if (existing?.status === "SUSPENDED") {
+      await tx
+        .update(familyMemberships)
+        .set({
+          status: "ACTIVE",
+          role: invite.role as MembershipRole,
+          updatedAt: now,
+        })
+        .where(eq(familyMemberships.id, existing.id));
+      await inviteRepo.markInviteConsumed(tx, invite.id, userId, now);
+      await advanceFamilyVersion(tx, {
+        familyId: family.id,
+        actorUserId: userId,
+        summary: "Member rejoined via invite",
+        eventType: "MEMBER_JOINED",
+        entityType: "MEMBERSHIP",
+        entityId: existing.id,
+        metadataJson: {
+          role: invite.role,
+          inviteId: invite.id,
+          rejoined: true,
+        },
+        now,
+      });
+      return { familyId: family.id, role: invite.role, alreadyMember: false };
     }
 
     const membershipId = randomUUID();
