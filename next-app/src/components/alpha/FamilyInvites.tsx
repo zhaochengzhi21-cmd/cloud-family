@@ -84,6 +84,9 @@ export function FamilyInvites({
     membershipId: string;
     label: string;
   }>(null);
+  const [inviteUndo, setInviteUndo] = useState<null | { role: InviteRole }>(
+    null
+  );
 
   const load = useCallback(async () => {
     try {
@@ -190,6 +193,9 @@ export function FamilyInvites({
   }
 
   async function revoke(inviteId: string) {
+    const previousRole = (
+      access?.invites.find((i) => i.id === inviteId)?.role ?? role
+    ) as InviteRole;
     try {
       await v1api.revokeFamilyInvite(familyId, inviteId);
       clearStoredInviteUrl(familyId, inviteId);
@@ -197,13 +203,21 @@ export function FamilyInvites({
         setLink(null);
       }
       setFailed(false);
+      setRoleUndo(null);
+      setMemberUndo(null);
       setMessageCopyUrl(
         `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
       );
       setMessageCopyFlash("");
       setMessage(
-        "已撤销邀请。可在上方重新生成；也可复制本段链接发给有邀请权限的家人核对。"
+        `已撤销邀请。误操作可点重新生成${roleLabel(previousRole)}邀请；也可复制本段链接发给有邀请权限的家人核对。`
       );
+      if (access?.invitableRoles.includes(previousRole)) {
+        setRole(previousRole);
+        setInviteUndo({ role: previousRole });
+      } else {
+        setInviteUndo(null);
+      }
       await load();
       window.setTimeout(() => {
         document.getElementById("invite-email")?.focus();
@@ -212,7 +226,41 @@ export function FamilyInvites({
       if (onAuthError(e)) return;
       setFailed(true);
       setMessageCopyUrl(null);
+      setInviteUndo(null);
       setMessage(userMessageForApiError(e));
+    }
+  }
+
+  async function undoInviteRevoke() {
+    const undo = inviteUndo;
+    if (!undo || busy) return;
+    setBusy(true);
+    setInviteUndo(null);
+    setMessageCopyFlash("");
+    setFailed(false);
+    try {
+      const r = await v1api.createFamilyInvite(familyId, undo.role);
+      const url = `${window.location.origin}/alpha/invite/${r.token}`;
+      writeStoredInviteUrl(familyId, r.invite.id, url);
+      setLink({ url, role: r.invite.role });
+      try {
+        await navigator.clipboard.writeText(url);
+        setMessage(
+          `已重新生成并复制${roleLabel(undo.role)}邀请链接，可发给家人`
+        );
+      } catch {
+        setMessage(
+          `已重新生成${roleLabel(undo.role)}邀请链接；请复制下方链接发给家人`
+        );
+      }
+      setMessageCopyUrl(null);
+      await load();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setFailed(true);
+      setMessage(userMessageForApiError(e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -816,6 +864,16 @@ export function FamilyInvites({
                 onClick={() => void undoRemoveMember()}
               >
                 恢复
+              </button>
+            ) : null}
+            {inviteUndo && !failed ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                disabled={busy}
+                onClick={() => void undoInviteRevoke()}
+              >
+                重新生成
               </button>
             ) : null}
             {messageCopyUrl &&
