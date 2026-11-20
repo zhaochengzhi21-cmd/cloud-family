@@ -17,6 +17,7 @@ import { mapPool } from "@/v1/util/pool";
 
 const PRINCIPLES = [
   "Agents may propose person facts with originType AI_EXTRACTION or IMPORT; creates are always 待确认 (PROPOSED).",
+  "Prefer POST …/claims/batch for multi-fact extraction; use Idempotency-Key on retries so duplicate posts replay safely.",
   "Only OWNER/ADMIN may confirm or reject; editors may propose but cannot accept.",
   "Do not invent 资料来源. Prefer attaching real evidence, or leave unsourced for a human.",
   "Speak product language only: 人物资料 / 资料来源 / 不同说法 — never expose model or Claim jargon to end users.",
@@ -100,10 +101,27 @@ function capabilitiesForRole(
         value: '{ "text": "…" }',
         originType: "AI_EXTRACTION|IMPORT|MANUAL",
         confidence: "0..1 optional for AI_EXTRACTION",
+        "Idempotency-Key": "optional header — safe AI retry",
       },
       policy: [
         "Always creates PROPOSED — never auto-accepted",
-        "Duplicate active fingerprint → error",
+        "Duplicate active fingerprint → error (use batch onDuplicate=reuse)",
+      ],
+    },
+    {
+      id: "propose_claims_batch",
+      summary: "Propose up to 20 facts in one call (OCR / page extract)",
+      method: "POST",
+      path: `${base}/claims/batch`,
+      roles: ["OWNER", "ADMIN", "EDITOR"],
+      bodyHints: {
+        claims: "array of propose_claim bodies (+ optional clientItemId)",
+        onDuplicate: "reuse|error — default reuse",
+        "Idempotency-Key": "optional header — safe AI retry",
+      },
+      policy: [
+        "Partial success — check results[].ok per item",
+        "Never auto-accept; human review still required",
       ],
     },
     {

@@ -5,6 +5,7 @@ import { createClaimBodySchema } from "@/v1/http/schemas/workspace";
 import { invalidRequest, mapDomainErrorToResponse } from "@/v1/http/errors";
 import { claimDto, okJson } from "@/v1/http/response";
 import { createClaim } from "@/v1/services/claimService";
+import { withIdempotency } from "@/v1/http/idempotency";
 import type { ClaimType } from "@/db/constants";
 import { z } from "zod";
 
@@ -48,32 +49,41 @@ export async function POST(
   const parsed = createClaimBodySchema.safeParse(body.value);
   if (!parsed.success) return invalidRequest();
 
-  try {
-    const result = await createClaim(
-      {
-        familyId: p.data.familyId,
-        actorContext: ctx.actorContext,
-        subjectType: parsed.data.subjectType,
-        subjectId: parsed.data.subjectId,
-        claimType: parsed.data.claimType as ClaimType,
-        value: parsed.data.value,
-        originType: parsed.data.originType ?? "MANUAL",
-        confidence: parsed.data.confidence ?? null,
-      },
-      { db: ctx.db }
-    );
-    return okJson(
-      {
-        claim: claimDto(result.claim),
-        familyVersion: result.familyVersion,
-      },
-      201
-    );
-  } catch (e) {
-    return mapDomainErrorToResponse(e, {
-      userId: ctx.userId,
-      familyId: p.data.familyId,
-      db: ctx.db,
-    });
-  }
+  return withIdempotency({
+    req,
+    userId: ctx.userId,
+    familyId: p.data.familyId,
+    routeId: "claims.create",
+    body: parsed.data,
+    run: async () => {
+      try {
+        const result = await createClaim(
+          {
+            familyId: p.data.familyId,
+            actorContext: ctx.actorContext,
+            subjectType: parsed.data.subjectType,
+            subjectId: parsed.data.subjectId,
+            claimType: parsed.data.claimType as ClaimType,
+            value: parsed.data.value,
+            originType: parsed.data.originType ?? "MANUAL",
+            confidence: parsed.data.confidence ?? null,
+          },
+          { db: ctx.db }
+        );
+        return okJson(
+          {
+            claim: claimDto(result.claim),
+            familyVersion: result.familyVersion,
+          },
+          201
+        );
+      } catch (e) {
+        return mapDomainErrorToResponse(e, {
+          userId: ctx.userId,
+          familyId: p.data.familyId,
+          db: ctx.db,
+        });
+      }
+    },
+  });
 }

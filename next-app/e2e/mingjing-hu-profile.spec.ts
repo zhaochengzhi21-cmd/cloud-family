@@ -457,6 +457,122 @@ test("明经胡氏：智能整理提议进入待确认且 agent 通道可见", a
   await expect(card.getByRole("button", { name: "确认这条资料" })).toBeVisible();
 });
 
+test("明经胡氏：批量智能整理 + Idempotency-Key 可安全重试", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const ownerId = await insertFakeUser();
+  await loginAs(page, ownerId, baseURL!);
+  // Same-origin page so mutation Origin checks pass for apiJson.
+  await page.goto(`${baseURL}/alpha/families`);
+
+  const fam = await apiJson(page, `/api/v1/families`, {
+    method: "POST",
+    body: {
+      displayName: "西递明经胡氏·批量智能整理（测试）",
+      surname: sample.surname,
+    },
+  });
+  expect(fam.status, JSON.stringify(fam.body)).toBe(201);
+  const familyId = (fam.body as { family: { id: string } }).family.id;
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const idem = `e2e-batch-${Date.now()}`;
+
+  const body = {
+    claims: [
+      {
+        subjectType: "PERSON",
+        subjectId: personId,
+        claimType: "OCCUPATION",
+        value: { text: "万载知县，后升胶州刺史" },
+        originType: "AI_EXTRACTION",
+        confidence: 0.9,
+        clientItemId: "occ-1",
+      },
+      {
+        subjectType: "PERSON",
+        subjectId: personId,
+        claimType: "STORY",
+        value: { text: "西递明经胡氏支系人物事迹摘录（测试）" },
+        originType: "AI_EXTRACTION",
+        confidence: 0.7,
+        clientItemId: "story-1",
+      },
+    ],
+    onDuplicate: "reuse",
+  };
+
+  const first = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/batch`,
+    {
+      method: "POST",
+      body,
+      headers: { "Idempotency-Key": idem },
+    }
+  );
+  expect(first.status, JSON.stringify(first.body)).toBe(201);
+  const firstBody = first.body as {
+    created: number;
+    reused: number;
+    failed: number;
+    results: Array<{ ok: boolean; claim?: { id: string }; reused?: boolean }>;
+  };
+  expect(firstBody.created).toBe(2);
+  expect(firstBody.failed).toBe(0);
+  const claimIds = firstBody.results
+    .filter((r) => r.ok && r.claim)
+    .map((r) => r.claim!.id);
+  expect(claimIds).toHaveLength(2);
+
+  const replay = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/batch`,
+    {
+      method: "POST",
+      body,
+      headers: { "Idempotency-Key": idem },
+    }
+  );
+  expect(replay.status).toBe(201);
+  expect(replay.replayed).toBe("true");
+  const replayBody = replay.body as { created: number };
+  expect(replayBody.created).toBe(2);
+
+  const agent = await apiJson(page, `/api/v1/families/${familyId}/agent`);
+  expect(agent.status).toBe(200);
+  const channel = (
+    agent.body as {
+      agent: { capabilities: { id: string }[] };
+    }
+  ).agent;
+  expect(
+    channel.capabilities.some((c) => c.id === "propose_claims_batch")
+  ).toBe(true);
+
+  // Same facts without idempotency key → reuse path, no new rows
+  const again = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/batch`,
+    { method: "POST", body: { ...body, onDuplicate: "reuse" } }
+  );
+  expect(again.status).toBe(201);
+  const againBody = again.body as {
+    created: number;
+    reused: number;
+    results: Array<{ ok: boolean; reused?: boolean; claim?: { id: string } }>;
+  };
+  expect(againBody.created).toBe(0);
+  expect(againBody.reused).toBe(2);
+  expect(
+    againBody.results.every(
+      (r) => r.ok && r.reused && claimIds.includes(r.claim!.id)
+    )
+  ).toBe(true);
+});
+
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({
   page,
   baseURL,

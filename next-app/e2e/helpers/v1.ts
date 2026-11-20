@@ -224,7 +224,11 @@ export async function closeDb() {
 export async function apiJson(
   page: Page,
   path: string,
-  init?: { method?: string; body?: unknown },
+  init?: {
+    method?: string;
+    body?: unknown;
+    headers?: Record<string, string>;
+  },
   baseURL?: string
 ) {
   let origin = baseURL?.replace(/\/$/, "");
@@ -237,13 +241,14 @@ export async function apiJson(
   const url = path.startsWith("http") ? path : `${origin}${path}`;
   return page.evaluate(
     async ({ url, init }) => {
+      const headers: Record<string, string> = { ...(init?.headers ?? {}) };
+      if (init?.body !== undefined) {
+        headers["Content-Type"] = "application/json";
+      }
       const res = await fetch(url, {
         method: init?.method ?? "GET",
         credentials: "include",
-        headers:
-          init?.body !== undefined
-            ? { "Content-Type": "application/json" }
-            : undefined,
+        headers: Object.keys(headers).length ? headers : undefined,
         body:
           init?.body !== undefined ? JSON.stringify(init.body) : undefined,
       });
@@ -254,7 +259,8 @@ export async function apiJson(
       } catch {
         body = text;
       }
-      return { status: res.status, body };
+      const replayed = res.headers.get("Idempotency-Replayed");
+      return { status: res.status, body, replayed };
     },
     { url, init }
   );

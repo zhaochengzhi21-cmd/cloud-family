@@ -89,6 +89,31 @@ export const createClaimBodySchema = z
     }
   });
 
+const createClaimBatchItemSchema = z
+  .object({
+    subjectType: z.enum(["FAMILY", "PERSON", "RELATIONSHIP"]),
+    subjectId: uuid,
+    claimType: z.string().min(1).max(64),
+    value: z
+      .object({ text: z.string().min(1).max(8000) })
+      .passthrough(),
+    originType: z
+      .enum(["MANUAL", "AI_EXTRACTION", "IMPORT"])
+      .optional(),
+    confidence: z.number().min(0).max(1).nullable().optional(),
+    clientItemId: z.string().min(1).max(64).optional(),
+  })
+  .strict();
+
+/** Batch propose — AI/agent friendly; max 20 items. */
+export const createClaimsBatchBodySchema = z
+  .object({
+    claims: z.array(createClaimBatchItemSchema).min(1).max(20),
+    /** reuse (default): duplicate fingerprint returns existing claim. */
+    onDuplicate: z.enum(["error", "reuse"]).optional(),
+  })
+  .strict();
+
 export const createEvidenceBodySchema = z
   .object({
     evidenceType: z.enum([

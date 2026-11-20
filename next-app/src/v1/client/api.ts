@@ -66,6 +66,8 @@ type FetchOpts = {
   signal?: AbortSignal;
   /** Default 30s — avoid indefinite loading when Neon/DNS stalls. */
   timeoutMs?: number;
+  /** Extra request headers (e.g. Idempotency-Key for agent retries). */
+  headers?: Record<string, string>;
 };
 
 function resolveFetchSignal(
@@ -92,7 +94,7 @@ function resolveFetchSignal(
 
 async function v1Fetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const method = opts.method ?? "GET";
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...(opts.headers ?? {}) };
   if (opts.body !== undefined) {
     headers["Content-Type"] = "application/json";
   }
@@ -485,7 +487,8 @@ export const v1api = {
       value: { text: string; narrator?: string | null };
       originType?: "MANUAL" | "AI_EXTRACTION" | "IMPORT";
       confidence?: number | null;
-    }
+    },
+    opts?: { idempotencyKey?: string }
   ) =>
     v1Fetch<{
       claim: {
@@ -506,6 +509,68 @@ export const v1api = {
         originType: body.originType ?? "MANUAL",
         confidence: body.confidence ?? null,
       },
+      headers: opts?.idempotencyKey
+        ? { "Idempotency-Key": opts.idempotencyKey }
+        : undefined,
+    }),
+
+  createClaimsBatch: (
+    familyId: string,
+    body: {
+      claims: Array<{
+        subjectId: string;
+        claimType: string;
+        value: { text: string; narrator?: string | null };
+        originType?: "MANUAL" | "AI_EXTRACTION" | "IMPORT";
+        confidence?: number | null;
+        clientItemId?: string;
+      }>;
+      onDuplicate?: "error" | "reuse";
+    },
+    opts?: { idempotencyKey?: string }
+  ) =>
+    v1Fetch<{
+      results: Array<
+        | {
+            index: number;
+            ok: true;
+            claim: {
+              id: string;
+              claimType: string;
+              status: string;
+              originType: string;
+            };
+            reused: boolean;
+            clientItemId?: string;
+          }
+        | {
+            index: number;
+            ok: false;
+            code: string;
+            clientItemId?: string;
+          }
+      >;
+      created: number;
+      reused: number;
+      failed: number;
+      familyVersion: number | null;
+    }>(`/api/v1/families/${familyId}/claims/batch`, {
+      method: "POST",
+      body: {
+        claims: body.claims.map((c) => ({
+          subjectType: "PERSON",
+          subjectId: c.subjectId,
+          claimType: c.claimType,
+          value: c.value,
+          originType: c.originType ?? "AI_EXTRACTION",
+          confidence: c.confidence ?? null,
+          clientItemId: c.clientItemId,
+        })),
+        onDuplicate: body.onDuplicate ?? "reuse",
+      },
+      headers: opts?.idempotencyKey
+        ? { "Idempotency-Key": opts.idempotencyKey }
+        : undefined,
     }),
 
   getAgentChannel: (familyId: string, limit = 40) =>
