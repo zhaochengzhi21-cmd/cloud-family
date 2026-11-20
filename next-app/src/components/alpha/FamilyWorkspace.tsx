@@ -2839,11 +2839,12 @@ function LineageTab({
                   type="button"
                   className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
                   onClick={() => {
-                    setBranchRoot(null);
-                    setJumpId(null);
+                    const first = outsideMatches[0];
+                    if (first) jumpTo(first.id);
+                    else setBranchRoot(null);
                   }}
                 >
-                  在全部世系中查找
+                  在全部世系中查看
                 </button>
               ) : null}
               {q && !matches.length && outsideMatches.length === 0 ? (
@@ -2889,6 +2890,27 @@ function LineageTab({
                   还有 {matches.length - 12} 位，请输入更完整的名字
                 </li>
               ) : null}
+            </ul>
+          ) : null}
+          {q && matches.length === 0 && outsideMatches.length > 0 ? (
+            <ul className="mt-2 flex flex-wrap gap-2" aria-label="其他分支中的查找结果">
+              {outsideMatches.slice(0, 12).map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => jumpTo(p.id)}
+                    className="alpha-chip !min-h-[32px] font-semibold"
+                  >
+                    {p.preferredName}
+                    {generationByPerson[p.id]
+                      ? ` · ${generationLabel(generationByPerson[p.id])}`
+                      : ""}
+                    <span className="font-normal text-[color:var(--a-muted)]">
+                      {" · 其他分支"}
+                    </span>
+                  </button>
+                </li>
+              ))}
             </ul>
           ) : null}
         </div>
