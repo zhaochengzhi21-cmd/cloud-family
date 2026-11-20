@@ -43,6 +43,31 @@ function AlreadyMemberCopyButton({ familyId }: { familyId: string }) {
   );
 }
 
+function UnavailableInviteCopyButton() {
+  const [flash, setFlash] = useState("");
+  return (
+    <button
+      type="button"
+      className="alpha-btn alpha-btn-secondary inline-flex"
+      onClick={() => {
+        const url = `${window.location.origin}/alpha/families`;
+        void navigator.clipboard.writeText(url).then(
+          () => {
+            setFlash("已复制「我的家族」链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          },
+          () => {
+            setFlash("请手动复制地址栏链接");
+            window.setTimeout(() => setFlash(""), 2500);
+          }
+        );
+      }}
+    >
+      {flash || "复制「我的家族」链接"}
+    </button>
+  );
+}
+
 export function InviteLanding({ token }: { token: string }) {
   const router = useRouter();
   const [view, setView] = useState<View>({ kind: "loading" });
@@ -182,7 +207,7 @@ export function InviteLanding({ token }: { token: string }) {
               这条邀请已失效
             </h1>
             <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-              它可能已被使用、被撤销或已过期。请向家人要一条新的邀请链接。
+              它可能已被使用、被撤销或已过期。请向家人要一条新的邀请链接；也可复制「我的家族」页发给对方，方便对方从参与家人处再发邀请。
             </p>
             <div className="mt-6 flex flex-wrap justify-center gap-2">
               <Link
@@ -191,6 +216,7 @@ export function InviteLanding({ token }: { token: string }) {
               >
                 查看我的家族
               </Link>
+              <UnavailableInviteCopyButton />
             </div>
           </>
         ) : null}
