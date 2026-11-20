@@ -532,12 +532,18 @@ export function PersonProfile({
               在世系中查看
             </button>
           ) : null}
+          <Link
+            href={`/alpha/families/${familyId}/print?person=${personId}`}
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+          >
+            在打印版家谱中查看
+          </Link>
           <button
             type="button"
             onClick={() => window.print()}
             className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
           >
-            打印
+            打印本页
           </button>
         </div>
       </header>

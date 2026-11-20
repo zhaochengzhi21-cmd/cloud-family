@@ -2382,6 +2382,38 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：人物页可直达打印版对应条目", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物打印版（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, [
+    { claimType: "BIRTH_DATE", text: "明嘉靖四年" },
+  ]);
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("heading", { level: 1, name: sample.wenGuang.preferredName })
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("link", { name: "在打印版家谱中查看" }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/alpha/families/${familyId}/print\\?person=${personId}`)
+  );
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "西递明经胡氏·人物打印版（测试）",
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  const entry = page.locator(`#print-person-${personId}`);
+  await expect(entry).toBeVisible({ timeout: 20_000 });
+  await expect(entry).toContainText(sample.wenGuang.preferredName);
+});
+
 test("明经胡氏：移除来源后可从动态恢复", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

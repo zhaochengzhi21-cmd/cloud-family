@@ -123,6 +123,28 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     };
   }, [book]);
 
+  useEffect(() => {
+    if (!book) return;
+    let focusId: string | null = null;
+    try {
+      focusId = new URLSearchParams(window.location.search).get("person");
+    } catch {
+      return;
+    }
+    if (!focusId) return;
+    const id = focusId;
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(`print-person-${id}`);
+      if (!(el instanceof HTMLElement)) return;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.classList.add("ring-2", "ring-[color:var(--a-brand)]");
+      window.setTimeout(() => {
+        el.classList.remove("ring-2", "ring-[color:var(--a-brand)]");
+      }, 2400);
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [book]);
+
   const layout = useMemo(() => {
     if (!book) return null;
     const byId = new Map(book.persons.map((p) => [p.id, p]));
@@ -532,7 +554,10 @@ function BookEntry({
     : [];
 
   return (
-    <div className="alpha-panel alpha-print-avoid-break px-5 py-4">
+    <div
+      id={`print-person-${person.id}`}
+      className="alpha-panel alpha-print-avoid-break px-5 py-4"
+    >
       <h3 className="alpha-font-display text-lg font-bold text-[color:var(--a-ink)]">
         <PrintPersonLink
           familyId={familyId}
