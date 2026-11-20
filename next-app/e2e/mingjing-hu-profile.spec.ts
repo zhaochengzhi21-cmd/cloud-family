@@ -2266,6 +2266,51 @@ test("明经胡氏：有成员无关系时打印版提示建立关系", async ({
   });
 });
 
+test("明经胡氏：只读成员打印无关系时不催促建立", async ({
+  page,
+  browser,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId, ownerId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·只读打印无关系（测试）",
+    sample.surname
+  );
+  void ownerId;
+
+  await seedPerson(page, familyId, sample.wenGuang, []);
+  await seedPerson(page, familyId, sample.guanSan, []);
+
+  const viewerId = await insertFakeUser();
+  await insertMembership(familyId, viewerId, "VIEWER");
+  const viewerCtx = await browser.newContext({ baseURL });
+  const viewerPage = await viewerCtx.newPage();
+  await loginAs(viewerPage, viewerId, baseURL!);
+  await viewerPage.goto(`/alpha/families/${familyId}/print`);
+  await expect(
+    viewerPage.getByRole("heading", {
+      level: 1,
+      name: "西递明经胡氏·只读打印无关系（测试）",
+    })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(viewerPage.getByText("尚未连成世代")).toBeVisible();
+  await expect(
+    viewerPage.getByRole("link", { name: "去建立关系" })
+  ).toHaveCount(0);
+  await viewerPage.getByRole("link", { name: "去世系查看" }).click();
+  await expect(viewerPage).toHaveURL(
+    new RegExp(`/alpha/families/${familyId}$`)
+  );
+  await expect(viewerPage.getByRole("tab", { selected: true })).toHaveText(
+    "世系",
+    { timeout: 60_000 }
+  );
+  await viewerCtx.close();
+});
+
 test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

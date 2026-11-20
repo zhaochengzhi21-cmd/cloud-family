@@ -77,6 +77,7 @@ function dateLabel(iso: string): string {
 export function FamilyPrintBook({ familyId }: { familyId: string }) {
   const router = useRouter();
   const [book, setBook] = useState<Book | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
@@ -86,10 +87,19 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
     const fetchOnce = () => v1api.exportFamily(familyId);
     const transient = (e: unknown) =>
       e instanceof V1ApiError && (e.status === 0 || e.status >= 500);
-    fetchOnce()
-      .catch((e) => (transient(e) && !cancelled ? fetchOnce() : Promise.reject(e)))
-      .then((r) => {
-        if (!cancelled) setBook(r.export);
+    Promise.all([
+      fetchOnce().catch((e) =>
+        transient(e) && !cancelled ? fetchOnce() : Promise.reject(e)
+      ),
+      v1api.listFamilies().catch(() => null),
+    ])
+      .then(([r, list]) => {
+        if (cancelled) return;
+        setBook(r.export);
+        const role = list?.families.find((f) => f.id === familyId)?.role;
+        setCanEdit(
+          role === "OWNER" || role === "ADMIN" || role === "EDITOR"
+        );
       })
       .catch((e) => {
         if (cancelled || handleAuthRedirect(e, router)) return;
@@ -319,7 +329,9 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
       {book.relationships.length === 0 ? (
         <div className="alpha-print-hide mb-8 text-center">
           <p className="text-sm text-[color:var(--a-muted)]">
-            尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。
+            {canEdit
+              ? "尚未建立家庭关系。在世系里添加父母或配偶后，这里会按世代排版。"
+              : "尚未连成世代。有编辑权限的家人补上父母或配偶后，这里会按世代排版。"}
           </p>
           <Link
             href={`/alpha/families/${familyId}`}
@@ -332,7 +344,7 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
             }}
             className="alpha-btn alpha-btn-secondary mt-4 inline-flex !min-h-[40px] !text-sm"
           >
-            去建立关系
+            {canEdit ? "去建立关系" : "去世系查看"}
           </Link>
         </div>
       ) : null}
