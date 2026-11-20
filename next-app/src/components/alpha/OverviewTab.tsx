@@ -148,6 +148,7 @@ export function OverviewTab({
   onRestoreRelationship,
   onRestoreEvidence,
   onReopenClaim,
+  onReload,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -194,6 +195,8 @@ export function OverviewTab({
     personId: string,
     claimId: string
   ) => void | Promise<void>;
+  /** After batch review — refresh graph/claims elsewhere in the workspace. */
+  onReload?: () => void | Promise<void>;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -201,6 +204,8 @@ export function OverviewTab({
   const [overview, setOverview] = useState<Overview | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
   const [loadError, setLoadError] = useState("");
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchFlash, setBatchFlash] = useState("");
   const [focusEvidenceId, setFocusEvidenceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -498,6 +503,50 @@ export function OverviewTab({
   const connectedCount = total - unconnected.length;
   const birthCount = overview ? total - missingBirth.length : null;
   const pendingTotal = overview?.pendingTotal ?? 0;
+
+  const smartPendingIds = useMemo(() => {
+    if (!overview) return [] as string[];
+    return overview.pending
+      .filter(
+        (c) =>
+          c.status === "PROPOSED" &&
+          (c.originType === "AI_EXTRACTION" || c.originType === "IMPORT")
+      )
+      .map((c) => c.claimId);
+  }, [overview]);
+
+  const confirmSmartPending = useCallback(async () => {
+    if (!canReview || smartPendingIds.length === 0 || batchBusy) return;
+    setBatchBusy(true);
+    setBatchFlash("");
+    setLoadError("");
+    try {
+      const r = await v1api.reviewClaimsBatch(familyId, {
+        action: "accept",
+        claimIds: smartPendingIds.slice(0, 20),
+      });
+      setBatchFlash(
+        r.failed > 0
+          ? `已确认 ${r.succeeded} 条智能整理，${r.failed} 条未成功`
+          : `已确认 ${r.succeeded} 条智能整理`
+      );
+      await load();
+      await onReload?.();
+    } catch (e) {
+      if (onAuthError(e)) return;
+      setLoadError(userMessageForApiError(e));
+    } finally {
+      setBatchBusy(false);
+    }
+  }, [
+    batchBusy,
+    canReview,
+    familyId,
+    load,
+    onAuthError,
+    onReload,
+    smartPendingIds,
+  ]);
 
   type Step = {
     key: string;
@@ -1025,17 +1074,43 @@ export function OverviewTab({
         ) : null}
       </section>
 
+      {batchFlash ? (
+        <p
+          className="text-sm text-[color:var(--a-brand)]"
+          role="status"
+        >
+          {batchFlash}
+        </p>
+      ) : null}
+
       {overview && overview.pending.length > 0 ? (
-        <section aria-labelledby="overview-pending">
-          <h2
-            id="overview-pending"
-            className="mb-3 text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
-          >
-            待确认资料
-            {overview.pendingTotal > overview.pending.length
-              ? `（优先 ${overview.pending.length} 条，共 ${overview.pendingTotal} 条）`
-              : `（${overview.pendingTotal}）`}
-          </h2>
+        <section
+          aria-labelledby="overview-pending"
+          aria-label="待确认资料"
+        >
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <h2
+              id="overview-pending"
+              className="text-sm font-semibold tracking-wide text-[color:var(--a-brand)]"
+            >
+              待确认资料
+              {overview.pendingTotal > overview.pending.length
+                ? `（优先 ${overview.pending.length} 条，共 ${overview.pendingTotal} 条）`
+                : `（${overview.pendingTotal}）`}
+            </h2>
+            {canReview && smartPendingIds.length > 0 ? (
+              <button
+                type="button"
+                disabled={batchBusy}
+                onClick={() => void confirmSmartPending()}
+                className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[40px] !px-3 !text-sm disabled:opacity-60"
+              >
+                {batchBusy
+                  ? "确认中…"
+                  : `确认 ${smartPendingIds.length} 条智能整理`}
+              </button>
+            ) : null}
+          </div>
           <ul className="space-y-2">
             {overview.pending.map((c) => {
               const name = personName.get(c.personId) ?? "成员";

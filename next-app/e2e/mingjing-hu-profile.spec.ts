@@ -849,6 +849,77 @@ test("明经胡氏：agent/propose 整包提议进入待确认", async ({
   ).toBe(true);
 });
 
+test("明经胡氏：概览可一键确认智能整理", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const ownerId = await insertFakeUser();
+  await loginAs(page, ownerId, baseURL!);
+  await page.goto(`${baseURL}/alpha/families`);
+
+  const fam = await apiJson(page, `/api/v1/families`, {
+    method: "POST",
+    body: {
+      displayName: "西递明经胡氏·概览确认（测试）",
+      surname: sample.surname,
+    },
+  });
+  expect(fam.status, JSON.stringify(fam.body)).toBe(201);
+  const familyId = (fam.body as { family: { id: string } }).family.id;
+
+  const proposed = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/agent/propose`,
+    {
+      method: "POST",
+      body: {
+        originType: "AI_EXTRACTION",
+        persons: [
+          {
+            preferredName: sample.wenGuang.preferredName,
+            gender: sample.wenGuang.gender,
+            livingStatus: sample.wenGuang.livingStatus,
+            clientItemId: "wg",
+          },
+        ],
+        claims: [
+          {
+            subjectClientItemId: "wg",
+            claimType: "OCCUPATION",
+            value: { text: "万载知县，后升胶州刺史" },
+            confidence: 0.9,
+            clientItemId: "occ",
+          },
+          {
+            subjectClientItemId: "wg",
+            claimType: "STORY",
+            value: { text: "西递明经胡氏支系人物事迹摘录（概览确认）" },
+            confidence: 0.7,
+            clientItemId: "story",
+          },
+        ],
+      },
+      headers: { "X-Client-Agent": "cursor-e2e" },
+    }
+  );
+  expect(proposed.status, JSON.stringify(proposed.body)).toBe(201);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const pending = page.getByRole("region", { name: /待确认资料/ });
+  await expect(pending).toBeVisible({ timeout: 90_000 });
+  const confirmBtn = pending.getByRole("button", {
+    name: /确认 \d+ 条智能整理/,
+  });
+  await expect(confirmBtn).toBeVisible({ timeout: 30_000 });
+  await confirmBtn.click();
+  await expect(page.getByRole("status")).toContainText(/已确认 2 条/, {
+    timeout: 60_000,
+  });
+  await expect(
+    page.getByRole("button", { name: /确认 \d+ 条智能整理/ })
+  ).toHaveCount(0);
+});
+
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({
   page,
   baseURL,

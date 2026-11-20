@@ -809,6 +809,7 @@ export function FamilyWorkspace({
                 setError(userMessageForApiError(e));
               }
             }}
+            onReload={load}
             onAuthError={authRedirect}
             externalFocusEvidenceId={sourcesFocusEvidenceId}
             onExternalFocusEvidenceConsumed={() =>
