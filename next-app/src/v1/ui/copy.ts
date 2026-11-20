@@ -133,8 +133,8 @@ export const ERROR_COPY = {
   personConflict: "这位成员的资料刚刚被更新，请重新载入后再修改。",
   ancestryCycle: "这条关系会形成循环世系，请检查所选成员。",
   duplicateRelationship: "这条家庭关系已经存在。",
-  duplicateClaim: "已有相同的资料记录。",
-  generic: "操作未能完成，请稍后再试。",
+  duplicateClaim: "已有相同的资料记录。可打开资料页查看或记下另一种说法。",
+  generic: "操作未能完成，请稍后再试。可刷新页面后重试。",
   verifyFailed: "验证码无效或已过期，请重新获取。",
   requestCodeGeneric:
     "如果该邮箱可以使用云族谱，我们已经发送了验证码。",
