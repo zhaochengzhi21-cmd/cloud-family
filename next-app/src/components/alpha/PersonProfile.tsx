@@ -750,7 +750,7 @@ export function PersonProfile({
         >
           <p className="min-w-0 flex-1">{flash}</p>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
-            {flashCopyUrl && flash.includes("可复制链接") ? (
+            {flashCopyUrl ? (
               <button
                 type="button"
                 className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"

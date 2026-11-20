@@ -936,14 +936,14 @@ export function FamilyWorkspace({
           `${window.location.origin}/alpha/families/${familyId}?scroll=sources`
         );
         setFlash(
-          "资料来源段暂时打不开，可能还在加载。可复制本段链接稍后重试，或到概览查看。"
+          "资料来源段暂时打不开，可能还在加载。可复制链接稍后重试，或到概览查看。"
         );
       } else if (missKind === "participants") {
         setFlashCopyUrl(
           `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
         );
         setFlash(
-          "参与家人段暂时打不开，可能还在加载。可复制本段链接稍后重试，或刷新页面。"
+          "参与家人段暂时打不开，可能还在加载。可复制链接稍后重试，或刷新页面。"
         );
       }
     };
@@ -1734,7 +1734,7 @@ export function FamilyWorkspace({
                 恢复这位家人
               </button>
             ) : null}
-            {flashCopyUrl && flash.includes("可复制链接") ? (
+            {flashCopyUrl ? (
               <button
                 type="button"
                 className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
@@ -2234,7 +2234,7 @@ export function FamilyWorkspace({
                   `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
                 );
                 setFlash(
-                  "已恢复这位参与家人的权限。可复制本段链接发给对方打开家族。"
+                  "已恢复这位参与家人的权限。可复制链接发给对方打开家族。"
                 );
                 await load();
               } catch (e) {
@@ -9002,7 +9002,7 @@ function PersonDrawer({
             >
               <p className="min-w-0 flex-1">{localFlash}</p>
               <div className="flex shrink-0 flex-wrap items-center gap-3">
-                {localFlashCopyUrl && localFlash.includes("可复制链接") ? (
+                {localFlashCopyUrl ? (
                   <button
                     type="button"
                     className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
