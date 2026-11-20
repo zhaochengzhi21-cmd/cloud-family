@@ -18,6 +18,7 @@ const FEED_EVENT_TYPES = [
   "PERSON_CREATED",
   "PERSON_UPDATED",
   "PERSON_DELETED",
+  "PERSON_RESTORED",
   "RELATIONSHIP_CREATED",
   "RELATIONSHIP_DELETED",
   "CLAIM_CREATED",
@@ -56,6 +57,8 @@ export type ActivityItem = {
   relationshipType?: string;
   evidenceId?: string;
   evidenceType?: string;
+  /** Soft-deleted person can be restored (OWNER/ADMIN UI). */
+  restorable?: boolean;
 };
 
 function actorUserId(ctx: AccessContext): string | null {
@@ -121,11 +124,31 @@ export async function getFamilyActivity(
     switch (r.eventType) {
       case "FAMILY_CREATED":
       case "FAMILY_IDENTITY_UPDATED":
-      case "PERSON_DELETED":
       case "EVIDENCE_DELETED":
       case "MEMBER_JOINED":
         items.push(base);
         break;
+      case "PERSON_DELETED": {
+        // Name only from delete-time metadata (person is outside the live graph).
+        const preferredName = metaString(r.metadataJson, "preferredName");
+        items.push({
+          ...base,
+          personId: r.entityId ?? undefined,
+          personName: preferredName,
+          restorable: Boolean(r.entityId),
+        });
+        break;
+      }
+      case "PERSON_RESTORED": {
+        const preferredName = metaString(r.metadataJson, "preferredName");
+        if (!r.entityId || !preferredName || !names.has(r.entityId)) break;
+        items.push({
+          ...base,
+          personId: r.entityId,
+          personName: preferredName,
+        });
+        break;
+      }
       case "EVIDENCE_CREATED":
         items.push({
           ...base,

@@ -3,7 +3,7 @@
  * Callers (services) must authorize via PermissionService.
  */
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
 import { persons } from "@/db/schema";
 import type {
@@ -128,6 +128,20 @@ export async function softDeletePerson(
     .update(persons)
     .set({ deletedAt, updatedAt: deletedAt })
     .where(and(eq(persons.id, personId), isNull(persons.deletedAt)))
+    .returning({ id: persons.id });
+  return updated.length > 0;
+}
+
+/** Clear soft-delete. Returns false if already active or missing. */
+export async function restorePerson(
+  db: DbOrTx,
+  personId: string,
+  now: Date
+): Promise<boolean> {
+  const updated = await db
+    .update(persons)
+    .set({ deletedAt: null, updatedAt: now })
+    .where(and(eq(persons.id, personId), isNotNull(persons.deletedAt)))
     .returning({ id: persons.id });
   return updated.length > 0;
 }

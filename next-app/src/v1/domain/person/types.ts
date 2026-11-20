@@ -58,3 +58,9 @@ export type DeletePersonResult = {
   familyVersion: number;
   relationshipsRemovedCount: number;
 };
+
+export type RestorePersonResult = {
+  person: PersonView;
+  familyVersion: number;
+  relationshipsRestoredCount: number;
+};

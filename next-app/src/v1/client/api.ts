@@ -287,6 +287,7 @@ export const v1api = {
         relationshipType?: string;
         evidenceId?: string;
         evidenceType?: string;
+        restorable?: boolean;
       }>;
     }>(`/api/v1/families/${familyId}/activity?limit=${limit}`),
 
@@ -415,6 +416,16 @@ export const v1api = {
       relationshipsRemovedCount: number;
     }>(`/api/v1/families/${familyId}/persons/${personId}`, {
       method: "DELETE",
+      body: {},
+    }),
+
+  restorePerson: (familyId: string, personId: string) =>
+    v1Fetch<{
+      person: { id: string; preferredName: string };
+      familyVersion: number;
+      relationshipsRestoredCount: number;
+    }>(`/api/v1/families/${familyId}/persons/${personId}/restore`, {
+      method: "POST",
       body: {},
     }),
 

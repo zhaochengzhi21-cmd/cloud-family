@@ -2,7 +2,7 @@
  * Trusted internal Relationship data access — not a public security boundary.
  */
 
-import { and, eq, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { V1Db } from "@/db/client";
 import { relationships } from "@/db/schema";
 import type { RelationshipType } from "@/db/constants";
@@ -148,13 +148,13 @@ export async function softDeleteRelationship(
   return updated.length > 0;
 }
 
-/** Soft-delete all active relationships involving a person. Returns count. */
+/** Soft-delete all active relationships involving a person. Returns removed ids. */
 export async function softDeleteRelationshipsForPerson(
   db: DbOrTx,
   familyId: string,
   personId: string,
   deletedAt: Date
-): Promise<number> {
+): Promise<string[]> {
   const updated = await db
     .update(relationships)
     .set({ deletedAt, updatedAt: deletedAt })
@@ -166,6 +166,27 @@ export async function softDeleteRelationshipsForPerson(
           eq(relationships.fromPersonId, personId),
           eq(relationships.toPersonId, personId)
         )
+      )
+    )
+    .returning({ id: relationships.id });
+  return updated.map((r) => r.id);
+}
+
+/** Clear soft-delete on the given relationship ids (same family only). */
+export async function restoreRelationshipsByIds(
+  db: DbOrTx,
+  familyId: string,
+  relationshipIds: string[],
+  now: Date
+): Promise<number> {
+  if (relationshipIds.length === 0) return 0;
+  const updated = await db
+    .update(relationships)
+    .set({ deletedAt: null, updatedAt: now })
+    .where(
+      and(
+        eq(relationships.familyId, familyId),
+        inArray(relationships.id, relationshipIds)
       )
     )
     .returning({ id: relationships.id });

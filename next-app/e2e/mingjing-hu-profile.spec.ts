@@ -2337,6 +2337,62 @@ test("明经胡氏：打印版人名可打开人物页", async ({ page, baseURL 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：移除成员后可从动态恢复", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·成员恢复（测试）",
+    sample.surname
+  );
+
+  const fatherId = await seedPerson(page, familyId, sample.guanSan, []);
+  const childId = await seedPerson(page, familyId, sample.yuanXi, []);
+  const rel = await apiJson(page, `/api/v1/families/${familyId}/relationships`, {
+    method: "POST",
+    body: {
+      fromPersonId: fatherId,
+      toPersonId: childId,
+      relationshipType: "BIOLOGICAL_PARENT",
+    },
+  });
+  expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+
+  const del = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${childId}`,
+    { method: "DELETE", body: {} }
+  );
+  expect(del.status, JSON.stringify(del.body)).toBe(200);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const feed = page.getByRole("region", { name: "最近动态" });
+  await expect(feed).toBeVisible({ timeout: 60_000 });
+  const row = feed
+    .locator("li")
+    .filter({ hasText: `移除了成员「${sample.yuanXi.preferredName}」` });
+  await expect(row).toBeVisible({ timeout: 60_000 });
+  await row.getByRole("button", { name: "恢复" }).click();
+  await expect(page.getByText(/已恢复「胡元熙」/)).toBeVisible({
+    timeout: 60_000,
+  });
+
+  await page.getByRole("tab", { name: "成员" }).click();
+  await expect(
+    page.getByRole("button", { name: new RegExp(sample.yuanXi.preferredName) })
+  ).toBeVisible({ timeout: 60_000 });
+
+  await page.getByRole("tab", { name: "世系" }).click();
+  await expect(page.getByRole("heading", { name: /第二代/ })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(
+    page.locator(`[data-lineage-person="${childId}"]`)
+  ).toBeVisible();
+});
+
 test("明经胡氏：只读成员概览下一步用浏览文案", async ({
   page,
   browser,

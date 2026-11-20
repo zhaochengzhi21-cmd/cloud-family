@@ -722,6 +722,22 @@ export function FamilyWorkspace({
               setLineageFocusId(personId);
               setTab("lineage");
             }}
+            onRestorePerson={async (personId) => {
+              try {
+                const r = await v1api.restorePerson(familyId, personId);
+                setFlash(
+                  `已恢复「${r.person.preferredName}」${
+                    r.relationshipsRestoredCount > 0
+                      ? `，并恢复了 ${r.relationshipsRestoredCount} 条家庭关系`
+                      : ""
+                  }`
+                );
+                await load();
+              } catch (e) {
+                if (authRedirect(e)) return;
+                setError(userMessageForApiError(e));
+              }
+            }}
             onAuthError={authRedirect}
             externalFocusEvidenceId={sourcesFocusEvidenceId}
             onExternalFocusEvidenceConsumed={() =>
@@ -5362,7 +5378,7 @@ function PersonDrawer({
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm text-[color:var(--a-danger)]" role="alert">
-                    确认移除「{person.preferredName}」？相关家庭关系也会一并取消。移除后不会出现在成员与世系中，请谨慎操作。
+                    确认移除「{person.preferredName}」？相关家庭关系也会一并取消。移除后不会出现在成员与世系中；若误删，可在概览「最近动态」里恢复。
                   </p>
                   <div className="flex gap-2">
                     <button

@@ -72,7 +72,12 @@ function activityPieces(item: ActivityItem): Piece[] | null {
     case "PERSON_UPDATED":
       return p ? ["更新了「", p, "」的基本信息"] : null;
     case "PERSON_DELETED":
-      return ["移除了一位成员"];
+      // Name is plain text — profile route 404s while soft-deleted.
+      return item.personName
+        ? [`移除了成员「${item.personName}」`]
+        : ["移除了一位成员"];
+    case "PERSON_RESTORED":
+      return p ? ["恢复了成员「", p, "」"] : null;
     case "RELATIONSHIP_CREATED":
       if (!p || !o) return null;
       return item.relationshipType === "SPOUSE"
@@ -120,6 +125,7 @@ export function OverviewTab({
   onOpenPerson,
   onOpenRecords,
   onOpenLineage,
+  onRestorePerson,
   onAuthError,
   externalFocusEvidenceId = null,
   onExternalFocusEvidenceConsumed,
@@ -153,6 +159,8 @@ export function OverviewTab({
   ) => void;
   /** Jump to 世系 and highlight a person (relationship feed). */
   onOpenLineage?: (personId: string) => void;
+  /** Undo soft-delete (OWNER/ADMIN). */
+  onRestorePerson?: (personId: string) => void | Promise<void>;
   onAuthError: (e: unknown) => boolean;
   externalFocusEvidenceId?: string | null;
   onExternalFocusEvidenceConsumed?: () => void;
@@ -1036,6 +1044,22 @@ export function OverviewTab({
                           onClick={() => onOpenLineage(item.personId!)}
                         >
                           查看
+                        </button>
+                      </>
+                    ) : null}
+                    {item.eventType === "PERSON_DELETED" &&
+                    item.restorable &&
+                    item.personId &&
+                    canReview &&
+                    onRestorePerson ? (
+                      <>
+                        {" "}
+                        <button
+                          type="button"
+                          className="font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                          onClick={() => void onRestorePerson(item.personId!)}
+                        >
+                          恢复
                         </button>
                       </>
                     ) : null}

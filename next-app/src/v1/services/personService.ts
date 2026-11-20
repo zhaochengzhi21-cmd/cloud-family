@@ -4,7 +4,9 @@
  */
 
 import { randomUUID } from "crypto";
+import { and, desc, eq } from "drizzle-orm";
 import { getV1Db, type V1Db } from "@/db/client";
+import { auditEvents } from "@/db/schema";
 import { PersonDomainError } from "@/v1/domain/person/errors";
 import {
   validateCreatePersonInput,
@@ -16,6 +18,7 @@ import type {
   CreatePersonResult,
   DeletePersonResult,
   PersonView,
+  RestorePersonResult,
   UpdatePersonInput,
   UpdatePersonResult,
 } from "@/v1/domain/person/types";
@@ -282,7 +285,7 @@ export async function deletePerson(
     const ok = await personRepo.softDeletePerson(tx, personId, now);
     if (!ok) throw new PersonDomainError("PERSON_NOT_FOUND");
 
-    const relationshipsRemovedCount =
+    const removedRelationshipIds =
       await relRepo.softDeleteRelationshipsForPerson(
         tx,
         lockedPerson.familyId,
@@ -297,10 +300,114 @@ export async function deletePerson(
       eventType: "PERSON_DELETED",
       entityType: "PERSON",
       entityId: personId,
-      metadataJson: { relationshipsRemovedCount },
+      metadataJson: {
+        relationshipsRemovedCount: removedRelationshipIds.length,
+        preferredName: lockedPerson.preferredName,
+        relationshipIds: removedRelationshipIds,
+      },
       now,
     });
 
-    return { personId, familyVersion, relationshipsRemovedCount };
+    return {
+      personId,
+      familyVersion,
+      relationshipsRemovedCount: removedRelationshipIds.length,
+    };
   });
+}
+
+/**
+ * Undo a soft-delete. Same ACL as DELETE_PERSON (OWNER/ADMIN).
+ * Also restores kin edges removed with that delete when metadata lists them.
+ */
+export async function restorePerson(
+  personId: string,
+  actorContext: AccessContext,
+  options?: { db?: V1Db; expectedFamilyId?: string }
+): Promise<RestorePersonResult> {
+  assertUuid(personId, "personId");
+  const database = dbOrDefault(options?.db);
+  const now = new Date();
+  const userId = actorUserId(actorContext);
+
+  return database.transaction(async (tx) => {
+    const row = await personRepo.findPersonById(tx, personId);
+    if (!row) throw new PersonDomainError("PERSON_NOT_FOUND");
+    if (options?.expectedFamilyId && row.familyId !== options.expectedFamilyId) {
+      throw new PersonDomainError("PERSON_NOT_FOUND");
+    }
+    if (!row.deletedAt) {
+      throw new PersonDomainError("PERSON_NOT_FOUND");
+    }
+
+    const family = await lockFamilyForMutation(tx, row.familyId);
+    if (!family) throw new PersonDomainError("FAMILY_NOT_FOUND");
+
+    const auth = await authorizeFamilyAction(
+      row.familyId,
+      actorContext,
+      "DELETE_PERSON",
+      { db: tx }
+    ).catch(mapPermForbidden);
+    if (auth.decision !== "ALLOW") {
+      throw new PersonDomainError("FORBIDDEN");
+    }
+
+    const ok = await personRepo.restorePerson(tx, personId, now);
+    if (!ok) throw new PersonDomainError("PERSON_NOT_FOUND");
+
+    const meta = await findLatestDeleteMeta(tx, row.familyId, personId);
+    const relationshipIds = Array.isArray(meta?.relationshipIds)
+      ? (meta!.relationshipIds as unknown[]).filter(
+          (id): id is string => typeof id === "string"
+        )
+      : [];
+    const relationshipsRestoredCount =
+      await relRepo.restoreRelationshipsByIds(
+        tx,
+        row.familyId,
+        relationshipIds,
+        now
+      );
+
+    const person = await personRepo.findActivePersonById(tx, personId);
+    if (!person) throw new PersonDomainError("PERSON_NOT_FOUND");
+
+    const familyVersion = await advanceFamilyVersion(tx, {
+      familyId: row.familyId,
+      actorUserId: userId,
+      summary: "PERSON_RESTORED",
+      eventType: "PERSON_RESTORED",
+      entityType: "PERSON",
+      entityId: personId,
+      metadataJson: {
+        preferredName: person.preferredName,
+        relationshipsRestoredCount,
+      },
+      now,
+    });
+
+    return { person, familyVersion, relationshipsRestoredCount };
+  });
+}
+
+async function findLatestDeleteMeta(
+  tx: DbOrTx,
+  familyId: string,
+  personId: string
+): Promise<{ relationshipIds?: unknown } | null> {
+  const [row] = await tx
+    .select({ metadataJson: auditEvents.metadataJson })
+    .from(auditEvents)
+    .where(
+      and(
+        eq(auditEvents.familyId, familyId),
+        eq(auditEvents.eventType, "PERSON_DELETED"),
+        eq(auditEvents.entityId, personId)
+      )
+    )
+    .orderBy(desc(auditEvents.createdAt))
+    .limit(1);
+  if (!row?.metadataJson || typeof row.metadataJson !== "object") return null;
+  return row.metadataJson as { relationshipIds?: unknown };
 }
