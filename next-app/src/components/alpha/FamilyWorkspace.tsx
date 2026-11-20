@@ -2541,7 +2541,7 @@ function MembersTab({
         <p className="mt-2 text-sm text-[color:var(--a-muted)]">
           {canEdit
             ? "先添加你熟悉的一两位家人即可，资料以后可以慢慢补。"
-            : "有编辑权限的家人添加成员后，名单会出现在这里。"}
+            : "有编辑权限的家人添加成员后，名单会出现在这里。可复制添加链接发给对方。"}
         </p>
         {canEdit ? (
           <button
@@ -2551,15 +2551,50 @@ function MembersTab({
           >
             添加成员
           </button>
-        ) : onOpenParticipants ? (
-          <button
-            type="button"
-            onClick={onOpenParticipants}
-            className="alpha-btn alpha-btn-secondary mt-6"
-          >
-            查看参与家人
-          </button>
-        ) : null}
+        ) : (
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-secondary"
+              onClick={() => {
+                const url = `${window.location.origin}/alpha/families/${familyId}?tab=members&add=person`;
+                void navigator.clipboard.writeText(url).then(
+                  () => {
+                    setCopyFlashId("empty-ok");
+                    window.setTimeout(() => {
+                      setCopyFlashId((id) =>
+                        id === "empty-ok" ? null : id
+                      );
+                    }, 2500);
+                  },
+                  () => {
+                    setCopyFlashId("empty-fail");
+                    window.setTimeout(() => {
+                      setCopyFlashId((id) =>
+                        id === "empty-fail" ? null : id
+                      );
+                    }, 2500);
+                  }
+                );
+              }}
+            >
+              {copyFlashId === "empty-ok"
+                ? "已复制链接"
+                : copyFlashId === "empty-fail"
+                  ? "请手动复制地址栏链接"
+                  : "复制添加链接发给家人"}
+            </button>
+            {onOpenParticipants ? (
+              <button
+                type="button"
+                onClick={onOpenParticipants}
+                className="alpha-btn alpha-btn-secondary"
+              >
+                查看参与家人
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
     );
   }
