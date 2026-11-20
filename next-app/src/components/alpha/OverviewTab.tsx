@@ -2479,15 +2479,21 @@ function BackupSection({
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const [printCopyFlash, setPrintCopyFlash] = useState("");
+  const [backupCopyUrl, setBackupCopyUrl] = useState<string | null>(null);
+  const [backupCopyFlash, setBackupCopyFlash] = useState("");
 
   async function download(kind: "json" | "ged") {
     setBusy(kind);
     setLastKind(kind);
     setMessage("");
+    setBackupCopyUrl(null);
+    setBackupCopyFlash("");
     setFailed(false);
     try {
       const { export: data } = await v1api.exportFamily(familyId);
       const now = new Date();
+      const shareUrl = `${window.location.origin}/alpha/families/${familyId}`;
+      setBackupCopyUrl(shareUrl);
       if (kind === "json") {
         triggerDownload(
           new Blob([JSON.stringify(data, null, 2)], {
@@ -2495,7 +2501,9 @@ function BackupSection({
           }),
           backupFileName(data.family.displayName, now, "json")
         );
-        setMessage(`已生成备份：${data.persons.length} 位成员`);
+        setMessage(
+          `已生成备份：${data.persons.length} 位成员。可复制家族链接发给家人一起核对。`
+        );
       } else {
         triggerDownload(
           new Blob([gedcomFromExport(data)], {
@@ -2503,11 +2511,14 @@ function BackupSection({
           }),
           backupFileName(data.family.displayName, now, "ged")
         );
-        setMessage(`已生成 GEDCOM：${data.persons.length} 位成员`);
+        setMessage(
+          `已生成 GEDCOM：${data.persons.length} 位成员。可复制家族链接发给家人一起核对。`
+        );
       }
     } catch (e) {
       if (onAuthError(e)) return;
       setFailed(true);
+      setBackupCopyUrl(null);
       setMessage(userMessageForApiError(e));
     } finally {
       setBusy(null);
@@ -2580,6 +2591,27 @@ function BackupSection({
             <p role={failed ? "alert" : "status"} className="min-w-0">
               {message}
             </p>
+            {backupCopyUrl && !failed && message.includes("可复制") ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = backupCopyUrl;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setBackupCopyFlash("已复制家族链接");
+                      window.setTimeout(() => setBackupCopyFlash(""), 2500);
+                    },
+                    () => {
+                      setBackupCopyFlash("请手动复制地址栏链接");
+                      window.setTimeout(() => setBackupCopyFlash(""), 2500);
+                    }
+                  );
+                }}
+              >
+                {backupCopyFlash || "复制链接"}
+              </button>
+            ) : null}
             {failed ? (
               <button
                 type="button"
