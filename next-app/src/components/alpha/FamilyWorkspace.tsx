@@ -1054,7 +1054,10 @@ export function FamilyWorkspace({
               setKinRole(role);
               setShowAddKin(true);
             }}
-            onGoMembers={() => setTab("members")}
+            onGoMembers={() => {
+              setTab("members");
+              setShowAddPerson(true);
+            }}
             onOpen={(id) => setSelectedPersonId(id)}
             personMap={personMap}
             familyId={familyId}
@@ -1089,7 +1092,10 @@ export function FamilyWorkspace({
             }}
             onAuthError={(e) => handleAuthRedirect(e, router)}
             onOpenPerson={(id) => setSelectedPersonId(id)}
-            onGoMembers={() => setTab("members")}
+            onGoMembers={() => {
+              setTab("members");
+              setShowAddPerson(true);
+            }}
             setFlash={setFlash}
             setPendingUndo={(undo) => setPendingUndo(undo)}
             setError={setError}
