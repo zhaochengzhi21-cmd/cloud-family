@@ -136,6 +136,7 @@ export function PersonProfile({
   const [error, setError] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [flash, setFlash] = useState("");
+  const [flashCopyUrl, setFlashCopyUrl] = useState<string | null>(null);
   const [copyPageFlash, setCopyPageFlash] = useState("");
   const [pendingCopyFlash, setPendingCopyFlash] = useState("");
   const [pendingUndo, setPendingUndo] = useState<null | {
@@ -497,7 +498,16 @@ export function PersonProfile({
         id: relationshipId,
         label: `与「${name}」的家庭关系`,
       });
-      setFlash(`已移除与「${name}」的家庭关系。误删可点恢复。`);
+      const qs = new URLSearchParams({
+        tab: "lineage",
+        person: personId,
+      });
+      setFlashCopyUrl(
+        `${window.location.origin}${workspaceHref}?${qs.toString()}`
+      );
+      setFlash(
+        `已移除与「${name}」的家庭关系。误删可点恢复。可复制链接发给家人核对世系。`
+      );
       await load();
     } catch (e) {
       if (handleAuthRedirect(e, router)) return;
@@ -711,6 +721,24 @@ export function PersonProfile({
         >
           <p className="min-w-0 flex-1">{flash}</p>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
+            {flashCopyUrl && flash.includes("可复制链接") ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = flashCopyUrl;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setFlash("已复制链接，可发给家人");
+                      setFlashCopyUrl(null);
+                    },
+                    () => setFlash("请手动复制地址栏链接")
+                  );
+                }}
+              >
+                复制链接
+              </button>
+            ) : null}
             {pendingUndo ? (
               <button
                 type="button"
@@ -719,6 +747,7 @@ export function PersonProfile({
                   const undo = pendingUndo;
                   setPendingUndo(null);
                   setFlash("");
+                  setFlashCopyUrl(null);
                   void (async () => {
                     try {
                       await v1api.restoreRelationship(familyId, undo.id, {
@@ -742,6 +771,7 @@ export function PersonProfile({
               onClick={() => {
                 setFlash("");
                 setPendingUndo(null);
+                setFlashCopyUrl(null);
               }}
             >
               关闭
