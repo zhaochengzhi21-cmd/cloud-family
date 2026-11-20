@@ -3607,6 +3607,36 @@ test("明经胡氏：打印版亲属名可打开人物页", async ({ page, baseU
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：已移除人物页可恢复", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·人物页恢复（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const del = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}`,
+    { method: "DELETE", body: {} }
+  );
+  expect(del.status, JSON.stringify(del.body)).toBe(200);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByRole("button", { name: "恢复这位家人" })
+  ).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "恢复这位家人" }).click();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: sample.wenGuang.preferredName,
+    })
+  ).toBeVisible({ timeout: 60_000 });
+});
+
 test("明经胡氏：无出生信息时人物页仍可补充照片录音故事", async ({
   page,
   baseURL,

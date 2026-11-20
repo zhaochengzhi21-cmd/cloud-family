@@ -133,6 +133,7 @@ export function PersonProfile({
   const [birthOrders, setBirthOrders] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [restoring, setRestoring] = useState(false);
 
   const loadSeq = useRef(0);
 
@@ -144,11 +145,10 @@ export function PersonProfile({
     setError("");
     setLoading(true);
     try {
-      const [fam, list, graph, claimRes, orders] = await Promise.all([
+      const [fam, list, graph, orders] = await Promise.all([
         v1api.getFamily(familyId),
         v1api.listFamilies(),
         v1api.getGraph(familyId),
-        v1api.listPersonClaims(familyId, personId),
         v1api.getBirthOrders(familyId).catch(() => ({ birthOrders: {} })),
       ]);
       setFamilyName(fam.family.displayName);
@@ -158,6 +158,15 @@ export function PersonProfile({
       setRelationships(graph.graph.relationships);
       setGenerationByPerson(graph.graph.generationByPerson);
       setBirthOrders(orders.birthOrders);
+
+      const inGraph = graph.graph.persons.some((p) => p.id === personId);
+      if (!inGraph) {
+        setClaims([]);
+        return;
+      }
+
+      const claimRes = await v1api.listPersonClaims(familyId, personId);
+      if (loadSeq.current !== seq) return;
       setClaims(claimRes.claims);
       const visible = claimRes.claims.filter((c) => c.status !== "REJECTED");
       void Promise.allSettled(
@@ -440,18 +449,50 @@ export function PersonProfile({
     );
   }
 
+  const canReview = role === "OWNER" || role === "ADMIN";
+
   if (error || !person) {
     return (
       <div className="py-12 text-center">
         <p className="text-[color:var(--a-danger)]" role="alert">
-          {error || ERROR_COPY.notFound}
+          {error ||
+            (canReview
+              ? "找不到这份资料。若刚移除了这位家人，可在下方恢复。"
+              : ERROR_COPY.notFound)}
         </p>
-        <Link
-          href={workspaceHref}
-          className="alpha-btn alpha-btn-secondary mt-6 inline-flex !min-h-[40px] !text-sm"
-        >
-          返回家族档案
-        </Link>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {canReview && !error ? (
+            <button
+              type="button"
+              disabled={restoring}
+              className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+              onClick={() => {
+                setRestoring(true);
+                void (async () => {
+                  try {
+                    await v1api.restorePerson(familyId, personId, {
+                      idempotencyKey: crypto.randomUUID(),
+                    });
+                    await load();
+                  } catch (e) {
+                    if (handleAuthRedirect(e, router)) return;
+                    setError(userMessageForApiError(e));
+                  } finally {
+                    setRestoring(false);
+                  }
+                })();
+              }}
+            >
+              {restoring ? "恢复中…" : "恢复这位家人"}
+            </button>
+          ) : null}
+          <Link
+            href={workspaceHref}
+            className="alpha-btn alpha-btn-secondary !min-h-[40px] !text-sm"
+          >
+            返回家族档案
+          </Link>
+        </div>
       </div>
     );
   }
