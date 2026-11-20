@@ -1480,6 +1480,13 @@ export function OverviewTab({
                           恢复
                         </button>
                       </>
+                    ) : item.eventType === "CLAIM_REJECTED" &&
+                      item.restorable &&
+                      !canReview ? (
+                      <span className="text-[color:var(--a-muted)]">
+                        {" "}
+                        · 需管理员重新打开
+                      </span>
                     ) : null}
                     {(item.eventType === "EVIDENCE_CREATED" ||
                       item.eventType === "EVIDENCE_RESTORED") &&
@@ -1512,6 +1519,13 @@ export function OverviewTab({
                           恢复
                         </button>
                       </>
+                    ) : item.eventType === "EVIDENCE_DELETED" &&
+                      item.restorable &&
+                      !canReview ? (
+                      <span className="text-[color:var(--a-muted)]">
+                        {" "}
+                        · 需管理员恢复
+                      </span>
                     ) : null}
                     {(item.eventType === "RELATIONSHIP_CREATED" ||
                       item.eventType === "RELATIONSHIP_DELETED" ||
@@ -1562,6 +1576,13 @@ export function OverviewTab({
                           恢复
                         </button>
                       </>
+                    ) : item.eventType === "PERSON_DELETED" &&
+                      item.restorable &&
+                      !canReview ? (
+                      <span className="text-[color:var(--a-muted)]">
+                        {" "}
+                        · 需管理员恢复
+                      </span>
                     ) : null}
                   </p>
                   <time

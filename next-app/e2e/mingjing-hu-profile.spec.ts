@@ -3732,6 +3732,47 @@ test("明经胡氏：已移除人物页可恢复", async ({ page, baseURL }) => 
   ).toBeVisible({ timeout: 60_000 });
 });
 
+test("明经胡氏：编辑者打开已移除人物页可去概览", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const { familyId } = await createFamilyOwned(
+    page,
+    baseURL!,
+    "西递明经胡氏·编辑者见已移除（测试）",
+    sample.surname
+  );
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const del = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/persons/${personId}`,
+    { method: "DELETE", body: {} }
+  );
+  expect(del.status, JSON.stringify(del.body)).toBe(200);
+
+  const editorId = await insertFakeUser();
+  await insertMembership(familyId, editorId, "EDITOR");
+  await loginAs(page, editorId, baseURL!);
+
+  await page.goto(`/alpha/families/${familyId}/people/${personId}`);
+  await expect(
+    page.getByText(/请联系创建者或管理员在概览「最近动态」中恢复/)
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(
+    page.getByRole("button", { name: "恢复这位家人" })
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "去概览最近动态" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}$`));
+  await expect(
+    page.getByRole("heading", { name: "最近动态" })
+  ).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("需管理员恢复").first()).toBeVisible({
+    timeout: 60_000,
+  });
+});
+
 test("明经胡氏：无出生信息时人物页仍可补充照片录音故事", async ({
   page,
   baseURL,

@@ -474,7 +474,7 @@ export function PersonProfile({
               ? "找不到这份资料。若刚移除了这位家人，可在下方恢复。"
               : canEdit
                 ? "找不到这份资料。若刚被移除，请联系创建者或管理员在概览「最近动态」中恢复。"
-                : ERROR_COPY.notFound)}
+                : "找不到这份资料。若刚被移除，请联系创建者或管理员恢复。")}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           {canReview && !error ? (
@@ -500,6 +500,26 @@ export function PersonProfile({
               }}
             >
               {restoring ? "恢复中…" : "恢复这位家人"}
+            </button>
+          ) : null}
+          {canEdit && !canReview && !error ? (
+            <button
+              type="button"
+              className="alpha-btn alpha-btn-primary !min-h-[40px] !text-sm"
+              onClick={() => {
+                try {
+                  sessionStorage.setItem(`alpha-tab:${familyId}`, "overview");
+                  sessionStorage.setItem(
+                    `alpha-overview-scroll:${familyId}`,
+                    "overview-activity"
+                  );
+                } catch {
+                  /* private mode */
+                }
+                router.push(workspaceHref);
+              }}
+            >
+              去概览最近动态
             </button>
           ) : null}
           <Link

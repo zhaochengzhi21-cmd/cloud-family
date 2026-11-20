@@ -528,6 +528,31 @@ export function FamilyWorkspace({
     }
   }, [familyId]);
 
+  useEffect(() => {
+    let target = "";
+    try {
+      target =
+        sessionStorage.getItem(`alpha-overview-scroll:${familyId}`) ?? "";
+      if (!target) return;
+      sessionStorage.removeItem(`alpha-overview-scroll:${familyId}`);
+    } catch {
+      return;
+    }
+    setTab("overview");
+    let tries = 0;
+    const tick = () => {
+      const el = document.getElementById(target);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        return;
+      }
+      if (tries++ < 20) {
+        window.setTimeout(tick, 100);
+      }
+    };
+    window.setTimeout(tick, 50);
+  }, [familyId]);
+
   const openRecordsFor = useCallback(
     (
       personId: string,
