@@ -329,7 +329,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(`${workspaceHref}?tab=records`);
   }
 
   function openEvidence(claimId: string, evidenceType?: string) {
@@ -350,7 +350,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(`${workspaceHref}?tab=records`);
   }
 
   function openRecordsFocus(claimId: string, status?: string) {
@@ -377,7 +377,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(`${workspaceHref}?tab=records`);
   }
 
   function openAddKin(role: "child" | "parent" | "spouse") {
@@ -390,7 +390,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(`${workspaceHref}?tab=lineage`);
   }
 
   function openPersonBasics(focus: "living" | "gender" | "name") {
@@ -403,7 +403,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(`${workspaceHref}?tab=lineage`);
   }
 
   function openInLineage() {
@@ -413,7 +413,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(`${workspaceHref}?tab=lineage`);
   }
 
   function openSourcesLibrary(evidenceId: string) {
@@ -426,7 +426,7 @@ export function PersonProfile({
     } catch {
       /* private mode */
     }
-    router.push(workspaceHref);
+    router.push(workspaceHref); // overview
   }
 
   async function removeKin(relationshipId: string, name: string) {

@@ -4265,6 +4265,27 @@ test("明经胡氏：编辑者抽屉不可移除成员", async ({ page, baseURL 
   ).toBeVisible();
 });
 
+test("明经胡氏：工作区 URL tab 可直达资料页", async ({ page, baseURL }) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·URL tab（测试）",
+    sample.surname
+  );
+  await seedPerson(page, familyId, sample.wenGuang, []);
+
+  await page.goto(`/alpha/families/${familyId}?tab=records`);
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}\\?tab=records`));
+  await page.getByRole("tab", { name: "世系" }).click();
+  await expect(page).toHaveURL(new RegExp(`/alpha/families/${familyId}\\?tab=lineage`));
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("世系");
+});
+
 test("明经胡氏：编辑者概览不显示邀请家人", async ({ page, baseURL }) => {
   test.skip(!baseURL, "baseURL required");
   const sample = MINGJING_HU_SAMPLE;

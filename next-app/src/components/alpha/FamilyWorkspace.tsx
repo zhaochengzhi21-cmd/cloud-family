@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import {
   CLAIM_ORIGIN_LABEL,
@@ -209,6 +209,8 @@ export function FamilyWorkspace({
   initialRole?: Role;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("overview");
   const [dataVersion, setDataVersion] = useState(0);
   const tabReady = useRef(false);
@@ -320,16 +322,21 @@ export function FamilyWorkspace({
     // Skip the first save after restore so the default tab cannot overwrite
     // a previously saved tab (esp. under React Strict Mode remount).
     tabReady.current = false;
+    let next: Tab = "overview";
     try {
-      const saved = sessionStorage.getItem(`alpha-tab:${familyId}`);
-      setTab(
-        saved && (TAB_IDS as readonly string[]).includes(saved)
-          ? (saved as Tab)
-          : "overview"
-      );
+      const fromUrl = new URLSearchParams(window.location.search).get("tab");
+      if (fromUrl && (TAB_IDS as readonly string[]).includes(fromUrl)) {
+        next = fromUrl as Tab;
+      } else {
+        const saved = sessionStorage.getItem(`alpha-tab:${familyId}`);
+        if (saved && (TAB_IDS as readonly string[]).includes(saved)) {
+          next = saved as Tab;
+        }
+      }
     } catch {
-      setTab("overview");
+      next = "overview";
     }
+    setTab(next);
   }, [familyId]);
 
   const [claimSeed, setClaimSeed] = useState<{
@@ -610,14 +617,29 @@ export function FamilyWorkspace({
   useEffect(() => {
     if (!tabReady.current) {
       tabReady.current = true;
-      return;
     }
     try {
       sessionStorage.setItem(`alpha-tab:${familyId}`, tab);
     } catch {
       /* private mode */
     }
-  }, [familyId, tab]);
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "overview") params.delete("tab");
+    else params.set("tab", tab);
+    const next = params.toString();
+    if (next === searchParams.toString()) return;
+    router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
+  }, [familyId, tab, pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!tabReady.current) return;
+    const fromUrl = searchParams.get("tab");
+    const desired: Tab =
+      fromUrl && (TAB_IDS as readonly string[]).includes(fromUrl)
+        ? (fromUrl as Tab)
+        : "overview";
+    setTab((prev) => (prev === desired ? prev : desired));
+  }, [searchParams]);
 
   useEffect(() => {
     if (!flash || pendingUndo) return;

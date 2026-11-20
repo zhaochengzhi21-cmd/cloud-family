@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FamilyWorkspace } from "@/components/alpha/FamilyWorkspace";
 import { handleAuthRedirect } from "@/components/alpha/AlphaNav";
@@ -73,5 +73,18 @@ export default function AlphaFamilyPage() {
     );
   }
 
-  return <FamilyWorkspace familyId={familyId} initialRole={role} />;
+  return (
+    <Suspense
+      fallback={
+        <p
+          className="py-12 text-center text-[color:var(--a-muted)]"
+          role="status"
+        >
+          正在打开家族档案…
+        </p>
+      }
+    >
+      <FamilyWorkspace familyId={familyId} initialRole={role} />
+    </Suspense>
+  );
 }
