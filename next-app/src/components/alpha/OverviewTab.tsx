@@ -3,6 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  CLAIM_ORIGIN_LABEL,
   CLAIM_STATUS_LABEL,
   CLAIM_TYPE_UI,
   EVIDENCE_TYPE_UI,
@@ -94,6 +95,14 @@ function activityPieces(item: ActivityItem): Piece[] | null {
     case "RELATIONSHIP_RESTORED":
       return p && o ? ["恢复了「", p, "」与「", o, "」的家庭关系"] : null;
     case "CLAIM_CREATED":
+      if (
+        item.originType === "AI_EXTRACTION" ||
+        item.originType === "IMPORT"
+      ) {
+        return p
+          ? ["整理了「", p, `」的一条${claimLabel}（待确认）`]
+          : null;
+      }
       return p ? ["为「", p, `」添加了${claimLabel}`] : null;
     case "CLAIM_ACCEPTED":
       return p ? ["确认了「", p, `」的${claimLabel}`] : null;
@@ -1024,7 +1033,7 @@ export function OverviewTab({
           >
             待确认资料
             {overview.pendingTotal > overview.pending.length
-              ? `（最早的 ${overview.pending.length} 条，共 ${overview.pendingTotal} 条）`
+              ? `（优先 ${overview.pending.length} 条，共 ${overview.pendingTotal} 条）`
               : `（${overview.pendingTotal}）`}
           </h2>
           <ul className="space-y-2">
@@ -1034,6 +1043,12 @@ export function OverviewTab({
               const statusLabel =
                 CLAIM_STATUS_LABEL[c.status as keyof typeof CLAIM_STATUS_LABEL] ??
                 c.status;
+              const originLabel =
+                c.originType === "AI_EXTRACTION" || c.originType === "IMPORT"
+                  ? CLAIM_ORIGIN_LABEL[
+                      c.originType as keyof typeof CLAIM_ORIGIN_LABEL
+                    ]
+                  : null;
               return (
                 <li key={c.claimId}>
                   <button
@@ -1060,6 +1075,11 @@ export function OverviewTab({
                       </p>
                     </div>
                     <span className="flex shrink-0 items-center gap-2">
+                      {originLabel ? (
+                        <span className="alpha-chip alpha-chip-proposed">
+                          {originLabel}
+                        </span>
+                      ) : null}
                       <span
                         className={`alpha-chip ${
                           c.status === "CONFLICTED"

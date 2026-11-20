@@ -28,6 +28,7 @@ type ClaimSummary = {
   personId: string;
   claimType: string;
   status: string;
+  originType: string;
   text: string | null;
   createdAt: string;
 };
@@ -85,6 +86,7 @@ export async function GET(
           personId: person.id,
           claimType: c.claimType,
           status: c.status,
+          originType: c.originType,
           text: typeof value?.text === "string" ? value.text : null,
           createdAt: c.createdAt.toISOString(),
         };
@@ -117,7 +119,14 @@ export async function GET(
       (c) => !sourcedIds.has(c.claimId)
     );
 
-    pending.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    // AI / import drafts first so humans clear the agent queue sooner.
+    const originRank = (o: string) =>
+      o === "AI_EXTRACTION" || o === "IMPORT" ? 0 : 1;
+    pending.sort(
+      (a, b) =>
+        originRank(a.originType) - originRank(b.originType) ||
+        a.createdAt.localeCompare(b.createdAt)
+    );
     unsourcedAccepted.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
     return okJson({

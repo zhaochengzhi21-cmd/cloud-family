@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { upload } from "@vercel/blob/client";
 import {
+  CLAIM_ORIGIN_LABEL,
   CLAIM_STATUS_LABEL,
   CLAIM_TYPE_UI,
   EVIDENCE_TYPE_UI,
@@ -58,6 +59,8 @@ type ClaimRow = {
   claimType: string;
   value: { text?: string; narrator?: string | null };
   status: string;
+  originType?: string;
+  confidence?: number | null;
 };
 
 type Tab = "overview" | "members" | "lineage" | "records";
@@ -2967,6 +2970,12 @@ function ClaimCard({
   const statusLabel =
     CLAIM_STATUS_LABEL[claim.status as keyof typeof CLAIM_STATUS_LABEL] ??
     claim.status;
+  const originLabel =
+    claim.originType === "AI_EXTRACTION" || claim.originType === "IMPORT"
+      ? CLAIM_ORIGIN_LABEL[
+          claim.originType as keyof typeof CLAIM_ORIGIN_LABEL
+        ]
+      : null;
   const statusChip =
     claim.status === "ACCEPTED"
       ? "alpha-chip alpha-chip-accepted"
@@ -2997,7 +3006,10 @@ function ClaimCard({
               讲述：{claim.value.narrator}
             </p>
           ) : null}
-          <p className="mt-1">
+          <p className="mt-1 flex flex-wrap gap-2">
+            {originLabel ? (
+              <span className="alpha-chip alpha-chip-proposed">{originLabel}</span>
+            ) : null}
             <span className={statusChip}>{statusLabel}</span>
           </p>
         </div>

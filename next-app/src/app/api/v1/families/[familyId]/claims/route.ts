@@ -26,10 +26,12 @@ export async function POST(
   const body = await readJsonBody(req);
   if (!body.ok) return body.response;
 
-  // Reject non-MANUAL origin / forbidden fields at HTTP surface
+  // MIGRATION stays internal; agents may propose via AI_EXTRACTION / IMPORT.
   if (
     body.value.originType !== undefined &&
-    body.value.originType !== "MANUAL"
+    body.value.originType !== "MANUAL" &&
+    body.value.originType !== "AI_EXTRACTION" &&
+    body.value.originType !== "IMPORT"
   ) {
     return invalidRequest();
   }
@@ -55,7 +57,7 @@ export async function POST(
         subjectId: parsed.data.subjectId,
         claimType: parsed.data.claimType as ClaimType,
         value: parsed.data.value,
-        originType: "MANUAL",
+        originType: parsed.data.originType ?? "MANUAL",
         confidence: parsed.data.confidence ?? null,
       },
       { db: ctx.db }

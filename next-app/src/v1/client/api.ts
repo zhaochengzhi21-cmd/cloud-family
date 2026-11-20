@@ -265,6 +265,7 @@ export const v1api = {
           personId: string;
           claimType: string;
           status: string;
+          originType: string;
           text: string | null;
           createdAt: string;
         }>;
@@ -276,6 +277,7 @@ export const v1api = {
           personId: string;
           claimType: string;
           status: string;
+          originType: string;
           text: string | null;
           createdAt: string;
         }>;
@@ -295,6 +297,7 @@ export const v1api = {
         otherPersonName?: string;
         claimId?: string;
         claimType?: string;
+        originType?: string;
         relationshipId?: string;
         relationshipType?: string;
         evidenceId?: string;
@@ -480,6 +483,8 @@ export const v1api = {
       subjectId: string;
       claimType: string;
       value: { text: string; narrator?: string | null };
+      originType?: "MANUAL" | "AI_EXTRACTION" | "IMPORT";
+      confidence?: number | null;
     }
   ) =>
     v1Fetch<{
@@ -488,6 +493,8 @@ export const v1api = {
         claimType: string;
         value: { text?: string; narrator?: string | null };
         status: string;
+        originType: string;
+        confidence: number | null;
       };
     }>(`/api/v1/families/${familyId}/claims`, {
       method: "POST",
@@ -496,9 +503,39 @@ export const v1api = {
         subjectId: body.subjectId,
         claimType: body.claimType,
         value: body.value,
-        originType: "MANUAL",
+        originType: body.originType ?? "MANUAL",
+        confidence: body.confidence ?? null,
       },
     }),
+
+  getAgentChannel: (familyId: string, limit = 40) =>
+    v1Fetch<{
+      agent: {
+        principles: string[];
+        capabilities: Array<{
+          id: string;
+          summary: string;
+          method: string;
+          path: string;
+          roles: string[];
+          bodyHints?: Record<string, string>;
+          policy: string[];
+        }>;
+        tasks: Array<{
+          id: string;
+          kind: string;
+          priority: number;
+          personId?: string;
+          personName?: string;
+          claimId?: string;
+          claimType?: string;
+          originType?: string;
+          text?: string | null;
+          suggest: { method: string; path: string; note: string };
+        }>;
+        taskTotal: number;
+      };
+    }>(`/api/v1/families/${familyId}/agent?limit=${limit}`),
 
   listPersonClaims: (familyId: string, personId: string) =>
     v1Fetch<{

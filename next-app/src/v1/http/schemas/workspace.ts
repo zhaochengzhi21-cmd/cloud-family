@@ -63,7 +63,10 @@ export const createClaimBodySchema = z
     subjectId: uuid,
     claimType: z.string().min(1).max(64),
     value: z.unknown(),
-    originType: z.literal("MANUAL").optional(),
+    /** MANUAL (default), AI_EXTRACTION / IMPORT for agent drafts — always PROPOSED. */
+    originType: z
+      .enum(["MANUAL", "AI_EXTRACTION", "IMPORT"])
+      .optional(),
     confidence: z.number().min(0).max(1).nullable().optional(),
   })
   .strict()

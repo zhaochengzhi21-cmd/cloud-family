@@ -57,6 +57,7 @@ export type ActivityItem = {
   otherPersonName?: string;
   claimId?: string;
   claimType?: string;
+  originType?: string;
   relationshipId?: string;
   relationshipType?: string;
   evidenceId?: string;
@@ -215,6 +216,8 @@ export async function getFamilyActivity(
           personName: name,
           claimId: c.id,
           claimType: c.claimType,
+          originType:
+            metaString(r.metadataJson, "originType") ?? undefined,
           restorable:
             r.eventType === "CLAIM_REJECTED" && c.status === "REJECTED",
         });

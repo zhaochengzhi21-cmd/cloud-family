@@ -29,6 +29,14 @@ export const CLAIM_STATUS_LABEL = {
   REJECTED: "不采用",
 } as const;
 
+/** How a fact entered — product language, never "model". */
+export const CLAIM_ORIGIN_LABEL = {
+  MANUAL: "手录",
+  AI_EXTRACTION: "智能整理",
+  IMPORT: "导入",
+  MIGRATION: "迁移",
+} as const;
+
 export const LIVING_STATUS_LABEL = {
   LIVING: "在世",
   DECEASED: "已故",

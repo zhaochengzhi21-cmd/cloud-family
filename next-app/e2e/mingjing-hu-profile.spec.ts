@@ -380,6 +380,83 @@ test("明经胡氏：概览待确认直达对应资料卡片", async ({ page, ba
   ).toBeVisible();
 });
 
+test("明经胡氏：智能整理提议进入待确认且 agent 通道可见", async ({
+  page,
+  baseURL,
+}) => {
+  test.skip(!baseURL, "baseURL required");
+  const sample = MINGJING_HU_SAMPLE;
+  const familyId = await createFamily(
+    page,
+    baseURL!,
+    "西递明经胡氏·智能整理（测试）",
+    sample.surname
+  );
+
+  const personId = await seedPerson(page, familyId, sample.wenGuang, []);
+  const created = await apiJson(page, `/api/v1/families/${familyId}/claims`, {
+    method: "POST",
+    body: {
+      subjectType: "PERSON",
+      subjectId: personId,
+      claimType: "OCCUPATION",
+      value: { text: "万载知县，后升胶州刺史" },
+      originType: "AI_EXTRACTION",
+      confidence: 0.82,
+    },
+  });
+  expect(created.status, JSON.stringify(created.body)).toBe(201);
+  const claim = (
+    created.body as {
+      claim: { id: string; status: string; originType: string };
+    }
+  ).claim;
+  expect(claim.status).toBe("PROPOSED");
+  expect(claim.originType).toBe("AI_EXTRACTION");
+
+  const agent = await apiJson(page, `/api/v1/families/${familyId}/agent`);
+  expect(agent.status, JSON.stringify(agent.body)).toBe(200);
+  const channel = (
+    agent.body as {
+      agent: {
+        principles: string[];
+        capabilities: { id: string }[];
+        tasks: { kind: string; claimId?: string; originType?: string }[];
+      };
+    }
+  ).agent;
+  expect(channel.principles.length).toBeGreaterThan(0);
+  expect(channel.capabilities.some((c) => c.id === "propose_claim")).toBe(
+    true
+  );
+  expect(
+    channel.tasks.some(
+      (t) =>
+        t.kind === "REVIEW_CLAIM" &&
+        t.claimId === claim.id &&
+        t.originType === "AI_EXTRACTION"
+    )
+  ).toBe(true);
+
+  await page.goto(`/alpha/families/${familyId}`);
+  await page.getByRole("tab", { name: "概览" }).click();
+  const pending = page.getByRole("region", { name: /待确认资料/ });
+  await expect(pending).toBeVisible({ timeout: 60_000 });
+  const row = pending.getByRole("button", {
+    name: /胡文光.*职业|万载知县/,
+  });
+  await expect(row).toBeVisible();
+  await expect(row.getByText("智能整理")).toBeVisible();
+  await row.click();
+  await expect(page.getByRole("tab", { selected: true })).toHaveText("资料", {
+    timeout: 60_000,
+  });
+  const card = page.locator(`[data-claim-id="${claim.id}"]`);
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await expect(card.getByText("智能整理")).toBeVisible();
+  await expect(card.getByRole("button", { name: "确认这条资料" })).toBeVisible();
+});
+
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({
   page,
   baseURL,
