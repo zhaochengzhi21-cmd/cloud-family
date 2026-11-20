@@ -1697,6 +1697,7 @@ export function FamilyWorkspace({
           aria-labelledby="alpha-tab-members"
         >
           <MembersTab
+            familyId={familyId}
             persons={persons}
             generationByPerson={generationByPerson}
             showGenerations={relationships.length > 0}
@@ -2160,6 +2161,7 @@ export function FamilyWorkspace({
 }
 
 function MembersTab({
+  familyId,
   persons,
   generationByPerson,
   showGenerations,
@@ -2168,6 +2170,7 @@ function MembersTab({
   onOpen,
   onOpenParticipants,
 }: {
+  familyId: string;
   persons: GraphPerson[];
   generationByPerson: Record<string, number>;
   showGenerations: boolean;
@@ -2177,6 +2180,7 @@ function MembersTab({
   onOpenParticipants?: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const [copyFlashId, setCopyFlashId] = useState<string | null>(null);
   const [livingFilter, setLivingFilter] = useState<
     "ALL" | "LIVING" | "DECEASED" | "UNKNOWN"
   >("ALL");
@@ -2353,11 +2357,11 @@ function MembersTab({
       ) : (
         <ul className="space-y-2">
           {filtered.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="flex flex-wrap items-stretch gap-2">
               <button
                 type="button"
                 onClick={() => onOpen(p.id)}
-                className="alpha-panel alpha-panel-interactive flex w-full min-h-[60px] items-center justify-between px-4 text-left"
+                className="alpha-panel alpha-panel-interactive flex min-h-[60px] min-w-0 flex-1 items-center justify-between px-4 text-left"
               >
                 <div>
                   <p className="font-bold text-[color:var(--a-ink)]">
@@ -2383,6 +2387,36 @@ function MembersTab({
                 <span className="text-sm font-semibold text-[color:var(--a-brand)]">
                   查看
                 </span>
+              </button>
+              <button
+                type="button"
+                className="alpha-btn alpha-btn-secondary shrink-0 !min-h-[60px] !px-3 !text-xs"
+                onClick={() => {
+                  const url = `${window.location.origin}/alpha/families/${familyId}/people/${p.id}`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setCopyFlashId(p.id);
+                      window.setTimeout(() => {
+                        setCopyFlashId((id) => (id === p.id ? null : id));
+                      }, 2500);
+                    },
+                    () => {
+                      setCopyFlashId(`fail:${p.id}`);
+                      window.setTimeout(() => {
+                        setCopyFlashId((id) =>
+                          id === `fail:${p.id}` ? null : id
+                        );
+                      }, 2500);
+                    }
+                  );
+                }}
+                aria-label={`复制「${p.preferredName}」人物资料链接`}
+              >
+                {copyFlashId === p.id
+                  ? "已复制"
+                  : copyFlashId === `fail:${p.id}`
+                    ? "请手动复制"
+                    : "复制链接"}
               </button>
             </li>
           ))}
