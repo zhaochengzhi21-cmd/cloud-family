@@ -1786,16 +1786,27 @@ function BackupSection({
           </Link>
         </div>
         {message ? (
-          <p
-            role={failed ? "alert" : "status"}
-            className={`mt-2 text-sm ${
+          <div
+            className={`mt-2 flex flex-wrap items-center gap-3 text-sm ${
               failed
                 ? "text-[color:var(--a-danger)]"
                 : "text-[color:var(--a-brand)]"
             }`}
           >
-            {message}
-          </p>
+            <p role={failed ? "alert" : "status"} className="min-w-0">
+              {message}
+            </p>
+            {failed ? (
+              <button
+                type="button"
+                className="shrink-0 font-semibold underline-offset-2 hover:underline"
+                disabled={busy !== null}
+                onClick={() => void download("json")}
+              >
+                重试备份
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </section>
