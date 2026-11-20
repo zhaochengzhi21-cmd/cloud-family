@@ -1754,6 +1754,65 @@ export function FamilyWorkspace({
                 复制当前链接发给家人
               </button>
             ) : null}
+            {error === ERROR_COPY.ancestryCycle ||
+            error === ERROR_COPY.duplicateRelationship ? (
+              <>
+                <button
+                  type="button"
+                  className="text-sm font-semibold underline-offset-2 hover:underline"
+                  onClick={() => {
+                    setError("");
+                    setTab("lineage");
+                  }}
+                >
+                  去世系核对
+                </button>
+                <button
+                  type="button"
+                  className="text-sm font-semibold underline-offset-2 hover:underline"
+                  onClick={() => {
+                    const url = `${window.location.origin}/alpha/families/${familyId}?tab=lineage`;
+                    void navigator.clipboard.writeText(url).then(
+                      () => {
+                        setError("");
+                        setFlash(
+                          "已复制世系链接，可发给家人一起核对关系"
+                        );
+                      },
+                      () => {
+                        setError("");
+                        setFlash("请手动复制地址栏链接");
+                      }
+                    );
+                  }}
+                >
+                  复制世系链接发给家人
+                </button>
+              </>
+            ) : null}
+            {error === ERROR_COPY.duplicateClaim ? (
+              <button
+                type="button"
+                className="text-sm font-semibold underline-offset-2 hover:underline"
+                onClick={() => {
+                  const url = `${window.location.origin}/alpha/families/${familyId}?tab=records`;
+                  void navigator.clipboard.writeText(url).then(
+                    () => {
+                      setError("");
+                      setFlash(
+                        "已复制资料页链接，可发给家人一起查看"
+                      );
+                    },
+                    () => {
+                      setError("");
+                      setFlash("请手动复制地址栏链接");
+                    }
+                  );
+                }}
+              >
+                复制资料页链接发给家人
+              </button>
+            ) : null}
             {error === ERROR_COPY.notFound ||
             error === ERROR_COPY.forbidden ? (
               <Link
