@@ -351,9 +351,20 @@ export function FamilySources({
           ))}
         </div>
         {shown.length === 0 ? (
-          <p className="mt-3 text-sm text-[color:var(--a-muted)]">
-            这一类还没有来源。
-          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-sm text-[color:var(--a-muted)]">
+              这一类还没有来源。
+            </p>
+            {filter !== "ALL" ? (
+              <button
+                type="button"
+                className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                onClick={() => setFilter("ALL")}
+              >
+                查看全部
+              </button>
+            ) : null}
+          </div>
         ) : (
           <ul className="mt-3 divide-y divide-[color:var(--a-brand-line)]" aria-label="资料来源列表">
             {shown.map((e) => (
