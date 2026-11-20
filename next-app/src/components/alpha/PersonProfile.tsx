@@ -299,11 +299,20 @@ export function PersonProfile({
 
   const missingTypes = useMemo(
     () =>
-      ALL_TYPES.filter((t) => pickShown(claims, t).length === 0).filter(
-        (t) =>
-          person?.livingStatus === "DECEASED" ||
-          (t !== "DEATH_DATE" && t !== "BURIAL_PLACE")
-      ),
+      ALL_TYPES.filter((t) => pickShown(claims, t).length === 0)
+        .filter(
+          (t) =>
+            !claims.some(
+              (c) =>
+                c.claimType === t &&
+                (c.status === "PROPOSED" || c.status === "CONFLICTED")
+            )
+        )
+        .filter(
+          (t) =>
+            person?.livingStatus === "DECEASED" ||
+            (t !== "DEATH_DATE" && t !== "BURIAL_PLACE")
+        ),
     [claims, person?.livingStatus]
   );
 
