@@ -819,6 +819,34 @@ test("明经胡氏：agent/propose 整包提议进入待确认", async ({
   expect(body.evidence.evidenceId).toBeTruthy();
   expect(body.evidence.linked).toBe(1);
   expect(body.evidence.failed).toBe(0);
+
+  const claimId = body.claimMap.occ!;
+  const reviewed = await apiJson(
+    page,
+    `/api/v1/families/${familyId}/claims/review-batch`,
+    {
+      method: "POST",
+      body: { action: "accept", claimIds: [claimId] },
+      headers: { "Idempotency-Key": `e2e-review-${Date.now()}` },
+    }
+  );
+  expect(reviewed.status, JSON.stringify(reviewed.body)).toBe(200);
+  const reviewBody = reviewed.body as {
+    succeeded: number;
+    failed: number;
+    results: Array<{ ok: boolean; claim?: { status: string } }>;
+  };
+  expect(reviewBody.succeeded).toBe(1);
+  expect(reviewBody.failed).toBe(0);
+  expect(reviewBody.results[0]?.claim?.status).toBe("ACCEPTED");
+
+  const agent = await apiJson(page, `/api/v1/families/${familyId}/agent`);
+  expect(agent.status).toBe(200);
+  expect(
+    (
+      agent.body as { agent: { capabilities: { id: string }[] } }
+    ).agent.capabilities.some((c) => c.id === "review_claims_batch")
+  ).toBe(true);
 });
 
 test("明经胡氏：误标不采用后可从动态恢复待确认", async ({

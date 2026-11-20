@@ -814,6 +814,29 @@ export const v1api = {
       { method: "POST", body: {} }
     ),
 
+  reviewClaimsBatch: (
+    familyId: string,
+    body: { action: "accept" | "reject"; claimIds: string[] },
+    opts?: { idempotencyKey?: string }
+  ) => {
+    const headers: Record<string, string> = {};
+    if (opts?.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
+    return v1Fetch<{
+      action: string;
+      succeeded: number;
+      failed: number;
+      results: Array<
+        | { index: number; ok: true; claim: { id: string; status: string } }
+        | { index: number; ok: false; claimId: string; code: string }
+      >;
+      familyVersion: number | null;
+    }>(`/api/v1/families/${familyId}/claims/review-batch`, {
+      method: "POST",
+      body,
+      headers: Object.keys(headers).length ? headers : undefined,
+    });
+  },
+
   preferClaim: (familyId: string, claimId: string) =>
     v1Fetch<{ claim: { id: string; status: string } }>(
       `/api/v1/families/${familyId}/claims/${claimId}/prefer`,

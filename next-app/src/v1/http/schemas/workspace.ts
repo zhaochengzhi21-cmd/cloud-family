@@ -190,6 +190,14 @@ export const linkEvidenceBatchBodySchema = z
   })
   .strict();
 
+/** Human batch confirm/decline after AI propose. */
+export const reviewClaimsBatchBodySchema = z
+  .object({
+    action: z.enum(["accept", "reject"]),
+    claimIds: z.array(uuid).min(1).max(20),
+  })
+  .strict();
+
 /** Composite OCR/page propose — persons + edges + claims + optional source. */
 export const agentProposeBodySchema = z
   .object({

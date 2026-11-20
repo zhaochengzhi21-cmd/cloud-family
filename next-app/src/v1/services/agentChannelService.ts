@@ -263,6 +263,22 @@ function capabilitiesForRole(
       policy: ["Reopenable via …/reopen"],
     },
     {
+      id: "review_claims_batch",
+      summary: "Human confirm or decline up to 20 proposed facts at once",
+      method: "POST",
+      path: `${base}/claims/review-batch`,
+      roles: ["OWNER", "ADMIN"],
+      bodyHints: {
+        action: "accept|reject",
+        claimIds: "uuid[] max 20",
+        "Idempotency-Key": "optional header — safe retry",
+      },
+      policy: [
+        "Human REVIEW_CLAIM only — do not auto-call from agents",
+        "Partial success — check results[].ok",
+      ],
+    },
+    {
       id: "create_person",
       summary: "Add a family member",
       method: "POST",
