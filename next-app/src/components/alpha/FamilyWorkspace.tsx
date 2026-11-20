@@ -3907,6 +3907,9 @@ function ClaimCard({
                   {l.evidence.sourceLocator
                     ? ` · ${l.evidence.sourceLocator}`
                     : ""}
+                  {l.evidence.sourceDateText
+                    ? ` · ${l.evidence.sourceDateText}`
+                    : ""}
                   {l.evidence.description || l.evidence.sourceDateText ? (
                     <button
                       type="button"
