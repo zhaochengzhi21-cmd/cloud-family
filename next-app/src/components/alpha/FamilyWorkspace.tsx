@@ -6130,7 +6130,9 @@ function ClaimCard({
                             });
                           } else {
                             onFlash(
-                              `已取消「${label}」的挂接；来源仍在家族来源库。`
+                              `已取消「${label}」的挂接；来源仍在家族来源库。可复制链接发给家人核对。`,
+                              undefined,
+                              { claimId: claim.id, openEvidence: true }
                             );
                           }
                           setRemovingEvidenceId(null);
