@@ -8109,16 +8109,39 @@ function PersonDrawer({
               <p className="text-sm text-[color:var(--a-muted)]">
                 {canEdit
                   ? "暂无关系。建立父母/配偶关系后，世系页会按代展示。"
-                  : "暂无关系。有编辑权限的家人补充后，会显示在这里。"}
+                  : "暂无关系。有编辑权限的家人补充后，会显示在这里。可复制链接发给对方。"}
               </p>
-              {!canEdit && onOpenParticipants ? (
-                <button
-                  type="button"
-                  className="mt-2 text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
-                  onClick={onOpenParticipants}
-                >
-                  查看参与家人
-                </button>
+              {!canEdit ? (
+                <div className="mt-2 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                    onClick={() => {
+                      const qs = new URLSearchParams({
+                        tab: "lineage",
+                        person: person.id,
+                        kin: "child",
+                      });
+                      const url = `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`;
+                      void navigator.clipboard.writeText(url).then(
+                        () =>
+                          setLocalFlash("已复制链接，可发给有编辑权限的家人"),
+                        () => setLocalFlash("请手动复制地址栏链接")
+                      );
+                    }}
+                  >
+                    复制添加亲人链接
+                  </button>
+                  {onOpenParticipants ? (
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+                      onClick={onOpenParticipants}
+                    >
+                      查看参与家人
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </div>
           )}
