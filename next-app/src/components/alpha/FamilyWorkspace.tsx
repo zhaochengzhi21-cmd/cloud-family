@@ -5993,6 +5993,17 @@ function ClaimCard({
             <p className="text-xs text-[color:var(--a-muted)]">
               需{REVIEWER_CONTACT}确认后才会成为正式记载
             </p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => void copyClaimLink()}
+            >
+              {copyFlash === "已复制链接"
+                ? `已复制，可发给${REVIEWER_CONTACT}`
+                : copyFlash.startsWith("请手动")
+                  ? copyFlash
+                  : `复制链接发给${REVIEWER_CONTACT}`}
+            </button>
             {onOpenParticipants ? (
               <button
                 type="button"
@@ -6077,6 +6088,17 @@ function ClaimCard({
             <p className="text-xs text-[color:var(--a-muted)]">
               需{REVIEWER_CONTACT}选用一种说法
             </p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+              onClick={() => void copyClaimLink()}
+            >
+              {copyFlash === "已复制链接"
+                ? `已复制，可发给${REVIEWER_CONTACT}`
+                : copyFlash.startsWith("请手动")
+                  ? copyFlash
+                  : `复制链接发给${REVIEWER_CONTACT}`}
+            </button>
             {onOpenParticipants ? (
               <button
                 type="button"
