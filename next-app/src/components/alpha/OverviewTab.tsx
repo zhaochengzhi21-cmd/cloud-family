@@ -1326,9 +1326,7 @@ export function OverviewTab({
                           ? c.status === "CONFLICTED"
                             ? "去选用一种说法"
                             : "去确认"
-                          : c.status === "CONFLICTED"
-                            ? `需${REVIEWER_CONTACT}选用一种说法`
-                            : `待${REVIEWER_CONTACT}确认`}
+                          : "查看"}
                       </span>
                     </span>
                   </button>
