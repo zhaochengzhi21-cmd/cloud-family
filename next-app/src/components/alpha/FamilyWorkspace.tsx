@@ -1158,6 +1158,36 @@ export function FamilyWorkspace({
             canEdit={canEdit}
             onAdd={() => setShowAddPerson(true)}
             onOpen={(id) => setSelectedPersonId(id)}
+            onOpenParticipants={
+              canReview
+                ? undefined
+                : () => {
+                    try {
+                      sessionStorage.setItem(
+                        `alpha-overview-scroll:${familyId}`,
+                        "overview-participants"
+                      );
+                    } catch {
+                      /* private mode */
+                    }
+                    setTab("overview");
+                    let tries = 0;
+                    const tick = () => {
+                      const el = document.getElementById(
+                        "overview-participants"
+                      );
+                      if (el) {
+                        el.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                        return;
+                      }
+                      if (tries++ < 20) window.setTimeout(tick, 100);
+                    };
+                    window.setTimeout(tick, 50);
+                  }
+            }
           />
         </div>
       ) : null}
@@ -1475,6 +1505,7 @@ function MembersTab({
   canEdit,
   onAdd,
   onOpen,
+  onOpenParticipants,
 }: {
   persons: GraphPerson[];
   generationByPerson: Record<string, number>;
@@ -1482,6 +1513,7 @@ function MembersTab({
   canEdit: boolean;
   onAdd: () => void;
   onOpen: (id: string) => void;
+  onOpenParticipants?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [livingFilter, setLivingFilter] = useState<
@@ -1533,6 +1565,14 @@ function MembersTab({
             className="alpha-btn alpha-btn-primary mt-6"
           >
             添加成员
+          </button>
+        ) : onOpenParticipants ? (
+          <button
+            type="button"
+            onClick={onOpenParticipants}
+            className="alpha-btn alpha-btn-secondary mt-6"
+          >
+            查看参与家人
           </button>
         ) : null}
       </div>
