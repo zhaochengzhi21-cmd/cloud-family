@@ -458,7 +458,33 @@ export function FamilyPrintBook({ familyId }: { familyId: string }) {
         >
           <p className="text-sm text-[color:var(--a-muted)]">
             链接指向的成员已不在这份家谱中，可能刚被移除。
+            {!canEdit
+              ? "可复制链接发给有编辑权限的家人核对。"
+              : "可去成员名单核对，或复制链接发给家人。"}
           </p>
+          <button
+            type="button"
+            className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"
+            onClick={() => {
+              const url = !canEdit
+                ? `${window.location.origin}/alpha/families/${familyId}?scroll=participants`
+                : `${window.location.origin}/alpha/families/${familyId}?tab=members`;
+              void navigator.clipboard.writeText(url).then(
+                () => {
+                  setCopyFlash("已复制链接");
+                  window.setTimeout(() => setCopyFlash(""), 2500);
+                },
+                () => {
+                  setCopyFlash("请手动复制地址栏链接");
+                  window.setTimeout(() => setCopyFlash(""), 2500);
+                }
+              );
+            }}
+          >
+            {copyFlash === "已复制链接" || copyFlash.startsWith("请手动")
+              ? copyFlash
+              : "复制链接"}
+          </button>
           <button
             type="button"
             className="text-sm font-semibold text-[color:var(--a-brand)] underline-offset-2 hover:underline"

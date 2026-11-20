@@ -2327,18 +2327,15 @@ export function FamilyWorkspace({
             setShowAddRel(false);
             setRelFocusPersonId(null);
             setError("");
-            if (focusId) {
-              const qs = new URLSearchParams({
-                tab: "lineage",
-                person: focusId,
-              });
+            {
+              const qs = new URLSearchParams({ tab: "lineage" });
+              if (focusId) qs.set("person", focusId);
               setFlashCopyUrl(
                 `${window.location.origin}/alpha/families/${familyId}?${qs.toString()}`
               );
-              setFlash("已添加家庭关系。可复制链接发给家人一起看世系。");
-            } else {
-              setFlashCopyUrl(null);
-              setFlash("已添加家庭关系");
+              setFlash(
+                "已添加家庭关系。可复制链接发给家人一起看世系。"
+              );
             }
             setTab("lineage");
             await load();
